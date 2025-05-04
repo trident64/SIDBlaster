@@ -1,5 +1,5 @@
 #include "LabelGenerator.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <algorithm>
 #include <sstream>

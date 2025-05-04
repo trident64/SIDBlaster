@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 namespace sidblaster {
 

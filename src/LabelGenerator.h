@@ -1,7 +1,7 @@
 #pragma once
 
 #include "MemoryAnalyzer.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <map>
 #include <set>

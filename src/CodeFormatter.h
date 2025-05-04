@@ -2,7 +2,7 @@
 
 #include "DisassemblyTypes.h"
 #include "LabelGenerator.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <memory>
 #include <span>

@@ -1,4 +1,4 @@
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <algorithm>
 #include <cctype>

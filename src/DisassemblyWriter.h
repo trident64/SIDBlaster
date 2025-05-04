@@ -4,7 +4,7 @@
 #include "DisassemblyTypes.h"
 #include "LabelGenerator.h"
 #include "MemoryAnalyzer.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <fstream>
 #include <map>

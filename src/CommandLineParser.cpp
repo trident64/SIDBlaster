@@ -1,5 +1,5 @@
 #include "CommandLineParser.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 #include <algorithm>
 #include <iostream>

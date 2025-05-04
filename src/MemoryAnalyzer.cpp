@@ -1,5 +1,5 @@
 #include "MemoryAnalyzer.h"
-#include "SidblasterUtils.h"
+#include "SIDBlasterUtils.h"
 
 namespace sidblaster {
 
