@@ -1721,7 +1721,7 @@ void CPU6510::dumpMemoryAccess(const std::string& filename) {
         return;
     }
 
-    for (u16 addr = 0; addr < 65536; ++addr) {
+    for (u32 addr = 0; addr < 65536; ++addr) {
         if (memoryAccess_[addr] != 0) {
             file << std::hex << std::setw(4) << std::setfill('0') << addr << ": ";
 

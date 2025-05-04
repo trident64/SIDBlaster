@@ -258,8 +258,9 @@ namespace sidblaster {
             // Merge in the new ranges
             for (const auto& [start, end] : ranges) {
                 // Check if this range overlaps with any existing range
-                bool overlap = std::any_of(existing.begin(), existing.end(), [&](const auto& r) {
-                    return !(end <= r.first || start >= r.second);
+                bool overlap = std::any_of(existing.begin(), existing.end(),
+                    [start, end](const auto& r) {  // Capture specific variables by value
+                        return !(end <= r.first || start >= r.second);
                     });
 
                 if (!overlap) {
@@ -376,8 +377,9 @@ namespace sidblaster {
 
             // Merge the new access-based ranges with pending ones (if any)
             for (const auto& [start, end] : ranges) {
-                bool overlap = std::any_of(existing.begin(), existing.end(), [&](const auto& r) {
-                    return !(end <= r.first || start >= r.second);
+                bool overlap = std::any_of(existing.begin(), existing.end(),
+                    [start, end](const auto& r) {  // Capture specific variables by value
+                        return !(end <= r.first || start >= r.second);
                     });
 
                 if (!overlap) {
