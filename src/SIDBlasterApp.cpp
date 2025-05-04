@@ -1,4 +1,6 @@
-#define _CRT_SECURE_NO_WARNINGS  // Add this to handle strncpy/localtime warnings
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include "SIDBlasterApp.h"
 #include "Disassembler.h"
@@ -6,11 +8,12 @@
 #include "cpu6510.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <cctype>
 
 namespace sidblaster {
 
