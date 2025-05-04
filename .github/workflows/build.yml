@@ -39,7 +39,7 @@ jobs:
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install cmake
+        brew install cmake --formula
 
     - name: Configure CMake
       run: cmake -B build

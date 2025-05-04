@@ -4,6 +4,7 @@
 
 #include <array>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
