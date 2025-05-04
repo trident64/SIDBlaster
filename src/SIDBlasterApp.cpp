@@ -83,8 +83,12 @@ namespace sidblaster {
             "Relocates music.sid to $2000 and creates a new SID file");
 
         cmdParser_.addExample(
-            "SIDBlaster -player BassoonTracker -playeraddr $0800 music.sid",
-            "Uses the BassoonTracker player at address $0800");
+            "SIDBlaster -player SimpleBitmap -playeraddr $0800 music.sid",
+            "Uses the SimpleBitmap player at address $0800");
+
+        cmdParser_.addExample(
+            "SIDBlaster -player SimpleRaster -playeraddr $9000 -relocate $8000 music.sid",
+            "Uses the SimpleRaster player at address $9000 with the music relocated to $8000");
     }
 
     void SIDBlasterApp::initializeLogging() {
