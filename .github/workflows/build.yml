@@ -28,7 +28,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
@@ -71,7 +71,8 @@ jobs:
 
     # Upload the built artifacts
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
         path: artifacts/
+        retention-days: 90
