@@ -3,7 +3,7 @@
 #include <cstdint>
 
 // Tool name and version
-#define SIDBLASTER_VERSION "SIDBlaster 0.5"
+#define SIDBLASTER_VERSION "SIDBlaster 0.6.0"
 
 // Type aliases for consistent usage across the project
 using u8 = std::uint8_t;

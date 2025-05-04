@@ -64,6 +64,19 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: cp build/${{ matrix.output_name }} artifacts/
 
+    # Copy dependency files - this is the section we're adding
+    - name: Copy dependency files
+      run: |
+        mkdir -p artifacts/tools
+        # Copy exomizer.exe (for Windows)
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          cp tools/exomizer.exe artifacts/tools/ || echo "exomizer.exe not found, skipping"
+        fi
+        # Copy KickAss.jar (for all platforms)
+        cp tools/KickAss.jar artifacts/tools/ || echo "KickAss.jar not found, skipping"
+        # Copy SIDBlaster.cfg
+        cp SIDBlaster.cfg artifacts/ || echo "SIDBlaster.cfg not found, skipping"
+
     # Optional: Copy any necessary resources
     - name: Copy resources
       run: |
@@ -78,6 +91,13 @@ jobs:
         echo "Version: ${GITHUB_REF#refs/tags/}" >> artifacts/README.md
         echo "" >> artifacts/README.md
         echo "SIDBlaster is a tool for converting and working with SID music files for the Commodore 64." >> artifacts/README.md
+        echo "" >> artifacts/README.md
+        echo "## Dependencies" >> artifacts/README.md
+        echo "" >> artifacts/README.md
+        echo "This package includes the necessary dependencies:" >> artifacts/README.md
+        echo "- tools/exomizer.exe - Used for compressing PRG files" >> artifacts/README.md
+        echo "- tools/KickAss.jar - The KickAss assembler used for compiling ASM files" >> artifacts/README.md
+        echo "- SIDBlaster.cfg - Configuration file" >> artifacts/README.md
 
     # Package artifacts
     - name: Package artifacts (Windows)
