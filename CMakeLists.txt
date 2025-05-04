@@ -1,81 +1,59 @@
 cmake_minimum_required(VERSION 3.14)
-project(SIDBlaster VERSION 1.0.0 LANGUAGES CXX)
 
-# Set C++ standard to C++20 (matches your Visual Studio settings)
+# Read version from Common.h
+file(STRINGS "src/Common.h" VERSION_DEFINE REGEX "^#define SIDBLASTER_VERSION")
+string(REGEX REPLACE ".*\"(.*)\".*" "\\1" PROJECT_VERSION "${VERSION_DEFINE}")
+
+project(SIDBlaster VERSION 0.5 LANGUAGES CXX)
+
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Define source files
+# Define sources
 set(SOURCES
-    CodeFormatter.cpp
-    CommandLineParser.cpp
-    Common.cpp
-    cpu6510.cpp
-    Disassembler.cpp
-    DisassemblyWriter.cpp
-    LabelGenerator.cpp
-    Main.cpp
-    MemoryAnalyzer.cpp
-    SIDBlasterApp.cpp
-    SIDBlasterUtils.cpp
-    SIDLoader.cpp
+    src/CodeFormatter.cpp
+    src/CommandLineParser.cpp
+    src/Common.cpp
+    src/cpu6510.cpp
+    src/Disassembler.cpp
+    src/DisassemblyWriter.cpp
+    src/LabelGenerator.cpp
+    src/Main.cpp
+    src/MemoryAnalyzer.cpp
+    src/SIDBlasterApp.cpp
+    src/SIDBlasterUtils.cpp
+    src/SIDLoader.cpp
 )
 
-# Define header files
-set(HEADERS
-    CodeFormatter.h
-    CommandLineParser.h
-    Common.h
-    Disassembler.h
-    cpu6510.h
-    DisassemblyTypes.h
-    DisassemblyWriter.h
-    LabelGenerator.h
-    MemoryAnalyzer.h
-    SIDBlasterApp.h
-    SIDBlasterUtils.h
-    SIDLoader.h
-)
+# Add executable
+add_executable(SIDBlaster ${SOURCES})
 
-# Create executable
-add_executable(SIDBlaster ${SOURCES} ${HEADERS})
+# Include directories
+target_include_directories(SIDBlaster PRIVATE src)
 
-# Add include directories if needed
-# target_include_directories(SIDBlaster PRIVATE include)
-
-# Platform-specific configurations
+# Define platform-specific settings
 if(WIN32)
-    # Windows-specific settings
-    target_compile_definitions(SIDBlaster PRIVATE WIN32)
+    target_compile_definitions(SIDBlaster PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+# Set optimization flags for Release build
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        # MSVC-specific compiler flags
-        target_compile_options(SIDBlaster PRIVATE /W3)
+        target_compile_options(SIDBlaster PRIVATE /O2)
+    else()
+        target_compile_options(SIDBlaster PRIVATE -O3)
     endif()
-elseif(APPLE)
-    # macOS-specific settings
-    target_compile_options(SIDBlaster PRIVATE -Wall)
-elseif(UNIX AND NOT APPLE)
-    # Linux-specific settings
-    target_compile_options(SIDBlaster PRIVATE -Wall)
 endif()
 
-# Debug configuration
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(SIDBlaster PRIVATE _DEBUG)
-else()
-    target_compile_definitions(SIDBlaster PRIVATE NDEBUG)
-endif()
+# Install rule
+install(TARGETS SIDBlaster DESTINATION bin)
+install(DIRECTORY SIDPlayers DESTINATION share/SIDBlaster)
 
-# Install target
-install(TARGETS SIDBlaster
-    RUNTIME DESTINATION bin
-)
-
-# Copy additional files (similar to your post-build steps)
-add_custom_command(TARGET SIDBlaster POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy 
-            $<TARGET_FILE:SIDBlaster>
-            ${CMAKE_SOURCE_DIR}/$<TARGET_FILE_NAME:SIDBlaster>
-    COMMENT "Copying executable to solution directory"
-)
+# Package with CPack (optional)
+include(CPack)
+set(CPACK_PACKAGE_NAME "SIDBlaster")
+set(CPACK_PACKAGE_VENDOR "Genesis Project")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "C64 SID music manipulator extraordinaire!")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
