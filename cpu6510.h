@@ -1,0 +1,294 @@
+#pragma once
+
+#include "Common.h"
+
+#include <array>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+
+// Addressing modes
+enum class AddressingMode {
+    Implied,
+    Immediate,
+    ZeroPage,
+    ZeroPageX,
+    ZeroPageY,
+    Absolute,
+    AbsoluteX,
+    AbsoluteY,
+    Indirect,
+    IndirectX,
+    IndirectY,
+    Relative,
+    Accumulator
+};
+
+// Memory access flags (using enum class for type safety)
+enum class MemoryAccessFlag : u8 {
+    Execute = 1 << 0,
+    Read = 1 << 1,
+    Write = 1 << 2,
+    JumpTarget = 1 << 3,
+    OpCode = 1 << 4,
+};
+
+// Overload bitwise operators for MemoryAccessFlag
+inline MemoryAccessFlag operator|(MemoryAccessFlag a, MemoryAccessFlag b) {
+    return static_cast<MemoryAccessFlag>(static_cast<u8>(a) | static_cast<u8>(b));
+}
+
+inline MemoryAccessFlag& operator|=(MemoryAccessFlag& a, MemoryAccessFlag b) {
+    a = a | b;
+    return a;
+}
+
+inline bool operator&(MemoryAccessFlag a, MemoryAccessFlag b) {
+    return (static_cast<u8>(a) & static_cast<u8>(b)) != 0;
+}
+
+// Processor Status Flags as an enum class
+enum class StatusFlag : u8 {
+    Carry = 0x01,      // Carry Bit
+    Zero = 0x02,       // Zero
+    Interrupt = 0x04,  // Disable Interrupts
+    Decimal = 0x08,    // Decimal Mode (ignored on C64)
+    Break = 0x10,      // Break
+    Unused = 0x20,     // Unused (always set to 1 internally)
+    Overflow = 0x40,   // Overflow
+    Negative = 0x80    // Negative
+};
+
+// Overload bitwise operators for StatusFlag
+inline u8 operator|(StatusFlag a, StatusFlag b) {
+    return static_cast<u8>(a) | static_cast<u8>(b);
+}
+
+inline u8 operator|(u8 a, StatusFlag b) {
+    return a | static_cast<u8>(b);
+}
+
+inline u8& operator|=(u8& a, StatusFlag b) {
+    a = a | static_cast<u8>(b);
+    return a;
+}
+
+inline u8 operator&(u8 a, StatusFlag b) {
+    return a & static_cast<u8>(b);
+}
+
+inline u8& operator&=(u8& a, StatusFlag b) {
+    a = a & static_cast<u8>(b);
+    return a;
+}
+
+inline u8 operator~(StatusFlag a) {
+    return ~static_cast<u8>(a);
+}
+
+// Instructions as an enum class
+enum class Instruction {
+    // Standard instructions
+    ADC, AND, ASL, BCC, BCS, BEQ, BIT, BMI,
+    BNE, BPL, BRK, BVC, BVS, CLC, CLD, CLI,
+    CLV, CMP, CPX, CPY, DEC, DEX, DEY, EOR,
+    INC, INX, INY, JMP, JSR, LDA, LDX, LDY,
+    LSR, NOP, ORA, PHA, PHP, PLA, PLP, ROL,
+    ROR, RTI, RTS, SBC, SEC, SED, SEI, STA,
+    STX, STY, TAX, TAY, TSX, TXA, TXS, TYA,
+
+    // Illegal instructions
+    AHX, ANC, ALR, ARR, AXS, DCP, ISC, KIL,
+    LAS, LAX, RLA, RRA, SAX, SLO, SRE, TAS,
+    SHA, SHX, SHY, XAA
+};
+
+// Source information for register values
+struct RegisterSourceInfo {
+    enum class SourceType { Unknown, Immediate, Memory };
+
+    SourceType type = SourceType::Unknown;
+    u16 address = 0;
+    u8 value = 0;
+    u8 index = 0;
+};
+
+// Index range tracking
+struct IndexRange {
+    int min = std::numeric_limits<int>::max();
+    int max = std::numeric_limits<int>::min();
+
+    void update(int offset) {
+        min = std::min(min, offset);
+        max = std::max(max, offset);
+    }
+
+    std::pair<int, int> getRange() const {
+        if (min > max) return { 0, 0 };  // No valid data
+        return { min, max };
+    }
+};
+
+// Opcode information
+struct OpcodeInfo {
+    Instruction instruction;
+    std::string_view mnemonic;
+    AddressingMode mode;
+    u8 cycles;
+    bool illegal;
+};
+
+class CPU6510 {
+public:
+    // Constructor and basic operations
+    CPU6510();
+
+    void reset();
+    void step();
+
+    // Execution control
+    void executeFunction(u16 address);
+    void jumpTo(u16 address);
+
+    // Memory operations
+    u8 readMemory(u16 addr);
+    void writeByte(u16 addr, u8 value);
+    void writeMemory(u16 addr, u8 value);
+    void copyMemoryBlock(u16 start, std::span<const u8> data);
+
+    // Data loading
+    void loadData(const std::string& filename, u16 loadAddress);
+
+    // Program counter management
+    void setPC(u16 address);
+    u16 getPC() const;
+
+    // Stack pointer management
+    void setSP(u8 sp);
+    u8 getSP() const;
+
+    // Cycle counting
+    u64 getCycles() const;
+    void setCycles(u64 newCycles);
+    void resetCycles();
+
+    // Instruction information
+    std::string_view getMnemonic(u8 opcode) const;
+    u8 getInstructionSize(u8 opcode) const;
+    AddressingMode getAddressingMode(u8 opcode) const;
+    bool isIllegalInstruction(u8 opcode) const;
+
+    // Memory access tracking
+    void dumpMemoryAccess(const std::string& filename);
+    std::pair<u8, u8> getIndexRange(u16 pc) const;
+
+    /**
+     * @brief Get a span of CPU memory
+     * @return Span of memory data
+     */
+    std::span<const u8> getMemory() const {
+        return std::span<const u8>(memory_.data(), memory_.size());
+    }
+
+    /**
+     * @brief Get a span of memory access flags
+     * @return Span of memory access flags
+     */
+    std::span<const u8> getMemoryAccess() const {
+        return std::span<const u8>(memoryAccess_.data(), memoryAccess_.size());
+    }
+
+    // Accessors
+    u16 getLastWriteTo(u16 addr) const;
+    const std::vector<u16>& getLastWriteToAddr() const;
+    RegisterSourceInfo getRegSourceA() const;
+    RegisterSourceInfo getRegSourceX() const;
+    RegisterSourceInfo getRegSourceY() const;
+    RegisterSourceInfo getWriteSourceInfo(u16 addr) const;
+
+    // Callbacks
+    using IndirectReadCallback = std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)>;
+    using MemoryWriteCallback = std::function<void(u16 addr, u8 value)>;
+
+    void setOnIndirectReadCallback(IndirectReadCallback callback);
+    void setOnWriteMemoryCallback(MemoryWriteCallback callback);
+    void setOnCIAWriteCallback(MemoryWriteCallback callback);
+
+private:
+    // CPU State
+    u16 pc_ = 0;                // Program Counter
+    u16 originalPc_ = 0;        // Program Counter at start of current instruction
+    u8 sp_ = 0;                 // Stack Pointer
+    u8 regA_ = 0, regX_ = 0, regY_ = 0;  // Registers
+    u8 statusReg_ = 0;          // Processor Status flags
+    u64 cycles_ = 0;            // Total cycles executed
+
+    // Memory and tracking
+    std::array<u8, 65536> memory_;
+    std::array<u8, 65536> memoryAccess_;
+    std::vector<u16> lastWriteToAddr_;
+    std::vector<RegisterSourceInfo> writeSourceInfo_;
+
+    // Register source tracking
+    RegisterSourceInfo regSourceA_, regSourceX_, regSourceY_;
+
+    // Index range tracking
+    std::unordered_map<u16, IndexRange> pcIndexRanges_;
+
+    // Callbacks
+    IndirectReadCallback onIndirectReadCallback_;
+    MemoryWriteCallback onWriteMemoryCallback_;
+    MemoryWriteCallback onCIAWriteCallback_;
+
+    // Opcode table
+    static const std::array<OpcodeInfo, 256> opcodeTable_;
+
+    // Internal memory operations
+    u8 fetchOpcode(u16 addr);
+    u8 fetchOperand(u16 addr);
+    u8 readByAddressingMode(u16 addr, AddressingMode mode);
+    void writeBytes(u16 address, std::span<const u8> data);
+
+    // Stack operations
+    void push(u8 value);
+    u8 pop();
+    u16 readWord(u16 addr);
+    u16 readWordZeroPage(u8 addr);
+
+    // Addressing mode helper
+    u16 getAddress(AddressingMode mode);
+
+    // Instruction execution
+    void execute(Instruction instr, AddressingMode mode);
+
+    // Flag operations
+    void setFlag(StatusFlag flag, bool value);
+    bool testFlag(StatusFlag flag) const;
+    void setZN(u8 value);
+
+    // Index tracking
+    void recordIndexOffset(u16 pc, u8 offset);
+
+    // Instruction implementations
+    // These are implemented in the cpp file using a more organized approach
+    void executeInstruction(Instruction instr, AddressingMode mode);
+
+    // Helper methods for each instruction type (grouped by functionality)
+    void executeLoad(Instruction instr, AddressingMode mode);
+    void executeStore(Instruction instr, AddressingMode mode);
+    void executeArithmetic(Instruction instr, AddressingMode mode);
+    void executeLogical(Instruction instr, AddressingMode mode);
+    void executeBranch(Instruction instr, AddressingMode mode);
+    void executeJump(Instruction instr, AddressingMode mode);
+    void executeStack(Instruction instr, AddressingMode mode);
+    void executeRegister(Instruction instr, AddressingMode mode);
+    void executeFlag(Instruction instr, AddressingMode mode);
+    void executeShift(Instruction instr, AddressingMode mode);
+    void executeCompare(Instruction instr, AddressingMode mode);
+    void executeIllegal(Instruction instr, AddressingMode mode);
+};
