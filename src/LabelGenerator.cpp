@@ -113,23 +113,22 @@ namespace sidblaster {
         static const u16 sidEndAddr = 0xD7FF;
 
         if (addr >= sidBaseAddr && addr <= sidEndAddr) {
-            const u16 base = addr & 0xFFE0; // Align to 32 bytes
-            const u8 offset = addr & 0x1F;  // Offset within SID
+            const u16 base = addr & 0xFFE0; // Align to 32 bytes (SID base granularity)
+            const u8 offset = addr & 0x1F;  // Offset within SID (0-31)
 
-            // Find the SID index in the used SID bases
-            for (size_t i = 0; i < usedHardwareBases_.size(); ++i) {
-                const auto& base_info = usedHardwareBases_[i];
-                if (base_info.type == HardwareType::SID && base_info.address == base) {
+            // Find the SID index in the registered hardware bases
+            for (const auto& hw : usedHardwareBases_) {
+                if (hw.type == HardwareType::SID && hw.address == base) {
                     if (offset == 0) {
-                        return "SID" + std::to_string(base_info.index);
+                        return hw.name; // Return just "SID0", "SID1", etc. for the base address
                     }
                     else {
-                        return "SID" + std::to_string(base_info.index) + "+" + std::to_string(offset);
+                        return hw.name + "+" + std::to_string(offset); // "SID0+1", etc. for offsets
                     }
                 }
             }
 
-            // Default to SID0 if no match found
+            // If not found in registered bases, use a default SID0 reference
             return "SID0+" + std::to_string(addr - sidBaseAddr);
         }
 

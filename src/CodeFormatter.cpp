@@ -150,7 +150,7 @@ namespace sidblaster {
                 }
 
                 // Check if unused (not accessed)
-                bool isUnused = false; //; !(memoryTags[pc] & (MemoryType::Accessed | MemoryType::LabelTarget));
+                bool isUnused = !(memoryTags[pc] & (MemoryType::Accessed | MemoryType::LabelTarget));
 
                 if (isUnused) {
                     byte = 0;  // Always zero out unused bytes to help with compression

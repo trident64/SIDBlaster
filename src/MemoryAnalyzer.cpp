@@ -77,34 +77,28 @@ namespace sidblaster {
     /**
      * @brief Analyze memory access patterns
      *
-     * Examines memory reads and writes to identify additional label targets
-     * where memory that is also code is accessed as data.
+     * Examines memory reads and writes to identify accessed memory regions
+     * and additional label targets where memory that is also code is accessed as data.
      */
     void MemoryAnalyzer::analyzeAccesses() {
         util::Logger::debug("Analyzing memory accesses...");
 
-        // For each address in the memory
-        u16 addr = 0;
-        bool finished = false;
+        // For each address in the entire memory
+        for (u32 addr = 0; addr < 0x10000; ++addr) {
+            // Check if the address has been read or written
+            if (memoryAccess_[addr] & (MemoryAccess_Read | MemoryAccess_Write)) {
+                // Mark this address as accessed
+                memoryTypes_[addr] |= MemoryType::Accessed;
 
-        while (!finished) {
-            // Check if the address has been read or written and is also code
-            if ((memoryAccess_[addr] & (MemoryAccess_Read | MemoryAccess_Write)) &&
-                (memoryTypes_[addr] & MemoryType::Code)) {
+                // Additional logic for creating label targets (existing code)
+                if (memoryTypes_[addr] & MemoryType::Code) {
+                    // Find the instruction that covers this address
+                    u16 instrStart = findInstructionStartCovering(addr);
 
-                // Find the instruction that covers this address
-                u16 instrStart = findInstructionStartCovering(addr);
-
-                // Mark the instruction start as a label target
-                memoryTypes_[instrStart] |= MemoryType::LabelTarget;
+                    // Mark the instruction start as a label target
+                    memoryTypes_[instrStart] |= MemoryType::LabelTarget;
+                }
             }
-
-            // Check if we've processed all memory
-            if (addr == 0xFFFF) {
-                finished = true;
-            }
-
-            addr++;
         }
 
         util::Logger::debug("Memory access analysis complete");
@@ -120,22 +114,12 @@ namespace sidblaster {
     void MemoryAnalyzer::analyzeData() {
         util::Logger::debug("Analyzing data regions...");
 
-        // For each address in the memory
-        u16 addr = 0;
-        bool finished = false;
-
-        while (!finished) {
+        // For each address in the entire memory
+        for (u32 addr = 0; addr < 0x10000; ++addr) {
             // If this address is not code, mark it as data
             if (!(memoryTypes_[addr] & MemoryType::Code)) {
                 memoryTypes_[addr] |= MemoryType::Data;
             }
-
-            // Check if we've processed all memory
-            if (addr == 0xFFFF) {
-                finished = true;
-            }
-
-            addr++;
         }
 
         util::Logger::debug("Data region analysis complete");
