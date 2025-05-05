@@ -98,6 +98,10 @@ namespace sidblaster {
         std::string playerName_;           // Player name
         u16 playerAddress_ = 0;            // Player address
 
+        // For tracelogs
+        std::string traceLogPath_;
+        FILE* traceLogFile_ = nullptr;
+
         /**
          * @brief Set up command line options
          *

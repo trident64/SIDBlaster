@@ -15,6 +15,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sstream>
+#include <iomanip>
 
 namespace sidblaster {
 
@@ -80,6 +82,9 @@ namespace sidblaster {
             "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
         cmdParser_.addOptionDefinition("playerdefs", "file", "Player definitions file", "Player", "");
         cmdParser_.addOptionDefinition("defs", "file", "General definitions file", "SID", "");
+
+        // Tracelog options
+        cmdParser_.addOptionDefinition("tracelog", "file", "Log file for SID register writes", "Logging", "");
 
         // Other options
         cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "Logging", "SIDBlaster.log");
@@ -220,6 +225,12 @@ namespace sidblaster {
         catch (const std::exception& e) {
             util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
             return false;
+        }
+
+        // Tracelog path
+        traceLogPath_ = cmdParser_.getOption("tracelog", "");
+        if (!traceLogPath_.empty()) {
+            util::Logger::debug("SID trace log will be written to: " + traceLogPath_);
         }
 
         // Parse relocation address
@@ -556,6 +567,28 @@ namespace sidblaster {
             if (addr == 0xDC05) CIATimerHi = value;
             });
 
+        // Set up SID write tracing if enabled
+        if (!traceLogPath_.empty()) {
+            traceLogFile_ = fopen(traceLogPath_.c_str(), "w");
+            if (!traceLogFile_) {
+                util::Logger::error("Failed to open SID trace log file: " + traceLogPath_);
+            }
+            else {
+                util::Logger::info("Tracing SID writes to: " + traceLogPath_);
+
+                // Set up the callback to log SID writes
+                cpu.setOnSIDWriteCallback([this](u16 addr, u8 value) {
+                    // Only log if within SID register range (typically D400-D41C)
+                    if (addr >= 0xD400 && addr <= 0xD41C && traceLogFile_) {
+                        // Format the address and value
+                        char buffer[20];
+                        sprintf(buffer, "%04X:$%02X,", addr, value);
+                        fputs(buffer, traceLogFile_);
+                    }
+                    });
+            }
+        }
+
         Disassembler disasm(cpu, sid);
 
         // Create a backup of memory before execution
@@ -563,6 +596,10 @@ namespace sidblaster {
 
         // Initialize the SID
         cpu.executeFunction(sidInit);
+        if (traceLogFile_) {
+            fputc('\n', traceLogFile_);
+            fflush(traceLogFile_);  // Ensure it's written immediately
+        }
 
         // Calculate play calls per frame
         int playCallsPerFrame = calculatePlayCallsPerFrame(sid, CIATimerLo, CIATimerHi);
@@ -581,6 +618,12 @@ namespace sidblaster {
 
         for (int frame = 0; frame < numFrames; ++frame) {
             cpu.executeFunction(sidPlay);
+
+            if (traceLogFile_) {
+                fputc('\n', traceLogFile_);
+                fflush(traceLogFile_);
+            }
+
             const u64 cur = cpu.getCycles();
             const u64 frameCycles = cur - lastCycles;
             maxCycles = std::max(maxCycles, frameCycles);
@@ -747,6 +790,11 @@ namespace sidblaster {
         catch (const std::exception& e) {
             util::Logger::error(std::string("Failed to copy final output: ") + e.what());
             return 1;
+        }
+
+        if (traceLogFile_) {
+            fclose(traceLogFile_);
+            traceLogFile_ = nullptr;
         }
 
         util::Logger::info("Processing complete: " + inputFile_.string());
