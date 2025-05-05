@@ -13,6 +13,9 @@
 #include <unordered_map>
 #include <vector>
 
+// Forward declaration of implementation class
+class CPU6510Impl;
+
 // Addressing modes
 enum class AddressingMode {
     Implied,
@@ -148,6 +151,13 @@ class CPU6510 {
 public:
     // Constructor and basic operations
     CPU6510();
+    ~CPU6510();
+
+    // Disable copy/move to handle the pImpl properly
+    CPU6510(const CPU6510&) = delete;
+    CPU6510& operator=(const CPU6510&) = delete;
+    CPU6510(CPU6510&&) = delete;
+    CPU6510& operator=(CPU6510&&) = delete;
 
     void reset();
     void step();
@@ -188,21 +198,9 @@ public:
     void dumpMemoryAccess(const std::string& filename);
     std::pair<u8, u8> getIndexRange(u16 pc) const;
 
-    /**
-     * @brief Get a span of CPU memory
-     * @return Span of memory data
-     */
-    std::span<const u8> getMemory() const {
-        return std::span<const u8>(memory_.data(), memory_.size());
-    }
-
-    /**
-     * @brief Get a span of memory access flags
-     * @return Span of memory access flags
-     */
-    std::span<const u8> getMemoryAccess() const {
-        return std::span<const u8>(memoryAccess_.data(), memoryAccess_.size());
-    }
+    // Memory access
+    std::span<const u8> getMemory() const;
+    std::span<const u8> getMemoryAccess() const;
 
     // Accessors
     u16 getLastWriteTo(u16 addr) const;
@@ -221,75 +219,6 @@ public:
     void setOnCIAWriteCallback(MemoryWriteCallback callback);
 
 private:
-    // CPU State
-    u16 pc_ = 0;                // Program Counter
-    u16 originalPc_ = 0;        // Program Counter at start of current instruction
-    u8 sp_ = 0;                 // Stack Pointer
-    u8 regA_ = 0, regX_ = 0, regY_ = 0;  // Registers
-    u8 statusReg_ = 0;          // Processor Status flags
-    u64 cycles_ = 0;            // Total cycles executed
-
-    // Memory and tracking
-    std::array<u8, 65536> memory_;
-    std::array<u8, 65536> memoryAccess_;
-    std::vector<u16> lastWriteToAddr_;
-    std::vector<RegisterSourceInfo> writeSourceInfo_;
-
-    // Register source tracking
-    RegisterSourceInfo regSourceA_, regSourceX_, regSourceY_;
-
-    // Index range tracking
-    std::unordered_map<u16, IndexRange> pcIndexRanges_;
-
-    // Callbacks
-    IndirectReadCallback onIndirectReadCallback_;
-    MemoryWriteCallback onWriteMemoryCallback_;
-    MemoryWriteCallback onCIAWriteCallback_;
-
-    // Opcode table
-    static const std::array<OpcodeInfo, 256> opcodeTable_;
-
-    // Internal memory operations
-    u8 fetchOpcode(u16 addr);
-    u8 fetchOperand(u16 addr);
-    u8 readByAddressingMode(u16 addr, AddressingMode mode);
-    void writeBytes(u16 address, std::span<const u8> data);
-
-    // Stack operations
-    void push(u8 value);
-    u8 pop();
-    u16 readWord(u16 addr);
-    u16 readWordZeroPage(u8 addr);
-
-    // Addressing mode helper
-    u16 getAddress(AddressingMode mode);
-
-    // Instruction execution
-    void execute(Instruction instr, AddressingMode mode);
-
-    // Flag operations
-    void setFlag(StatusFlag flag, bool value);
-    bool testFlag(StatusFlag flag) const;
-    void setZN(u8 value);
-
-    // Index tracking
-    void recordIndexOffset(u16 pc, u8 offset);
-
-    // Instruction implementations
-    // These are implemented in the cpp file using a more organized approach
-    void executeInstruction(Instruction instr, AddressingMode mode);
-
-    // Helper methods for each instruction type (grouped by functionality)
-    void executeLoad(Instruction instr, AddressingMode mode);
-    void executeStore(Instruction instr, AddressingMode mode);
-    void executeArithmetic(Instruction instr, AddressingMode mode);
-    void executeLogical(Instruction instr, AddressingMode mode);
-    void executeBranch(Instruction instr, AddressingMode mode);
-    void executeJump(Instruction instr, AddressingMode mode);
-    void executeStack(Instruction instr, AddressingMode mode);
-    void executeRegister(Instruction instr, AddressingMode mode);
-    void executeFlag(Instruction instr, AddressingMode mode);
-    void executeShift(Instruction instr, AddressingMode mode);
-    void executeCompare(Instruction instr, AddressingMode mode);
-    void executeIllegal(Instruction instr, AddressingMode mode);
+    // Implementation pointer
+    std::unique_ptr<CPU6510Impl> pImpl_;
 };

@@ -11,12 +11,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Define sources
+# Include the CPU6510 files
+include(${CMAKE_CURRENT_SOURCE_DIR}/cpu6510_files.cmake)
+
+# Define sources (remove cpu6510.cpp as it's now in CPU6510_SOURCES)
 set(SOURCES
     src/CodeFormatter.cpp
     src/CommandLineParser.cpp
-    
-    src/cpu6510.cpp
+    # src/cpu6510.cpp - Removed from here, now included in CPU6510_SOURCES
     src/Disassembler.cpp
     src/DisassemblyWriter.cpp
     src/LabelGenerator.cpp
@@ -27,8 +29,14 @@ set(SOURCES
     src/SIDLoader.cpp
 )
 
-# Add executable
-add_executable(SIDBlaster ${SOURCES})
+# Add executable with all sources
+add_executable(SIDBlaster 
+    ${SOURCES}
+    ${CPU6510_SOURCES}
+)
+
+# Create a source group for the CPU6510 files (for Visual Studio organization)
+source_group("CPU6510" FILES ${CPU6510_SOURCES} ${CPU6510_HEADERS})
 
 # Include directories
 target_include_directories(SIDBlaster PRIVATE src)
