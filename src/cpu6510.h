@@ -217,6 +217,8 @@ public:
     void setOnIndirectReadCallback(IndirectReadCallback callback);
     void setOnWriteMemoryCallback(MemoryWriteCallback callback);
     void setOnCIAWriteCallback(MemoryWriteCallback callback);
+    void setOnSIDWriteCallback(MemoryWriteCallback callback);
+    void setOnVICWriteCallback(MemoryWriteCallback callback);
 
 private:
     // Implementation pointer

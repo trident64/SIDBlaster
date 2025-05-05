@@ -384,3 +384,25 @@ void CPU6510::setOnWriteMemoryCallback(MemoryWriteCallback callback) {
 void CPU6510::setOnCIAWriteCallback(MemoryWriteCallback callback) {
     pImpl_->setOnCIAWriteCallback(std::move(callback));
 }
+
+/**
+ * @brief Set the callback for writes to SID registers
+ *
+ * Delegates to the implementation class.
+ *
+ * @param callback Function to be called when a SID register is written
+ */
+void CPU6510::setOnSIDWriteCallback(MemoryWriteCallback callback) {
+    pImpl_->setOnSIDWriteCallback(std::move(callback));
+}
+
+/**
+ * @brief Set the callback for writes to VIC registers
+ *
+ * Delegates to the implementation class.
+ *
+ * @param callback Function to be called when a VIC register is written
+ */
+void CPU6510::setOnVICWriteCallback(MemoryWriteCallback callback) {
+    pImpl_->setOnVICWriteCallback(std::move(callback));
+}

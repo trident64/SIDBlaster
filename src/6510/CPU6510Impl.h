@@ -76,6 +76,8 @@ public:
     void setOnIndirectReadCallback(IndirectReadCallback callback);
     void setOnWriteMemoryCallback(MemoryWriteCallback callback);
     void setOnCIAWriteCallback(MemoryWriteCallback callback);
+    void setOnSIDWriteCallback(MemoryWriteCallback callback);
+    void setOnVICWriteCallback(MemoryWriteCallback callback);
 
 private:
     // CPU state components
@@ -100,6 +102,8 @@ private:
     IndirectReadCallback onIndirectReadCallback_;
     MemoryWriteCallback onWriteMemoryCallback_;
     MemoryWriteCallback onCIAWriteCallback_;
+    MemoryWriteCallback onSIDWriteCallback_;
+    MemoryWriteCallback onVICWriteCallback_;
 
     // Record the index offset used for a memory access
     void recordIndexOffset(u16 pc, u8 offset);

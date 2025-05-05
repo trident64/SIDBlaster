@@ -42,6 +42,8 @@ void CPU6510Impl::reset() {
     onIndirectReadCallback_ = nullptr;
     onWriteMemoryCallback_ = nullptr;
     onCIAWriteCallback_ = nullptr;
+    onSIDWriteCallback_ = nullptr;
+    onVICWriteCallback_ = nullptr;
 }
 
 /**
@@ -305,6 +307,14 @@ void CPU6510Impl::writeMemory(u16 addr, u8 value) {
 
     if (onCIAWriteCallback_ && (addr >= 0xdc00) && (addr <= 0xdcff)) {
         onCIAWriteCallback_(addr, value);
+    }
+
+    if (onSIDWriteCallback_ && (addr >= 0xd400) && (addr <= 0xd7ff)) {
+        onSIDWriteCallback_(addr, value);
+    }
+
+    if (onVICWriteCallback_ && (addr >= 0xd000) && (addr <= 0xd3ff)) {
+        onVICWriteCallback_(addr, value);
     }
 }
 
@@ -722,4 +732,22 @@ void CPU6510Impl::setOnWriteMemoryCallback(MemoryWriteCallback callback) {
  */
 void CPU6510Impl::setOnCIAWriteCallback(MemoryWriteCallback callback) {
     onCIAWriteCallback_ = std::move(callback);
+}
+
+/**
+ * @brief Set the callback for writes to SID registers
+ *
+ * @param callback Function to be called when a SID register is written
+ */
+void CPU6510Impl::setOnSIDWriteCallback(MemoryWriteCallback callback) {
+    onSIDWriteCallback_ = std::move(callback);
+}
+
+/**
+ * @brief Set the callback for writes to VIC registers
+ *
+ * @param callback Function to be called when a VIC register is written
+ */
+void CPU6510Impl::setOnVICWriteCallback(MemoryWriteCallback callback) {
+    onVICWriteCallback_ = std::move(callback);
 }
