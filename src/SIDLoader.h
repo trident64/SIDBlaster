@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.h"
+#include "SIDFileFormat.h"
 
 #include <memory>
 #include <string>
@@ -9,32 +10,6 @@
 
 // Forward declarations
 class CPU6510;
-
-// SID header structure (packed to match file format)
-#pragma pack(push, 1)
-struct SIDHeader {
-    char magicID[4];       // "PSID"
-    u16 version;
-    u16 dataOffset;
-    u16 loadAddress;
-    u16 initAddress;
-    u16 playAddress;
-    u16 songs;
-    u16 startSong;
-    u32 speed;
-
-    char name[32];
-    char author[32];
-    char copyright[32];
-
-    // Extended fields (only valid if version >= 2 and offset >= 0x76)
-    u16 flags;
-    u8 startPage;
-    u8 pageLength;
-    u8 reserved;
-    u8 secondSIDAddress;
-};
-#pragma pack(pop)
 
 /**
  * @class SIDLoader
@@ -73,6 +48,33 @@ public:
      * @param address New load address
      */
     void setLoadAddress(u16 address);
+
+    /**
+     * @brief Set the title in the SID header
+     * @param title New title string
+     */
+    void setTitle(const std::string& title) {
+        strncpy(header_.name, title.c_str(), sizeof(header_.name) - 1);
+        header_.name[sizeof(header_.name) - 1] = '\0';
+    }
+
+    /**
+     * @brief Set the author in the SID header
+     * @param author New author string
+     */
+    void setAuthor(const std::string& author) {
+        strncpy(header_.author, author.c_str(), sizeof(header_.author) - 1);
+        header_.author[sizeof(header_.author) - 1] = '\0';
+    }
+
+    /**
+     * @brief Set the copyright in the SID header
+     * @param copyright New copyright string
+     */
+    void setCopyright(const std::string& copyright) {
+        strncpy(header_.copyright, copyright.c_str(), sizeof(header_.copyright) - 1);
+        header_.copyright[sizeof(header_.copyright) - 1] = '\0';
+    }
 
     /**
      * @brief Load a SID file

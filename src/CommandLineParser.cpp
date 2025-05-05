@@ -12,20 +12,10 @@ namespace sidblaster {
             programName_ = std::filesystem::path(argv[0]).filename().string();
         }
 
-        // First, extract the input file which should be the last argument
-        if (argc > 1) {
-            std::string lastArg = argv[argc - 1];
-
-            // Check if the last argument is a command (starts with '-')
-            if (lastArg.empty() || lastArg[0] != '-') {
-                inputFile_ = lastArg;
-                // Reduce argc by 1 to ignore the input file in subsequent processing
-                argc--;
-            }
-        }
-
-        // Process command line options
+        // Process command line options first
+        std::vector<std::string> nonOptionArgs;
         int i = 1;
+
         while (i < argc) {
             std::string arg = argv[i++];
 
@@ -36,47 +26,46 @@ namespace sidblaster {
 
             // Check if it's a command (starts with '-')
             if (arg[0] == '-') {
-                // Remove leading dashes
-                size_t startPos = 0;
-                while (startPos < arg.length() && arg[startPos] == '-') {
-                    startPos++;
-                }
+                // Process option with potential parameter
+                std::string option = arg.substr(1);  // Remove leading dash
+                size_t equalPos = option.find('=');
 
-                if (startPos == arg.length()) {
-                    // Just dashes, ignore
-                    continue;
-                }
+                if (equalPos != std::string::npos) {
+                    // Option with value using equals sign: -option=value
+                    std::string name = option.substr(0, equalPos);
+                    std::string value = option.substr(equalPos + 1);
 
-                std::string commandName = arg.substr(startPos);
-
-                // Create a command option structure
-                CommandOption command;
-                command.name = commandName;
-
-                // Collect all parameters for this command (until the next command or end)
-                while (i < argc) {
-                    std::string param = argv[i];
-
-                    // If the parameter starts with '-', it's a new command
-                    if (!param.empty() && param[0] == '-') {
-                        break;
-                    }
-
-                    // Add parameter to the command
-                    command.parameters.push_back(param);
-                    i++;
-                }
-
-                // If it has no parameters, treat it as a flag
-                if (command.parameters.empty()) {
-                    flags_.insert(commandName);
+                    // Create command option
+                    CommandOption command;
+                    command.name = name;
+                    command.parameters.push_back(value);
+                    commands_[name] = command;
                 }
                 else {
-                    // Otherwise, store the command with its parameters
-                    commands_[commandName] = command;
+                    // Flag without value
+                    flags_.insert(option);
                 }
             }
+            else {
+                // This is a non-option argument (input or output file)
+                nonOptionArgs.push_back(arg);
+            }
         }
+
+        // Handle input and output files
+        if (nonOptionArgs.size() >= 2) {
+            // Last two arguments are input and output files
+            inputFile_ = nonOptionArgs[nonOptionArgs.size() - 2];
+            outputFile_ = nonOptionArgs[nonOptionArgs.size() - 1];
+        }
+        else if (nonOptionArgs.size() == 1) {
+            // Only input file provided
+            inputFile_ = nonOptionArgs[0];
+        }
+    }
+
+    const std::string& CommandLineParser::getOutputFile() const {
+        return outputFile_;
     }
 
     bool CommandLineParser::hasFlag(const std::string& flag) const {
@@ -169,7 +158,13 @@ namespace sidblaster {
             std::cout << message << std::endl << std::endl;
         }
 
-        std::cout << "Usage: " << programName_ << " [options] inputfile.sid" << std::endl;
+        std::cout << "Developed by: Robert Troughton (Raistlin of Genesis Project)" << std::endl;
+        std::cout << std::endl;
+
+        std::cout << "Usage: " << programName_ << " [options] inputfile outputfile" << std::endl;
+        std::cout << std::endl;
+        std::cout << "  inputfile             Path to input file (.sid, .prg, or .bin)" << std::endl;
+        std::cout << "  outputfile            Path to output file (.sid, .prg, or .asm)" << std::endl;
         std::cout << std::endl;
 
         // Group flags and options by category
@@ -195,8 +190,8 @@ namespace sidblaster {
 
                 std::cout << "  -" << option;
 
-                // Format option name and argument name
-                std::string optionDesc = " <" + def.argName + ">";
+                // Format option name and argument name with equals sign
+                std::string optionDesc = "=<" + def.argName + ">";
 
                 // Calculate padding for alignment
                 const int padding = std::max(0, 20 - static_cast<int>(option.length() + optionDesc.length()));

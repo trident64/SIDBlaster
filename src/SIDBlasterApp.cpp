@@ -36,25 +36,29 @@ namespace sidblaster {
     }
 
     void SIDBlasterApp::setupCommandLine() {
-        // General options
-        cmdParser_.addOptionDefinition("output", "file", "Output file path", "General", "");
-        cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "Logging", "SIDBlaster.log");
-        cmdParser_.addOptionDefinition("relocate", "address", "Relocation address for the SID", "SID", "");
+        // SID metadata options
+        cmdParser_.addOptionDefinition("title", "text", "Override SID title", "SID", "");
+        cmdParser_.addOptionDefinition("author", "text", "Override SID author", "SID", "");
+        cmdParser_.addOptionDefinition("copyright", "text", "Override SID copyright", "SID", "");
 
         // SID address options
+        cmdParser_.addOptionDefinition("relocate", "address", "Relocation address for the SID", "SID", "");
         cmdParser_.addOptionDefinition("sidloadaddr", "address", "Override SID load address", "SID",
-            util::wordToHex(util::Configuration::getDefaultSidLoadAddress()));
+            "$" + util::wordToHex(util::Configuration::getDefaultSidLoadAddress()));
         cmdParser_.addOptionDefinition("sidinitaddr", "address", "Override SID init address", "SID",
-            util::wordToHex(util::Configuration::getDefaultSidInitAddress()));
+            "$" + util::wordToHex(util::Configuration::getDefaultSidInitAddress()));
         cmdParser_.addOptionDefinition("sidplayaddr", "address", "Override SID play address", "SID",
-            util::wordToHex(util::Configuration::getDefaultSidPlayAddress()));
+            "$" + util::wordToHex(util::Configuration::getDefaultSidPlayAddress()));
 
         // Player options
         cmdParser_.addOptionDefinition("player", "name", "Player name", "Player", util::Configuration::getPlayerName());
         cmdParser_.addOptionDefinition("playeraddr", "address", "Player load address", "Player",
-            util::wordToHex(util::Configuration::getPlayerAddress()));
+            "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
+        cmdParser_.addOptionDefinition("playerdefs", "file", "Player definitions file", "Player", "");
+        cmdParser_.addOptionDefinition("defs", "file", "General definitions file", "SID", "");
 
-        // Tool path options
+        // Other options
+        cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "Logging", "SIDBlaster.log");
         cmdParser_.addOptionDefinition("kickass", "path", "Path to KickAss.jar", "Tools", util::Configuration::getKickAssPath());
         cmdParser_.addOptionDefinition("exomizer", "path", "Path to Exomizer", "Tools", util::Configuration::getExomizerPath());
         cmdParser_.addOptionDefinition("compressor", "type", "Compression tool to use", "Tools", util::Configuration::getCompressorType());
@@ -64,31 +68,32 @@ namespace sidblaster {
         cmdParser_.addFlagDefinition("help", "Display this help message", "General");
         cmdParser_.addFlagDefinition("noplayer", "Don't link player code", "Player");
         cmdParser_.addFlagDefinition("nocompress", "Don't compress output PRG files", "Output");
+        cmdParser_.addFlagDefinition("force", "Force overwrite output file", "Output");
 
-        // Add example usages
+        // Add example usages with new format
         cmdParser_.addExample(
-            "SIDBlaster music.sid",
+            "SIDBlaster music.sid music.prg",
             "Processes music.sid with default settings (creates player-linked PRG)");
 
         cmdParser_.addExample(
-            "SIDBlaster -output music.asm music.sid",
+            "SIDBlaster music.sid music.asm",
             "Disassembles music.sid to an assembly file");
 
         cmdParser_.addExample(
-            "SIDBlaster -output music.prg -noplayer music.sid",
+            "SIDBlaster -noplayer music.sid music.prg",
             "Creates a PRG file without player code");
 
         cmdParser_.addExample(
-            "SIDBlaster -relocate $2000 -output relocated.sid music.sid",
+            "SIDBlaster -relocate=$2000 music.sid relocated.sid",
             "Relocates music.sid to $2000 and creates a new SID file");
 
         cmdParser_.addExample(
-            "SIDBlaster -player SimpleBitmap -playeraddr $0800 music.sid",
+            "SIDBlaster -player=SimpleBitmap -playeraddr=$0800 music.sid player.prg",
             "Uses the SimpleBitmap player at address $0800");
 
         cmdParser_.addExample(
-            "SIDBlaster -player SimpleRaster -playeraddr $9000 -relocate $8000 music.sid",
-            "Uses the SimpleRaster player at address $9000 with the music relocated to $8000");
+            "SIDBlaster -playerdefs=defs.txt -title=\"My Music\" music.sid music.prg",
+            "Uses player definitions and overrides the title");
     }
 
     void SIDBlasterApp::initializeLogging() {
@@ -115,26 +120,33 @@ namespace sidblaster {
             return false;
         }
 
-        // Get input file
-        inputFile_ = cmdParser_.getInputFile();
+        // Get input and output files
+        inputFile_ = fs::path(cmdParser_.getInputFile());
+        outputFile_ = fs::path(cmdParser_.getOutputFile());
+
+        // Validate input and output files
         if (inputFile_.empty()) {
-            cmdParser_.printUsage("No input file specified");
+            std::cout << "Error: No input file specified\n";
+            std::cout << "Use -help for command line options\n";
+            return false;
+        }
+
+        if (outputFile_.empty()) {
+            std::cout << "Error: No output file specified\n";
+            std::cout << "Use -help for command line options\n";
             return false;
         }
 
         // Check if input file exists
         if (!fs::exists(inputFile_)) {
-            util::Logger::error("Input file not found: " + inputFile_.string());
+            std::cout << "Error: Input file not found: " << inputFile_.string() << "\n";
+            std::cout << "Use -help for command line options\n";
             return false;
         }
 
-        // Get output file
-        outputFile_ = fs::path(cmdParser_.getOption("output", ""));
-
-        // If no output file specified, create default based on input filename
-        if (outputFile_.empty()) {
-            outputFile_ = fs::path(inputFile_).stem().string() + ".prg";
-            util::Logger::info("No output file specified, defaulting to: " + outputFile_.string());
+        // Check if input and output files are the same
+        if (!checkOutputFileValid()) {
+            return false;
         }
 
         // Determine output format from extension
@@ -269,7 +281,140 @@ namespace sidblaster {
             }
         }
 
+        // Save SID metadata overrides
+        overrideTitle_ = cmdParser_.getOption("title", "");
+        overrideAuthor_ = cmdParser_.getOption("author", "");
+        overrideCopyright_ = cmdParser_.getOption("copyright", "");
+
         return true;
+    }
+
+    bool SIDBlasterApp::checkOutputFileValid() {
+        // Check if input and output files are properly formed
+        if (inputFile_.empty() || outputFile_.empty()) {
+            std::cout << "Error: Invalid input or output file path\n";
+            std::cout << "Use -help for command line options\n";
+            return false;
+        }
+
+        // Check if input file exists
+        if (!fs::exists(inputFile_)) {
+            std::cout << "Error: Input file not found: " + inputFile_.string() + "\n";
+            std::cout << "Use -help for command line options\n";
+            return false;
+        }
+
+        // Try-catch around the equivalence check since it can throw
+        try {
+            // Only check equivalence if output file already exists
+            if (fs::exists(outputFile_) && fs::equivalent(inputFile_, outputFile_)) {
+                std::cout << "Error: Input and output files cannot be the same: " + inputFile_.string() + "\n";
+                std::cout << "Use -help for command line options\n";
+                return false;
+            }
+        }
+        catch (const std::exception& e) {
+            // Log the exception for debugging
+            util::Logger::error("Error checking file equivalence: " + std::string(e.what()));
+
+            // Alternative check: compare the canonicalized paths
+            if (fs::absolute(inputFile_) == fs::absolute(outputFile_)) {
+                std::cout << "Error: Input and output files cannot be the same\n";
+                std::cout << "Use -help for command line options\n";
+                return false;
+            }
+        }
+
+        // Allow overwriting output files - no need for a force check
+
+        return true;
+    }
+
+    bool SIDBlasterApp::loadPlayerDefs(const std::string& filename, std::map<std::string, std::string>& defs) {
+        if (!fs::exists(filename)) {
+            util::Logger::error("Definitions file not found: " + filename);
+            return false;
+        }
+
+        std::ifstream file(filename);
+        if (!file) {
+            util::Logger::error("Failed to open definitions file: " + filename);
+            return false;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip empty lines and comments
+            if (line.empty() || line[0] == '#' || line[0] == ';') {
+                continue;
+            }
+
+            // Find key-value separator
+            const auto pos = line.find('=');
+            if (pos == std::string::npos) {
+                continue;
+            }
+
+            // Extract key and value
+            std::string key = line.substr(0, pos);
+            std::string value = line.substr(pos + 1);
+
+            // Trim whitespace
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+
+            // Store in config map
+            if (!key.empty()) {
+                defs[key] = value;
+                util::Logger::debug("Loaded definition: " + key + " = " + value);
+            }
+        }
+
+        util::Logger::info("Loaded " + std::to_string(defs.size()) + " definitions from " + filename);
+        return true;
+    }
+
+    void SIDBlasterApp::applySIDMetadataOverrides(SIDLoader& sid) {
+        // Apply overrides from command line
+        if (!overrideTitle_.empty()) {
+            sid.setTitle(overrideTitle_);
+            util::Logger::debug("Overriding SID title: " + overrideTitle_);
+        }
+
+        if (!overrideAuthor_.empty()) {
+            sid.setAuthor(overrideAuthor_);
+            util::Logger::debug("Overriding SID author: " + overrideAuthor_);
+        }
+
+        if (!overrideCopyright_.empty()) {
+            sid.setCopyright(overrideCopyright_);
+            util::Logger::debug("Overriding SID copyright: " + overrideCopyright_);
+        }
+
+        // Load definitions file if specified
+        std::string defsFile = cmdParser_.getOption("defs", "");
+        if (!defsFile.empty()) {
+            std::map<std::string, std::string> defs;
+            if (loadPlayerDefs(defsFile, defs)) {
+                // Check for SID metadata in defs
+                if (defs.count("Title") > 0 && overrideTitle_.empty()) {
+                    sid.setTitle(defs["Title"]);
+                    util::Logger::debug("Using title from defs: " + defs["Title"]);
+                }
+
+                if (defs.count("Author") > 0 && overrideAuthor_.empty()) {
+                    sid.setAuthor(defs["Author"]);
+                    util::Logger::debug("Using author from defs: " + defs["Author"]);
+                }
+
+                if (defs.count("Copyright") > 0 && overrideCopyright_.empty()) {
+                    sid.setCopyright(defs["Copyright"]);
+                    util::Logger::debug("Using copyright from defs: " + defs["Copyright"]);
+                }
+            }
+        }
     }
 
     int SIDBlasterApp::processFile() {
@@ -293,6 +438,7 @@ namespace sidblaster {
 
         SIDLoader sid;
         sid.setCPU(&cpu);
+        sid_ = &sid;
 
         // Load the input file
         bool loaded = false;
@@ -317,6 +463,9 @@ namespace sidblaster {
             util::Logger::error("Failed to load file: " + inputFile_.string());
             return 1;
         }
+
+        // Override SID metadata with anything that the user has passed on the commandline
+        applySIDMetadataOverrides(sid);
 
         // Get SID info
         const u16 sidLoad = sid.getLoadAddress();
@@ -416,7 +565,7 @@ namespace sidblaster {
                 }
                 // For PRG output with player
                 else if (outputFormat_ == OutputFormat::PRG && includePlayer_) {
-                    buildWithPlayer(basename, tempAsmFile, tempLinkerFile, tempPlayerPrgFile,
+                    buildWithPlayer(sid_, basename, tempAsmFile, tempLinkerFile, tempPlayerPrgFile,
                         playCallsPerFrame, sid.isPAL(), newSidInit, newSidPlay);
 
                     // Apply compression if not disabled
@@ -470,7 +619,7 @@ namespace sidblaster {
                 }
 
                 // Create a linker file using the original address
-                buildWithPlayer(basename, musicFile, tempLinkerFile, tempPlayerPrgFile,
+                buildWithPlayer(sid_, basename, musicFile, tempLinkerFile, tempPlayerPrgFile,
                     playCallsPerFrame, sid.isPAL(), sidInit, sidPlay, true);
 
                 // Apply compression if not disabled
@@ -719,6 +868,7 @@ namespace sidblaster {
     }
 
     bool SIDBlasterApp::buildWithPlayer(
+        SIDLoader* sid,
         const std::string& basename,
         const fs::path& musicFile,  // Can be either ASM, PRG or SID
         const fs::path& linkerFile,
@@ -786,6 +936,45 @@ namespace sidblaster {
         file << ".var PlayerADDR = $" << util::wordToHex(playerAddress_) << "\n";
         file << ".var SIDInit = $" << util::wordToHex(sidInit) << "\n";
         file << ".var SIDPlay = $" << util::wordToHex(sidPlay) << "\n\n";
+
+        // Add SID metadata if available
+        if (sid_) {
+            const auto& header = sid_->getHeader();
+
+            // Clean up strings for embedding in the linker file
+            auto cleanString = [](const std::string& str) {
+                std::string result;
+                for (char c : str) {
+                    // Keep alphanumeric and basic punctuation, replace others with _
+                    if (std::isalnum(c) || c == ' ' || c == '-' || c == '_' || c == '!') {
+                        result.push_back(c);
+                    }
+                    else {
+                        result.push_back('_');
+                    }
+                }
+                return result;
+                };
+
+            // Add SID metadata
+            file << "// SID Metadata\n";
+            file << ".var SIDName = \"" << cleanString(std::string(header.name)) << "\"\n";
+            file << ".var SIDAuthor = \"" << cleanString(std::string(header.author)) << "\"\n";
+            file << ".var SIDCopyright = \"" << cleanString(std::string(header.copyright)) << "\"\n\n";
+        }
+
+        // Add player definitions if specified
+        std::string playerDefsFile = cmdParser_.getOption("playerdefs", "");
+        if (!playerDefsFile.empty()) {
+            std::map<std::string, std::string> playerDefs;
+            if (loadPlayerDefs(playerDefsFile, playerDefs)) {
+                file << "// Player definitions from: " << playerDefsFile << "\n";
+                for (const auto& [key, value] : playerDefs) {
+                    file << ".var " << key << " = " << value << "\n";
+                }
+                file << "\n";
+            }
+        }
 
         // Add player code
         file << "* = PlayerADDR\n";

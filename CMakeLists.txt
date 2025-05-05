@@ -57,3 +57,11 @@ set(CPACK_PACKAGE_NAME "SIDBlaster")
 set(CPACK_PACKAGE_VENDOR "Genesis Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "C64 SID music manipulator extraordinaire!")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+
+# Post-build command to copy executable to root directory
+add_custom_command(TARGET SIDBlaster POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy 
+    $<TARGET_FILE:SIDBlaster> 
+    ${CMAKE_SOURCE_DIR}/SIDBlaster.exe
+    COMMENT "Copying executable to root directory"
+)

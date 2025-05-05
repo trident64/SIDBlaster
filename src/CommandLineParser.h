@@ -33,6 +33,13 @@ namespace sidblaster {
         CommandLineParser(int argc, char** argv);
 
         /**
+         * Get the output file
+         *
+         * @return The output file path
+         */
+        const std::string& getOutputFile() const;
+
+        /**
          * @brief Check if a flag is present
          * @param flag Flag name (without leading dashes)
          * @return True if flag is present
@@ -163,6 +170,7 @@ namespace sidblaster {
         std::map<std::string, OptionDefinition> optionDefs_;
         std::map<std::string, FlagDefinition> flagDefs_;
         std::vector<ExampleUsage> examples_;
+        std::string outputFile_;
     };
 
 } // namespace sidblaster

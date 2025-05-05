@@ -64,6 +64,13 @@ namespace sidblaster {
         bool hasOverridePlay_ = false;
         bool hasOverrideLoad_ = false;
 
+        // SID metadata overrides
+        std::string overrideTitle_;
+        std::string overrideAuthor_;
+        std::string overrideCopyright_;
+
+        SIDLoader* sid_ = nullptr;
+
         // For player settings
         std::string playerName_;
         u16 playerAddress_ = 0;
@@ -83,6 +90,29 @@ namespace sidblaster {
          * @return True if parsing succeeded
          */
         bool parseCommandLine();
+
+        /**
+         * Check if output file is valid (not same as input, etc.)
+         *
+         * @return True if output file is valid
+         */
+        bool checkOutputFileValid();
+
+        /**
+         * Load player definitions from a file
+         *
+         * @param filename Definitions file name
+         * @param defs Output map of definitions
+         * @return True if loading was successful
+         */
+        bool loadPlayerDefs(const std::string& filename, std::map<std::string, std::string>& defs);
+
+        /**
+         * Apply SID metadata overrides from command line or defs file
+         *
+         * @param sid SIDLoader instance to update
+         */
+        void applySIDMetadataOverrides(SIDLoader& sid);
 
         /**
          * @brief Process the input file
@@ -159,6 +189,7 @@ namespace sidblaster {
          * @return True if successful
          */
         bool buildWithPlayer(
+            SIDLoader* sid,
             const std::string& basename,
             const fs::path& musicFile,
             const fs::path& linkerFile,

@@ -174,6 +174,8 @@ namespace sidblaster {
             minLevel_ = level;
         }
 
+        // Only adding the modified Logger::log method
+
         void Logger::log(Level level, const std::string& message) {
             if (level < minLevel_) {
                 return;
@@ -200,14 +202,17 @@ namespace sidblaster {
             std::stringstream fullMessage;
             fullMessage << "[" << timestampStr.str() << "] [" << levelStr << "] " << message;
 
-            // Write to console if enabled
-            if (consoleOutput_) {
-                if (level == Level::Error) {
-                    std::cerr << fullMessage.str() << std::endl;
-                }
-                else {
-                    std::cout << fullMessage.str() << std::endl;
-                }
+            // Always show errors on the console in red (if supported)
+            if (level == Level::Error) {
+#ifdef _WIN32
+                std::cerr << fullMessage.str() << std::endl;
+#else
+                // ANSI color codes for Unix-like systems
+                std::cerr << "\033[1;31m" << fullMessage.str() << "\033[0m" << std::endl;
+#endif
+            }
+            else if (consoleOutput_) {
+                std::cout << fullMessage.str() << std::endl;
             }
 
             // Write to file if enabled
