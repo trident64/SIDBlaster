@@ -1,8 +1,21 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include <cstdint>
 
-// Tool name and version
+/**
+ * @file Common.h
+ * @brief Common type definitions and version information for SIDBlaster
+ *
+ * Provides consistent type aliases and version information used throughout
+ * the SIDBlaster codebase.
+ */
+
+ // Tool name and version
 #define SIDBLASTER_VERSION "SIDBlaster 0.6.2"
 
 // Type aliases for consistent usage across the project

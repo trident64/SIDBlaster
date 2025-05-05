@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include "CodeFormatter.h"
@@ -11,7 +16,16 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
+/**
+ * @file DisassemblyWriter.h
+ * @brief Writes formatted disassembly to output files
+ *
+ * This module handles the high-level writing of disassembled code to
+ * assembly files, managing the overall structure and organization of
+ * the output.
+ */
+
+ // Forward declarations
 class SIDLoader;
 class CPU6510;
 
@@ -20,15 +34,21 @@ namespace sidblaster {
     /**
      * @struct RelocationInfo
      * @brief Information about a relocated byte
+     *
+     * Used to track address relocations during the disassembly process.
      */
     struct RelocationInfo {
-        u16 effectiveAddr;
-        enum class Type { Low, High } type;
+        u16 effectiveAddr;                  // Target address being referenced
+        enum class Type { Low, High } type; // Whether this is a low or high byte
     };
 
     /**
      * @class DisassemblyWriter
      * @brief Writes disassembled code to an output file
+     *
+     * Coordinates the entire process of writing a disassembly to an
+     * assembly language file, including header comments, constants,
+     * and the structured output of code and data sections.
      */
     class DisassemblyWriter {
     public:
@@ -54,6 +74,8 @@ namespace sidblaster {
          * @param sidInit New SID init address
          * @param sidPlay New SID play address
          * @return Number of unused bytes removed
+         *
+         * Creates a complete assembly language file for the disassembled SID.
          */
         int generateAsmFile(
             const std::string& filename,
@@ -65,6 +87,8 @@ namespace sidblaster {
          * @brief Add a relocation byte
          * @param address Address of the byte
          * @param info Relocation information
+         *
+         * Registers a byte as a relocation point (address reference).
          */
         void addRelocationByte(u16 address, const RelocationInfo& info);
 
@@ -73,48 +97,59 @@ namespace sidblaster {
          * @param pc Program counter
          * @param zpAddr Zero page address
          * @param effectiveAddr Effective address
+         *
+         * Tracks indirect memory accesses for later analysis.
          */
         void addIndirectAccess(u16 pc, u8 zpAddr, u16 effectiveAddr);
 
         /**
          * @brief Process all recorded indirect accesses to identify relocation bytes
+         *
+         * Analyzes indirect access patterns to identify address references.
          */
         void processIndirectAccesses();
 
     private:
-        const CPU6510& cpu_;
-        const SIDLoader& sid_;
-        const MemoryAnalyzer& analyzer_;
-        const LabelGenerator& labelGenerator_;
-        const CodeFormatter& formatter_;
+        const CPU6510& cpu_;                      // Reference to CPU
+        const SIDLoader& sid_;                    // Reference to SID loader
+        const MemoryAnalyzer& analyzer_;          // Reference to memory analyzer
+        const LabelGenerator& labelGenerator_;    // Reference to label generator
+        const CodeFormatter& formatter_;          // Reference to code formatter
 
-        std::map<u16, RelocationInfo> relocationBytes_;
+        std::map<u16, RelocationInfo> relocationBytes_;  // Map of bytes that need relocation
 
         /**
          * @brief Struct for tracking indirect memory accesses
+         *
+         * Records information about indirect memory access patterns
+         * to identify address references.
          */
         struct IndirectAccessInfo {
-            u16 instructionAddress;
-            u8 zpAddr;
-            u8 zpPairAddr;
-            u16 lastWriteLow;
-            u16 lastWriteHigh;
-            u16 sourceLowAddress;
-            u16 sourceHighAddress;
-            u16 effectiveAddress;
+            u16 instructionAddress;   // Address of the instruction
+            u8 zpAddr;                // Zero page pointer address (low byte)
+            u8 zpPairAddr;            // Zero page pointer address (high byte)
+            u16 lastWriteLow;         // Address of last write to low byte
+            u16 lastWriteHigh;        // Address of last write to high byte
+            u16 sourceLowAddress;     // Source of the low byte value
+            u16 sourceHighAddress;    // Source of the high byte value
+            u16 effectiveAddress;     // Effective address accessed
         };
 
-        std::vector<IndirectAccessInfo> indirectAccesses_;
+        std::vector<IndirectAccessInfo> indirectAccesses_;  // List of indirect accesses
 
         /**
          * @brief Output hardware constants to the assembly file
          * @param file Output stream
+         *
+         * Writes hardware-related constant definitions.
          */
         void outputHardwareConstants(std::ofstream& file);
 
         /**
          * @brief Output zero page definitions to the assembly file
          * @param file Output stream
+         *
+         * Writes zero page variable definitions.
          */
         void emitZPDefines(std::ofstream& file);
 
@@ -122,11 +157,16 @@ namespace sidblaster {
          * @brief Disassemble to the output file
          * @param file Output stream
          * @return Number of unused bytes removed
+         *
+         * Performs the actual disassembly writing to the file.
          */
         int disassembleToFile(std::ofstream& file);
 
         /**
          * @brief Propagate relocation sources
+         *
+         * Analyzes and propagates relocation information across
+         * the disassembly to ensure consistent address references.
          */
         void propagateRelocationSources();
     };

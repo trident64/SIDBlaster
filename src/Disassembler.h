@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include "SIDBlasterUtils.h"
@@ -6,7 +11,15 @@
 #include <memory>
 #include <string>
 
-// Forward declarations
+/**
+ * @file Disassembler.h
+ * @brief High-level disassembler for SID files
+ *
+ * Provides the main interface for disassembling SID music files into
+ * readable and analyzable assembly language.
+ */
+
+ // Forward declarations
 class CPU6510;
 class SIDLoader;
 
@@ -21,6 +34,9 @@ namespace sidblaster {
     /**
      * @class Disassembler
      * @brief High-level class for disassembling SID files
+     *
+     * Coordinates the entire disassembly process, from memory analysis
+     * to label generation and output formatting.
      */
     class Disassembler {
     public:
@@ -43,6 +59,9 @@ namespace sidblaster {
          * @param sidInit New SID init address (relative to load)
          * @param sidPlay New SID play address (relative to load)
          * @return Number of unused bytes removed, or -1 on error
+         *
+         * Performs the entire disassembly process and writes the result
+         * to the specified output file.
          */
         int generateAsmFile(
             const std::string& outputPath,
@@ -53,23 +72,30 @@ namespace sidblaster {
         /**
          * @brief Set the callback for indirect memory reads
          * @param callback Function to call on indirect reads
+         *
+         * Allows external code to be notified of indirect memory accesses
+         * for tracking and analysis.
          */
         void setIndirectReadCallback(
             std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> callback);
 
     private:
-        const CPU6510& cpu_;
-        const SIDLoader& sid_;
+        const CPU6510& cpu_;  // Reference to CPU
+        const SIDLoader& sid_;  // Reference to SID loader
 
+        // Components of the disassembly process
         std::unique_ptr<MemoryAnalyzer> analyzer_;
         std::unique_ptr<LabelGenerator> labelGenerator_;
         std::unique_ptr<CodeFormatter> formatter_;
         std::unique_ptr<DisassemblyWriter> writer_;
 
+        // Callback for indirect memory reads
         std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> indirectReadCallback_;
 
         /**
          * @brief Initialize the disassembler components
+         *
+         * Sets up all the necessary components for the disassembly process.
          */
         void initialize();
     };

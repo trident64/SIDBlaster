@@ -1,7 +1,28 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
-// SID header structure (packed to match file format)
+/**
+ * @file SIDFileFormat.h
+ * @brief Defines the SID file format header structure
+ *
+ * This file contains the definition of the SIDHeader structure which matches
+ * the binary layout of SID music files for the Commodore 64. The structure is
+ * packed to ensure correct binary compatibility with the file format.
+ */
+
+ // SID header structure (packed to match file format)
 #pragma pack(push, 1)
+/**
+ * @struct SIDHeader
+ * @brief Represents the header of a SID music file
+ *
+ * The SID file format stores multi-byte values in big-endian format.
+ * This structure needs to be byte-swapped when loading or saving.
+ */
 struct SIDHeader {
     char magicID[4];        // 'PSID' or 'RSID'
     u16 version;            // Version number (1-3)

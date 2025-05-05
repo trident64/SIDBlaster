@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include "Common.h"
@@ -9,13 +14,21 @@
 #include <string_view>
 #include <unordered_map>
 
+/**
+ * @file SIDBlasterUtils.h
+ * @brief Utility functions and classes for SIDBlaster
+ *
+ * Provides various utility functions and classes used throughout
+ * the SIDBlaster codebase, including logging, configuration,
+ * and string formatting utilities.
+ */
+
 namespace sidblaster {
 
     namespace util {
 
         /**
          * @brief Convert a byte to a hexadecimal string
-         *
          * @param value Byte value to convert
          * @param upperCase Whether to use uppercase letters (default: true)
          * @return Formatted hex string (always 2 characters)
@@ -24,7 +37,6 @@ namespace sidblaster {
 
         /**
          * @brief Convert a word to a hexadecimal string
-         *
          * @param value Word value to convert
          * @param upperCase Whether to use uppercase letters (default: true)
          * @return Formatted hex string (always 4 characters)
@@ -33,28 +45,32 @@ namespace sidblaster {
 
         /**
          * @brief Parse a hexadecimal string into a numeric value
+         * @param str String to parse
+         * @return Parsed value, or std::nullopt if parsing failed
          *
          * Supports various formats including:
          * - "1234" (decimal)
          * - "$1234" (hex with $ prefix)
          * - "0x1234" (hex with 0x prefix)
-         *
-         * @param str String to parse
-         * @return Parsed value, or std::nullopt if parsing failed
          */
         std::optional<u16> parseHex(std::string_view str);
 
         /**
          * @brief Pad a string to a specific width with spaces
-         *
          * @param str String to pad
          * @param width Target width
          * @return Padded string
+         *
+         * Useful for aligning columns in formatted output.
          */
         std::string padToColumn(std::string_view str, size_t width);
 
         /**
+         * @class IndexRange
          * @brief A range of indices (min to max)
+         *
+         * Tracks a range of index values by recording the minimum and maximum
+         * values seen.
          */
         class IndexRange {
         public:
@@ -71,34 +87,30 @@ namespace sidblaster {
             std::pair<int, int> getRange() const;
 
         private:
-            int min_ = std::numeric_limits<int>::max();
-            int max_ = std::numeric_limits<int>::min();
+            int min_ = std::numeric_limits<int>::max();  // Minimum value seen
+            int max_ = std::numeric_limits<int>::min();  // Maximum value seen
         };
 
         /**
          * @brief Normalize various address formats to a single numeric representation
+         * @param addrStr The address string to normalize
+         * @return The normalized address as a numeric value
+         * @throws std::exception if the address cannot be parsed
          *
-         * This function converts different address format notations into a standard
-         * numeric value, supporting multiple common formats used in assembly and
-         * low-level programming:
-         *
-         * Supported formats:
+         * Supports multiple common formats:
          * - Decimal: "1024" (interpreted as decimal)
          * - Hex with 0x prefix: "0x400" (interpreted as hex)
          * - Hex with $ prefix: "$400" (interpreted as hex)
          * - Unprefixed hex: "400" (interpreted as hex if it contains A-F chars)
-         *
-         * Examples:
-         * - "1024", "$0400", "0x400", "$400" all normalize to 1024 decimal
-         *
-         * @param addrStr The address string to normalize
-         * @return The normalized address as a numeric value
-         * @throws std::exception if the address cannot be parsed
          */
         uint32_t normalizeAddress(const std::string& addrStr);
 
         /**
+         * @class Logger
          * @brief Logging utility for the SIDBlaster project
+         *
+         * Provides a centralized logging facility with support for
+         * different severity levels and output to file or console.
          */
         class Logger {
         public:
@@ -106,15 +118,17 @@ namespace sidblaster {
              * @brief Log severity levels
              */
             enum class Level {
-                Debug,
-                Info,
-                Warning,
-                Error
+                Debug,    // Detailed debugging information
+                Info,     // General information messages
+                Warning,  // Warning messages
+                Error     // Error messages
             };
 
             /**
              * @brief Initialize the logger
              * @param logFile Path to log file (optional, uses console if not provided)
+             *
+             * Sets up the logging system with the specified output destination.
              */
             static void initialize(const std::filesystem::path& logFile = {});
 
@@ -128,6 +142,8 @@ namespace sidblaster {
              * @brief Log a message
              * @param level Message severity
              * @param message Text to log
+             *
+             * Logs a message with the specified severity level.
              */
             static void log(Level level, const std::string& message);
 
@@ -156,13 +172,17 @@ namespace sidblaster {
             static void error(const std::string& message);
 
         private:
-            static Level minLevel_;
-            static std::optional<std::filesystem::path> logFile_;
-            static bool consoleOutput_;
+            static Level minLevel_;                                  // Minimum level to log
+            static std::optional<std::filesystem::path> logFile_;    // Path to log file
+            static bool consoleOutput_;                              // Whether to output to console
         };
 
         /**
+         * @class Configuration
          * @brief Configuration management for the SIDBlaster project
+         *
+         * Provides access to configuration settings, with support for
+         * loading from files and default values.
          */
         class Configuration {
         public:
@@ -205,22 +225,22 @@ namespace sidblaster {
             static bool getBool(const std::string& key, bool defaultValue = false);
 
             // Tool paths
-            static std::string getKickAssPath();
-            static std::string getExomizerPath();
-            static std::string getCompressorType();
+            static std::string getKickAssPath();      // Path to KickAss assembler
+            static std::string getExomizerPath();     // Path to Exomizer compressor
+            static std::string getCompressorType();   // Type of compressor to use
 
             // Player settings
-            static std::string getPlayerName();
-            static std::string getPlayerPath();
-            static u16 getPlayerAddress();
+            static std::string getPlayerName();       // Name of player to use
+            static std::string getPlayerPath();       // Path to player code
+            static u16 getPlayerAddress();            // Address to load player at
 
             // Default SID addresses
-            static u16 getDefaultSidLoadAddress();
-            static u16 getDefaultSidInitAddress();
-            static u16 getDefaultSidPlayAddress();
+            static u16 getDefaultSidLoadAddress();    // Default SID load address
+            static u16 getDefaultSidInitAddress();    // Default SID init address
+            static u16 getDefaultSidPlayAddress();    // Default SID play address
 
         private:
-            static std::unordered_map<std::string, std::string> configValues_;
+            static std::unordered_map<std::string, std::string> configValues_;  // Configuration values
 
             // Default configuration constants
             static constexpr const char* DEFAULT_KICKASS_PATH = "java -jar KickAss.jar";

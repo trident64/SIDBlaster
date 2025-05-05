@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include "Common.h"
@@ -9,7 +14,15 @@
 #include <string_view>
 #include <vector>
 
-// Forward declarations
+/**
+ * @file SIDLoader.h
+ * @brief Loads and manages SID music files
+ *
+ * Provides facilities for loading SID, PRG, and BIN files containing
+ * C64 music data and managing them for playback and analysis.
+ */
+
+ // Forward declarations
 class CPU6510;
 
 /**
@@ -23,12 +36,16 @@ class SIDLoader {
 public:
     /**
      * @brief Construct a new SIDLoader
+     *
+     * Initializes a SID loader with default settings.
      */
     SIDLoader();
 
     /**
      * @brief Set the CPU instance to use for loading music data
      * @param cpu Pointer to a CPU6510 instance
+     *
+     * Connects the SIDLoader to a CPU instance for loading and executing music.
      */
     void setCPU(CPU6510* cpu);
 
@@ -81,6 +98,8 @@ public:
      * @brief Load a SID file
      * @param filename Path to the SID file
      * @return true if loading succeeded, false otherwise
+     *
+     * Loads a SID file into memory and parses its header information.
      */
     bool loadSID(const std::string& filename);
 
@@ -91,6 +110,8 @@ public:
      * @param initAddr Address of initialization routine
      * @param playAddr Address of play routine
      * @return true if loading succeeded, false otherwise
+     *
+     * Loads a raw binary file with explicit addresses.
      */
     bool loadBIN(const std::string& filename, u16 loadAddr, u16 initAddr, u16 playAddr);
 
@@ -100,22 +121,60 @@ public:
      * @param initAddr Address of initialization routine
      * @param playAddr Address of play routine
      * @return true if loading succeeded, false otherwise
+     *
+     * Loads a PRG file with its embedded load address.
      */
     bool loadPRG(const std::string& filename, u16 initAddr, u16 playAddr);
 
     // Accessor methods
+
+    /**
+     * @brief Get the initialization address
+     * @return Initialization address
+     */
     u16 getInitAddress() const { return header_.initAddress; }
+
+    /**
+     * @brief Get the play address
+     * @return Play address
+     */
     u16 getPlayAddress() const { return header_.playAddress; }
+
+    /**
+     * @brief Get the load address
+     * @return Load address
+     */
     u16 getLoadAddress() const { return header_.loadAddress; }
+
+    /**
+     * @brief Get the size of the loaded data
+     * @return Data size in bytes
+     */
     u16 getDataSize() const { return dataSize_; }
+
+    /**
+     * @brief Get the SID header
+     * @return Reference to the SID header
+     */
     const SIDHeader& getHeader() const { return header_; }
 
+    /**
+     * @brief Get the original memory data
+     * @return Reference to the original memory data
+     */
     const std::vector<u8>& getOriginalMemory() const { return originalMemory_; }
+
+    /**
+     * @brief Get the base address of the original memory
+     * @return Original memory base address
+     */
     u16 getOriginalMemoryBase() const { return originalMemoryBase_; }
 
     /**
      * @brief Check if the SID file is for PAL or NTSC
      * @return true for PAL, false for NTSC
+     *
+     * Determines the video standard based on the SID header flags.
      */
     bool isPAL() const;
 
@@ -134,12 +193,16 @@ public:
     /**
      * @brief Backup the current memory to allow restoration later
      * @return True if backup succeeded
+     *
+     * Creates a snapshot of the CPU memory for later restoration.
      */
     bool backupMemory();
 
     /**
      * @brief Restore memory from backup
      * @return True if restoration succeeded
+     *
+     * Restores the CPU memory from a previously created backup.
      */
     bool restoreMemory();
 
@@ -150,6 +213,8 @@ private:
      * @param initAddr Initialization routine address
      * @param playAddr Play routine address
      * @return true if header creation succeeded
+     *
+     * Creates a synthetic SID header for PRG or BIN files.
      */
     bool createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr);
 
@@ -159,29 +224,31 @@ private:
      * @param size Size of the data in bytes
      * @param loadAddr Memory address to load the data
      * @return true if copying succeeded
+     *
+     * Loads music data into the CPU memory at the specified address.
      */
     bool copyMusicToMemory(const u8* data, u16 size, u16 loadAddr);
 
     /**
      * @brief Fix SID header endianness (SID files use big-endian)
      * @param header Reference to the header to fix
+     *
+     * Swaps endianness of multi-byte values in the SID header.
      */
     void fixHeaderEndianness(SIDHeader& header);
 
-    // Add to SIDLoader.h:
-
     // Member variables
-    SIDHeader header_;
-    u16 dataSize_ = 0;
-    CPU6510* cpu_ = nullptr;
+    SIDHeader header_;          // SID file header
+    u16 dataSize_ = 0;          // Size of music data
+    CPU6510* cpu_ = nullptr;    // Pointer to CPU instance
 
     // Keep a copy of the original loaded data
-    std::vector<u8> originalMemory_;
-    u16 originalMemoryBase_ = 0;
+    std::vector<u8> originalMemory_;    // Original music data
+    u16 originalMemoryBase_ = 0;        // Base address of original data
 
     // Playback configuration
-    u8 numPlayCallsPerFrame_ = 1;
+    u8 numPlayCallsPerFrame_ = 1;       // Number of play calls per frame
 
     // Backup of memory for analysis pass
-    std::vector<u8> memoryBackup_;
+    std::vector<u8> memoryBackup_;      // Backup of CPU memory
 };

@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #pragma once
 
 #include "CommandLineParser.h"
@@ -7,7 +12,15 @@
 #include <filesystem>
 #include <string>
 
-// Forward declarations
+/**
+ * @file SIDBlasterApp.h
+ * @brief Main application class for SIDBlaster
+ *
+ * Provides the main application logic for the SIDBlaster tool,
+ * including command line parsing, file processing, and output generation.
+ */
+
+ // Forward declarations
 class CPU6510;
 
 namespace fs = std::filesystem;
@@ -19,6 +32,9 @@ namespace sidblaster {
     /**
      * @class SIDBlasterApp
      * @brief Main application class for SIDBlaster
+     *
+     * Coordinates the overall process of loading, analyzing, disassembling,
+     * and outputting SID music files in various formats.
      */
     class SIDBlasterApp {
     public:
@@ -26,23 +42,30 @@ namespace sidblaster {
          * @brief Constructor
          * @param argc Number of command line arguments
          * @param argv Command line arguments
+         *
+         * Initializes the application with command line arguments.
          */
         SIDBlasterApp(int argc, char** argv);
 
         /**
          * @brief Run the application
          * @return Exit code
+         *
+         * Executes the main application logic and returns an exit code.
          */
         int run();
 
     private:
-        CommandLineParser cmdParser_;
-        fs::path outputFile_;  // Single output file path
-        fs::path inputFile_;
-        fs::path tempDir_;     // Directory for temporary files
-        fs::path logFile_;
-        bool verbose_ = false;
+        CommandLineParser cmdParser_;     // Command line parser
+        fs::path outputFile_;             // Single output file path
+        fs::path inputFile_;              // Input file path
+        fs::path tempDir_;                // Directory for temporary files
+        fs::path logFile_;                // Log file path
+        bool verbose_ = false;            // Verbose logging flag
 
+        /**
+         * @brief Output formats supported by the application
+         */
         enum class OutputFormat {
             PRG,   // PRG file (with or without player)
             SID,   // SID file
@@ -50,73 +73,84 @@ namespace sidblaster {
         };
 
         OutputFormat outputFormat_ = OutputFormat::PRG;  // Default format
-        bool includePlayer_ = true;  // Default to include player
+        bool includePlayer_ = true;                      // Default to include player
 
         // For relocation command-line option
-        u16 relocAddress_ = 0;
-        bool hasRelocation_ = false;
+        u16 relocAddress_ = 0;             // Relocation address
+        bool hasRelocation_ = false;       // Whether relocation is requested
 
         // SID addresses
-        u16 overrideInitAddress_ = 0;
-        u16 overridePlayAddress_ = 0;
-        u16 overrideLoadAddress_ = 0;
-        bool hasOverrideInit_ = false;
-        bool hasOverridePlay_ = false;
-        bool hasOverrideLoad_ = false;
+        u16 overrideInitAddress_ = 0;      // Override init address
+        u16 overridePlayAddress_ = 0;      // Override play address
+        u16 overrideLoadAddress_ = 0;      // Override load address
+        bool hasOverrideInit_ = false;     // Whether init address is overridden
+        bool hasOverridePlay_ = false;     // Whether play address is overridden
+        bool hasOverrideLoad_ = false;     // Whether load address is overridden
 
         // SID metadata overrides
-        std::string overrideTitle_;
-        std::string overrideAuthor_;
-        std::string overrideCopyright_;
+        std::string overrideTitle_;        // Override SID title
+        std::string overrideAuthor_;       // Override SID author
+        std::string overrideCopyright_;    // Override SID copyright
 
-        SIDLoader* sid_ = nullptr;
+        SIDLoader* sid_ = nullptr;         // Pointer to current SID loader
 
         // For player settings
-        std::string playerName_;
-        u16 playerAddress_ = 0;
+        std::string playerName_;           // Player name
+        u16 playerAddress_ = 0;            // Player address
 
         /**
          * @brief Set up command line options
+         *
+         * Configures the command line parser with supported options.
          */
         void setupCommandLine();
 
         /**
          * @brief Initialize logging
+         *
+         * Sets up the logging system based on command line options.
          */
         void initializeLogging();
 
         /**
          * @brief Parse command line arguments
          * @return True if parsing succeeded
+         *
+         * Parses and validates command line arguments.
          */
         bool parseCommandLine();
 
         /**
-         * Check if output file is valid (not same as input, etc.)
-         *
+         * @brief Check if output file is valid (not same as input, etc.)
          * @return True if output file is valid
+         *
+         * Validates that the output file path is valid and can be written.
          */
         bool checkOutputFileValid();
 
         /**
-         * Load player definitions from a file
-         *
+         * @brief Load player definitions from a file
          * @param filename Definitions file name
          * @param defs Output map of definitions
          * @return True if loading was successful
+         *
+         * Loads player configuration from a definitions file.
          */
         bool loadPlayerDefs(const std::string& filename, std::map<std::string, std::string>& defs);
 
         /**
-         * Apply SID metadata overrides from command line or defs file
-         *
+         * @brief Apply SID metadata overrides from command line or defs file
          * @param sid SIDLoader instance to update
+         *
+         * Applies any metadata overrides specified in the command line or definitions file.
          */
         void applySIDMetadataOverrides(SIDLoader& sid);
 
         /**
          * @brief Process the input file
          * @return Exit code (0 on success)
+         *
+         * Processes the input file according to the command line options.
          */
         int processFile();
 
@@ -125,6 +159,8 @@ namespace sidblaster {
          * @param sid SID loader
          * @param extractedPrgPath Path to save extracted PRG
          * @return True if loading succeeded
+         *
+         * Loads a SID file and extracts the PRG data.
          */
         bool loadSidFile(SIDLoader& sid, const fs::path& extractedPrgPath);
 
@@ -133,6 +169,8 @@ namespace sidblaster {
          * @param sid SID loader
          * @param extractedPrgPath Path to save extracted PRG
          * @return True if loading succeeded
+         *
+         * Loads a PRG file into the SID loader.
          */
         bool loadPrgFile(SIDLoader& sid, const fs::path& extractedPrgPath);
 
@@ -141,6 +179,8 @@ namespace sidblaster {
          * @param sid SID loader
          * @param extractedPrgPath Path to save extracted PRG
          * @return True if loading succeeded
+         *
+         * Loads a BIN file into the SID loader.
          */
         bool loadBinFile(SIDLoader& sid, const fs::path& extractedPrgPath);
 
@@ -148,6 +188,8 @@ namespace sidblaster {
          * @brief Extract PRG data from a SID file
          * @param sidFile SID file path
          * @param outputPrg Output PRG file path
+         *
+         * Extracts the PRG data portion of a SID file.
          */
         void extractPrgFromSid(const fs::path& sidFile, const fs::path& outputPrg);
 
@@ -157,6 +199,8 @@ namespace sidblaster {
          * @param CIATimerLo CIA timer low byte
          * @param CIATimerHi CIA timer high byte
          * @return Number of play calls per frame
+         *
+         * Determines how many times the play routine should be called per frame.
          */
         int calculatePlayCallsPerFrame(
             const SIDLoader& sid,
@@ -169,6 +213,8 @@ namespace sidblaster {
          * @param asmFile Path to the assembly file
          * @param outputPrg Path for output PRG
          * @return True if successful
+         *
+         * Assembles a pure music file without a player.
          */
         bool buildPureMusic(
             const std::string& basename,
@@ -177,6 +223,7 @@ namespace sidblaster {
 
         /**
          * @brief Build with player linked
+         * @param sid Pointer to the SID loader
          * @param basename Base name of the file
          * @param musicFile Path to the music file (ASM or PRG)
          * @param linkerFile Path for linker file
@@ -187,6 +234,8 @@ namespace sidblaster {
          * @param sidPlay SID play address
          * @param isPrgInput True if music file is PRG (not ASM)
          * @return True if successful
+         *
+         * Builds a complete player+music PRG file.
          */
         bool buildWithPlayer(
             SIDLoader* sid,
@@ -211,6 +260,8 @@ namespace sidblaster {
          * @param sidPlay SID play address
          * @param isPrgInput True if music file is PRG (not ASM)
          * @return True if successful
+         *
+         * Creates a linker file for assembling the player with the music.
          */
         bool createPlayerLinkerFile(
             const fs::path& linkerFile,
@@ -228,6 +279,8 @@ namespace sidblaster {
          * @param outputPrg Output compressed PRG file path
          * @param loadAddress Load address for the compressed file
          * @return True if compression succeeded
+         *
+         * Compresses a PRG file using an external compression tool.
          */
         bool compressPrg(
             const fs::path& inputPrg,
@@ -242,6 +295,8 @@ namespace sidblaster {
          * @param initAddr Init address
          * @param playAddr Play address
          * @return True if successful
+         *
+         * Creates a SID file from a PRG file with specified addresses.
          */
         bool generateSIDFile(
             const fs::path& sourcePrgFile,
@@ -253,6 +308,8 @@ namespace sidblaster {
         /**
          * @brief Fix SID header endianness for writing
          * @param header Header to fix
+         *
+         * Swaps endianness of multi-byte values in the SID header.
          */
         void fixHeaderEndianness(SIDHeader& header);
     };
