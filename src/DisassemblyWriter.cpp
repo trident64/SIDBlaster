@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "DisassemblyWriter.h"
 #include "SIDLoader.h"
 #include "cpu6510.h"
@@ -8,6 +13,18 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor for DisassemblyWriter
+     *
+     * Initializes the disassembly writer with references to the CPU, SID loader,
+     * memory analyzer, label generator, and code formatter.
+     *
+     * @param cpu Reference to the CPU
+     * @param sid Reference to the SID loader
+     * @param analyzer Reference to the memory analyzer
+     * @param labelGenerator Reference to the label generator
+     * @param formatter Reference to the code formatter
+     */
     DisassemblyWriter::DisassemblyWriter(
         const CPU6510& cpu,
         const SIDLoader& sid,
@@ -22,6 +39,18 @@ namespace sidblaster {
         // No longer need to check for includePlayer_ configuration
     }
 
+    /**
+     * @brief Generate an assembly file
+     *
+     * Creates a complete assembly language file for the disassembled SID,
+     * including header comments, constants, and code.
+     *
+     * @param filename Output filename
+     * @param sidLoad New SID load address
+     * @param sidInit New SID init address
+     * @param sidPlay New SID play address
+     * @return Number of unused bytes removed
+     */
     int DisassemblyWriter::generateAsmFile(
         const std::string& filename,
         u16 sidLoad,
@@ -69,6 +98,14 @@ namespace sidblaster {
         return unusedByteCount;
     }
 
+    /**
+     * @brief Add a relocation byte
+     *
+     * Registers a byte as a relocation point (address reference).
+     *
+     * @param address Address of the byte
+     * @param info Relocation information
+     */
     void DisassemblyWriter::addRelocationByte(
         u16 address,
         const RelocationInfo& info) {
@@ -76,6 +113,16 @@ namespace sidblaster {
         relocationBytes_[address] = info;
     }
 
+    /**
+     * @brief Add an indirect memory access
+     *
+     * Records information about an indirect memory access for later analysis.
+     * This helps identify address references and pointer tables.
+     *
+     * @param pc Program counter
+     * @param zpAddr Zero page address
+     * @param effectiveAddr Effective address
+     */
     void DisassemblyWriter::addIndirectAccess(u16 pc, u8 zpAddr, u16 effectiveAddr) {
         // Get the sources of the ZP variables
         const auto& lowSource = cpu_.getWriteSourceInfo(zpAddr);
@@ -105,6 +152,14 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Output hardware constants to the assembly file
+     *
+     * Identifies hardware components (like SID chips) that are accessed
+     * in the code and generates appropriate constant definitions.
+     *
+     * @param file Output stream
+     */
     void DisassemblyWriter::outputHardwareConstants(std::ofstream& file) {
         // Find all accessed hardware components
 
@@ -145,6 +200,14 @@ namespace sidblaster {
         file << "\n";
     }
 
+    /**
+     * @brief Output zero page definitions to the assembly file
+     *
+     * Identifies zero page variables used by the code and generates
+     * appropriate constant definitions.
+     *
+     * @param file Output stream
+     */
     void DisassemblyWriter::emitZPDefines(std::ofstream& file) {
         // Collect all used zero page addresses
         std::set<u8> usedZP;
@@ -178,6 +241,15 @@ namespace sidblaster {
         file << "\n";
     }
 
+    /**
+     * @brief Disassemble to the output file
+     *
+     * Performs the actual disassembly writing to the file, handling code,
+     * data, and labels appropriately.
+     *
+     * @param file Output stream
+     * @return Number of unused bytes removed
+     */
     int DisassemblyWriter::disassembleToFile(std::ofstream& file) {
         u16 pc = sid_.getLoadAddress();
         file << "\n* = SIDLoad\n\n";
@@ -231,6 +303,13 @@ namespace sidblaster {
         return unusedByteCount;
     }
 
+    /**
+     * @brief Propagate relocation sources
+     *
+     * Analyzes and propagates relocation information across the disassembly
+     * to ensure consistent address references. This helps identify pointer
+     * tables and other address references in the code.
+     */
     void DisassemblyWriter::propagateRelocationSources() {
         util::Logger::debug("Propagating relocation sources...");
 
@@ -317,6 +396,13 @@ namespace sidblaster {
             " relocation bytes");
     }
 
+    /**
+     * @brief Process all recorded indirect accesses
+     *
+     * Analyzes indirect memory access patterns to identify address references
+     * and pointer tables. This enhances the quality of the disassembly by
+     * properly labeling and formatting these references.
+     */
     void DisassemblyWriter::processIndirectAccesses() {
         if (indirectAccesses_.empty()) {
             util::Logger::debug("No indirect accesses to process");

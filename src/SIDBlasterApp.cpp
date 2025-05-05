@@ -1,7 +1,8 @@
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS
-#endif
-
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "SIDBlasterApp.h"
 #include "Disassembler.h"
 #include "SIDLoader.h"
@@ -17,11 +18,28 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor for SIDBlasterApp
+     *
+     * Initializes the application with command line arguments and sets up
+     * the command line parser.
+     *
+     * @param argc Number of command line arguments
+     * @param argv Command line arguments
+     */
     SIDBlasterApp::SIDBlasterApp(int argc, char** argv)
         : cmdParser_(argc, argv) {
         setupCommandLine();
     }
 
+    /**
+     * @brief Run the application
+     *
+     * Executes the main application logic: initializes logging, parses
+     * command line arguments, and processes the input file.
+     *
+     * @return Exit code (0 on success, non-zero on failure)
+     */
     int SIDBlasterApp::run() {
         // Initialize logging
         initializeLogging();
@@ -35,6 +53,12 @@ namespace sidblaster {
         return processFile();
     }
 
+    /**
+     * @brief Set up command line options
+     *
+     * Configures the command line parser with supported options,
+     * flags, and examples.
+     */
     void SIDBlasterApp::setupCommandLine() {
         // SID metadata options
         cmdParser_.addOptionDefinition("title", "text", "Override SID title", "SID", "");
@@ -96,6 +120,11 @@ namespace sidblaster {
             "Uses player definitions and overrides the title");
     }
 
+    /**
+     * @brief Initialize logging
+     *
+     * Sets up the logging system based on command line options.
+     */
     void SIDBlasterApp::initializeLogging() {
         // Get log file path from command line
         logFile_ = fs::path(cmdParser_.getOption("logfile", "SIDBlaster.log"));
@@ -113,6 +142,14 @@ namespace sidblaster {
         util::Logger::info(SIDBLASTER_VERSION " started");
     }
 
+    /**
+     * @brief Parse command line arguments
+     *
+     * Parses and validates command line arguments, extracting options,
+     * flags, and input/output files.
+     *
+     * @return True if parsing succeeded, false on error
+     */
     bool SIDBlasterApp::parseCommandLine() {
         // Check for help
         if (cmdParser_.hasFlag("help")) {
@@ -289,6 +326,14 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Check if output file is valid
+     *
+     * Verifies that the output file path is valid and can be written to.
+     * Also ensures that input and output files are not the same.
+     *
+     * @return True if output file is valid
+     */
     bool SIDBlasterApp::checkOutputFileValid() {
         // Check if input and output files are properly formed
         if (inputFile_.empty() || outputFile_.empty()) {
@@ -330,6 +375,16 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Load player definitions from a file
+     *
+     * Reads key-value pairs from a definitions file and stores them
+     * in the provided map.
+     *
+     * @param filename Definitions file name
+     * @param defs Output map of definitions
+     * @return True if loading was successful
+     */
     bool SIDBlasterApp::loadPlayerDefs(const std::string& filename, std::map<std::string, std::string>& defs) {
         if (!fs::exists(filename)) {
             util::Logger::error("Definitions file not found: " + filename);
@@ -376,6 +431,14 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Apply SID metadata overrides
+     *
+     * Applies overrides from the command line or definitions file
+     * to the SID header metadata.
+     *
+     * @param sid SIDLoader instance to update
+     */
     void SIDBlasterApp::applySIDMetadataOverrides(SIDLoader& sid) {
         // Apply overrides from command line
         if (!overrideTitle_.empty()) {
@@ -417,6 +480,14 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Process the input file
+     *
+     * Main processing function that handles loading, analyzing, disassembling,
+     * and outputting SID music files in various formats.
+     *
+     * @return Exit code (0 on success, non-zero on failure)
+     */
     int SIDBlasterApp::processFile() {
         util::Logger::info("Processing file: " + inputFile_.string());
 
@@ -682,6 +753,17 @@ namespace sidblaster {
         return 0;
     }
 
+    // File loading methods
+
+    /**
+     * @brief Load a SID file
+     *
+     * Loads a SID file and extracts the PRG data.
+     *
+     * @param sid SID loader
+     * @param extractedPrgPath Path to save extracted PRG
+     * @return True if loading succeeded
+     */
     bool SIDBlasterApp::loadSidFile(SIDLoader& sid, const fs::path& extractedPrgPath) {
         bool loaded = sid.loadSID(inputFile_.string());
 
@@ -712,6 +794,15 @@ namespace sidblaster {
         return loaded;
     }
 
+    /**
+     * @brief Load a PRG file
+     *
+     * Loads a C64 program file with a built-in load address.
+     *
+     * @param sid SID loader
+     * @param extractedPrgPath Path to save extracted PRG
+     * @return True if loading succeeded
+     */
     bool SIDBlasterApp::loadPrgFile(SIDLoader& sid, const fs::path& extractedPrgPath) {
         // For PRG files, we need init and play addresses
         u16 init = hasOverrideInit_ ? overrideInitAddress_ : util::Configuration::getDefaultSidInitAddress();
@@ -733,6 +824,15 @@ namespace sidblaster {
         return loaded;
     }
 
+    /**
+     * @brief Load a BIN file
+     *
+     * Loads a raw binary file with explicitly specified addresses.
+     *
+     * @param sid SID loader
+     * @param extractedPrgPath Path to save extracted PRG
+     * @return True if loading succeeded
+     */
     bool SIDBlasterApp::loadBinFile(SIDLoader& sid, const fs::path& extractedPrgPath) {
         // For BIN files, we need load, init, and play addresses
         u16 load = hasOverrideLoad_ ? overrideLoadAddress_ : util::Configuration::getDefaultSidLoadAddress();
@@ -775,6 +875,15 @@ namespace sidblaster {
         return loaded;
     }
 
+    /**
+     * @brief Extract PRG data from a SID file
+     *
+     * Extracts the PRG data portion of a SID file, adding
+     * the appropriate load address header.
+     *
+     * @param sidFile SID file path
+     * @param outputPrg Output PRG file path
+     */
     void SIDBlasterApp::extractPrgFromSid(const fs::path& sidFile, const fs::path& outputPrg) {
         // Read the SID file
         std::ifstream input(sidFile, std::ios::binary);
@@ -813,6 +922,17 @@ namespace sidblaster {
         util::Logger::debug("Extracted PRG data to: " + outputPrg.string());
     }
 
+    /**
+     * @brief Calculate the number of play calls per frame
+     *
+     * Determines how many times the play routine should be called per frame
+     * based on the SID header and CIA timer settings.
+     *
+     * @param sid SID loader with file information
+     * @param CIATimerLo CIA timer low byte
+     * @param CIATimerHi CIA timer high byte
+     * @return Number of play calls per frame
+     */
     int SIDBlasterApp::calculatePlayCallsPerFrame(
         const SIDLoader& sid,
         u8 CIATimerLo,
@@ -842,6 +962,16 @@ namespace sidblaster {
         return numPlayCallsPerFrame;
     }
 
+    /**
+     * @brief Build the pure music file (no player)
+     *
+     * Assembles a pure music file without a player.
+     *
+     * @param basename Base name of the file
+     * @param asmFile Path to the assembly file
+     * @param outputPrg Path for output PRG
+     * @return True if successful
+     */
     bool SIDBlasterApp::buildPureMusic(
         const std::string& basename,
         const fs::path& asmFile,
@@ -867,6 +997,23 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Build with player linked
+     *
+     * Builds a complete player+music PRG file.
+     *
+     * @param sid Pointer to the SID loader
+     * @param basename Base name of the file
+     * @param musicFile Path to the music file (ASM or PRG)
+     * @param linkerFile Path for linker file
+     * @param outputPrg Path for output PRG
+     * @param playCallsPerFrame Number of play calls per frame
+     * @param isPAL True if using PAL timing
+     * @param sidInit SID init address
+     * @param sidPlay SID play address
+     * @param isPrgInput True if music file is PRG (not ASM)
+     * @return True if successful
+     */
     bool SIDBlasterApp::buildWithPlayer(
         SIDLoader* sid,
         const std::string& basename,
@@ -909,6 +1056,21 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Create a player linker file
+     *
+     * Creates a linker file for assembling the player with the music.
+     *
+     * @param linkerFile Path to the linker file to create
+     * @param musicFile Path to the music file (ASM or PRG)
+     * @param playerAsmFile Path to the player assembly file
+     * @param playCallsPerFrame Number of play calls per frame
+     * @param isPAL True if using PAL timing
+     * @param sidInit SID init address
+     * @param sidPlay SID play address
+     * @param isPrgInput True if music file is PRG (not ASM)
+     * @return True if successful
+     */
     bool SIDBlasterApp::createPlayerLinkerFile(
         const fs::path& linkerFile,
         const fs::path& musicFile,
@@ -1011,6 +1173,16 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Compress a PRG file
+     *
+     * Compresses a PRG file using an external compression tool.
+     *
+     * @param inputPrg Input PRG file path
+     * @param outputPrg Output compressed PRG file path
+     * @param loadAddress Load address for the compressed file
+     * @return True if compression succeeded
+     */
     bool SIDBlasterApp::compressPrg(
         const fs::path& inputPrg,
         const fs::path& outputPrg,
@@ -1050,6 +1222,18 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Generate a new SID file
+     *
+     * Creates a SID file from a PRG file with specified addresses.
+     *
+     * @param sourcePrgFile Source PRG file
+     * @param outputSidFile Output SID file
+     * @param loadAddr Load address
+     * @param initAddr Init address
+     * @param playAddr Play address
+     * @return True if successful
+     */
     bool SIDBlasterApp::generateSIDFile(
         const fs::path& sourcePrgFile,
         const fs::path& outputSidFile,
@@ -1175,6 +1359,13 @@ namespace sidblaster {
         return true;
     }
 
+    /**
+     * @brief Fix SID header endianness for writing
+     *
+     * Swaps endianness of multi-byte values in the SID header.
+     *
+     * @param header Header to fix
+     */
     void SIDBlasterApp::fixHeaderEndianness(SIDHeader& header) {
         // SID files store multi-byte values in big-endian format
         auto swapEndian = [](u16 value) -> u16 {

@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "SIDBlasterUtils.h"
 
 #include <algorithm>
@@ -29,6 +34,13 @@ namespace sidblaster {
             {"defaultSidPlayAddress", DEFAULT_SID_PLAY_ADDRESS}
         };
 
+        /**
+         * @brief Convert a byte to a hexadecimal string
+         *
+         * @param value Byte value to convert
+         * @param upperCase Whether to use uppercase letters
+         * @return Formatted hex string (always 2 characters)
+         */
         std::string byteToHex(u8 value, bool upperCase) {
             std::ostringstream ss;
             ss << (upperCase ? std::uppercase : std::nouppercase)
@@ -37,6 +49,13 @@ namespace sidblaster {
             return ss.str();
         }
 
+        /**
+         * @brief Convert a word to a hexadecimal string
+         *
+         * @param value Word value to convert
+         * @param upperCase Whether to use uppercase letters
+         * @return Formatted hex string (always 4 characters)
+         */
         std::string wordToHex(u16 value, bool upperCase) {
             std::ostringstream ss;
             ss << (upperCase ? std::uppercase : std::nouppercase)
@@ -45,6 +64,17 @@ namespace sidblaster {
             return ss.str();
         }
 
+        /**
+         * @brief Parse a hexadecimal string into a numeric value
+         *
+         * Handles different formats including:
+         * - "1234" (decimal)
+         * - "$1234" (hex with $ prefix)
+         * - "0x1234" (hex with 0x prefix)
+         *
+         * @param str String to parse
+         * @return Parsed value, or std::nullopt if parsing failed
+         */
         std::optional<u16> parseHex(std::string_view str) {
             // Trim whitespace
             const auto start = str.find_first_not_of(" \t\r\n");
@@ -75,6 +105,16 @@ namespace sidblaster {
             }
         }
 
+        /**
+         * @brief Pad a string to a specific width with spaces
+         *
+         * Adds trailing spaces to reach the desired width, useful for
+         * aligning columns in formatted output.
+         *
+         * @param str String to pad
+         * @param width Target width
+         * @return Padded string
+         */
         std::string padToColumn(std::string_view str, size_t width) {
             if (str.length() >= width) {
                 return std::string(str);
@@ -83,12 +123,23 @@ namespace sidblaster {
             return std::string(str) + std::string(width - str.length(), ' ');
         }
 
-        // IndexRange implementation
+        /**
+         * @brief Update the index range to include a new offset
+         *
+         * Records a new value in the range, updating the min/max if needed.
+         *
+         * @param offset Value to include in the range
+         */
         void IndexRange::update(int offset) {
             min_ = std::min(min_, offset);
             max_ = std::max(max_, offset);
         }
 
+        /**
+         * @brief Get the current min/max range
+         *
+         * @return Pair containing min and max values
+         */
         std::pair<int, int> IndexRange::getRange() const {
             if (min_ > max_) {
                 return { 0, 0 };  // No valid data
@@ -96,7 +147,15 @@ namespace sidblaster {
             return { min_, max_ };
         }
 
-        // Helper function to normalize various address formats to a numeric value
+        /**
+         * @brief Normalize various address formats to a numeric value
+         *
+         * Handles different address format notations including decimal,
+         * hexadecimal with various prefixes, and auto-detecting hex.
+         *
+         * @param addrStr The address string to normalize
+         * @return The normalized address as a numeric value
+         */
         uint32_t normalizeAddress(const std::string& addrStr) {
             std::string trimmed = addrStr;
 
@@ -130,7 +189,15 @@ namespace sidblaster {
             }
         }
 
-        // Helper function for safe localtime
+        /**
+         * @brief Helper function for safe localtime
+         *
+         * Provides a cross-platform way to get the local time structure
+         * that works on both Windows and POSIX systems.
+         *
+         * @param time Time value to convert
+         * @return Local time structure
+         */
         std::tm getLocalTime(const std::time_t& time) {
             std::tm timeInfo = {};
 #ifdef _WIN32
@@ -143,6 +210,15 @@ namespace sidblaster {
             return timeInfo;
         }
 
+        /**
+         * @brief Initialize the logger
+         *
+         * Sets up the logging system with the specified output destination.
+         * If a log file is provided, output is directed there; otherwise,
+         * output goes to the console.
+         *
+         * @param logFile Path to log file (optional)
+         */
         void Logger::initialize(const std::filesystem::path& logFile) {
             logFile_ = logFile;
             consoleOutput_ = !logFile_.has_value();
@@ -170,12 +246,27 @@ namespace sidblaster {
             }
         }
 
+        /**
+         * @brief Set minimum log level to show
+         *
+         * Configures the logger to only display messages at or above
+         * the specified severity level.
+         *
+         * @param level Minimum level
+         */
         void Logger::setLogLevel(Level level) {
             minLevel_ = level;
         }
 
-        // Only adding the modified Logger::log method
-
+        /**
+         * @brief Log a message
+         *
+         * Core logging function that formats and outputs a message
+         * with timestamp and severity level.
+         *
+         * @param level Message severity
+         * @param message Text to log
+         */
         void Logger::log(Level level, const std::string& message) {
             if (level < minLevel_) {
                 return;
@@ -224,22 +315,59 @@ namespace sidblaster {
             }
         }
 
+        /**
+         * @brief Log a debug message
+         *
+         * For detailed debugging information.
+         *
+         * @param message Text to log
+         */
         void Logger::debug(const std::string& message) {
             log(Level::Debug, message);
         }
 
+        /**
+         * @brief Log an info message
+         *
+         * For general information messages.
+         *
+         * @param message Text to log
+         */
         void Logger::info(const std::string& message) {
             log(Level::Info, message);
         }
 
+        /**
+         * @brief Log a warning message
+         *
+         * For warning messages about potential issues.
+         *
+         * @param message Text to log
+         */
         void Logger::warning(const std::string& message) {
             log(Level::Warning, message);
         }
 
+        /**
+         * @brief Log an error message
+         *
+         * For error messages about failures.
+         *
+         * @param message Text to log
+         */
         void Logger::error(const std::string& message) {
             log(Level::Error, message);
         }
 
+        /**
+         * @brief Load configuration from a file
+         *
+         * Reads key=value pairs from a configuration file and stores them
+         * in the configuration map. Comments starting with # or ; are ignored.
+         *
+         * @param configFile Path to configuration file
+         * @return true if loading succeeded
+         */
         bool Configuration::loadFromFile(const std::filesystem::path& configFile) {
             std::ifstream file(configFile);
             if (!file) {
@@ -280,15 +408,41 @@ namespace sidblaster {
             return true;
         }
 
+        /**
+         * @brief Set a configuration value
+         *
+         * Adds or updates a key-value pair in the configuration map.
+         *
+         * @param key Configuration key
+         * @param value Value to set
+         */
         void Configuration::setValue(const std::string& key, const std::string& value) {
             configValues_[key] = value;
         }
 
+        /**
+         * @brief Get a string configuration value
+         *
+         * Retrieves a string value from the configuration map.
+         *
+         * @param key Configuration key
+         * @param defaultValue Default value if key not found
+         * @return Configuration value or default
+         */
         std::string Configuration::getString(const std::string& key, const std::string& defaultValue) {
             const auto it = configValues_.find(key);
             return (it != configValues_.end()) ? it->second : defaultValue;
         }
 
+        /**
+         * @brief Get an integer configuration value
+         *
+         * Retrieves a value from the configuration map and converts it to an integer.
+         *
+         * @param key Configuration key
+         * @param defaultValue Default value if key not found or conversion fails
+         * @return Configuration value as integer or default
+         */
         int Configuration::getInt(const std::string& key, int defaultValue) {
             const auto it = configValues_.find(key);
             if (it == configValues_.end()) {
@@ -303,6 +457,16 @@ namespace sidblaster {
             }
         }
 
+        /**
+         * @brief Get a boolean configuration value
+         *
+         * Retrieves a value from the configuration map and converts it to a boolean.
+         * Recognizes various string formats for true/false values.
+         *
+         * @param key Configuration key
+         * @param defaultValue Default value if key not found or conversion fails
+         * @return Configuration value as boolean or default
+         */
         bool Configuration::getBool(const std::string& key, bool defaultValue) {
             const auto it = configValues_.find(key);
             if (it == configValues_.end()) {
@@ -322,47 +486,97 @@ namespace sidblaster {
             return defaultValue;
         }
 
-        // Tool path accessors
+        /**
+         * @brief Get the path to the KickAss assembler
+         *
+         * @return Path to KickAss assembler
+         */
         std::string Configuration::getKickAssPath() {
             return getString("kickassPath", DEFAULT_KICKASS_PATH);
         }
 
+        /**
+         * @brief Get the path to the Exomizer compressor
+         *
+         * @return Path to Exomizer compressor
+         */
         std::string Configuration::getExomizerPath() {
             return getString("exomizerPath", DEFAULT_EXOMIZER_PATH);
         }
 
+        /**
+         * @brief Get the compressor type
+         *
+         * @return Type of compressor to use
+         */
         std::string Configuration::getCompressorType() {
             return getString("compressorType", DEFAULT_COMPRESSOR_TYPE);
         }
 
-        // Player settings accessors
+        /**
+         * @brief Get the player name
+         *
+         * @return Name of player to use
+         */
         std::string Configuration::getPlayerName() {
             return getString("playerName", DEFAULT_PLAYER_NAME);
         }
 
+        /**
+         * @brief Get the path to the player code
+         *
+         * @return Path to player code
+         */
         std::string Configuration::getPlayerPath() {
             return getString("playerPath", DEFAULT_PLAYER_PATH);
         }
 
+        /**
+         * @brief Get the player address
+         *
+         * Parses the player address configuration value as a hexadecimal address.
+         *
+         * @return Address to load player at
+         */
         u16 Configuration::getPlayerAddress() {
             std::string addrStr = getString("playerAddress", DEFAULT_PLAYER_ADDRESS);
             auto addr = parseHex(addrStr);
             return addr.value_or(0x0400); // Default to $0400 if parsing fails
         }
 
-        // Default SID address accessors
+        /**
+         * @brief Get the default SID load address
+         *
+         * Parses the default SID load address configuration value.
+         *
+         * @return Default SID load address
+         */
         u16 Configuration::getDefaultSidLoadAddress() {
             std::string addrStr = getString("defaultSidLoadAddress", DEFAULT_SID_LOAD_ADDRESS);
             auto addr = parseHex(addrStr);
             return addr.value_or(0x1000); // Default to $1000 if parsing fails
         }
 
+        /**
+         * @brief Get the default SID init address
+         *
+         * Parses the default SID init address configuration value.
+         *
+         * @return Default SID init address
+         */
         u16 Configuration::getDefaultSidInitAddress() {
             std::string addrStr = getString("defaultSidInitAddress", DEFAULT_SID_INIT_ADDRESS);
             auto addr = parseHex(addrStr);
             return addr.value_or(0x1000); // Default to $1000 if parsing fails
         }
 
+        /**
+         * @brief Get the default SID play address
+         *
+         * Parses the default SID play address configuration value.
+         *
+         * @return Default SID play address
+         */
         u16 Configuration::getDefaultSidPlayAddress() {
             std::string addrStr = getString("defaultSidPlayAddress", DEFAULT_SID_PLAY_ADDRESS);
             auto addr = parseHex(addrStr);

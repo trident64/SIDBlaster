@@ -1,4 +1,9 @@
-﻿#include "cpu6510.h"
+﻿// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
+#include "cpu6510.h"
 #include "SIDLoader.h"
 #include "SIDBlasterUtils.h"
 
@@ -8,31 +13,64 @@
 #include <iostream>
 #include <stdexcept>
 
-using namespace sidblaster::util; 
+using namespace sidblaster::util;
 
+/**
+ * @brief Constructor for SIDLoader
+ *
+ * Initializes a SID loader with default settings and empty header.
+ */
 SIDLoader::SIDLoader() {
     std::memset(&header_, 0, sizeof(header_));
 }
 
+/**
+ * @brief Set the CPU instance to use for loading music data
+ *
+ * @param cpuPtr Pointer to a CPU6510 instance
+ */
 void SIDLoader::setCPU(CPU6510* cpuPtr) {
     cpu_ = cpuPtr;
 }
 
+/**
+ * @brief Override the init address in the SID header
+ *
+ * @param address New init address
+ */
 void SIDLoader::setInitAddress(u16 address) {
     header_.initAddress = address;
     Logger::debug("SID init address overridden: $" + wordToHex(address));
 }
 
+/**
+ * @brief Override the play address in the SID header
+ *
+ * @param address New play address
+ */
 void SIDLoader::setPlayAddress(u16 address) {
     header_.playAddress = address;
     Logger::debug("SID play address overridden: $" + wordToHex(address));
 }
 
+/**
+ * @brief Override the load address in the SID header
+ *
+ * @param address New load address
+ */
 void SIDLoader::setLoadAddress(u16 address) {
     header_.loadAddress = address;
     Logger::debug("SID load address overridden: $" + wordToHex(address));
 }
 
+/**
+ * @brief Load a SID file
+ *
+ * Reads a SID file, parses its header, and loads the music data into memory.
+ *
+ * @param filename Path to the SID file
+ * @return true if loading succeeded, false otherwise
+ */
 bool SIDLoader::loadSID(const std::string& filename) {
     if (!cpu_) {
         std::cerr << "CPU not set!\n";
@@ -109,6 +147,17 @@ bool SIDLoader::loadSID(const std::string& filename) {
     return true;
 }
 
+/**
+ * @brief Load a raw binary file
+ *
+ * Loads a raw binary file with explicitly specified addresses.
+ *
+ * @param filename Path to the BIN file
+ * @param loadAddr Memory address where the data should be loaded
+ * @param initAddr Address of initialization routine
+ * @param playAddr Address of play routine
+ * @return true if loading succeeded, false otherwise
+ */
 bool SIDLoader::loadBIN(const std::string& filename, u16 loadAddr, u16 initAddr, u16 playAddr) {
     if (!cpu_) {
         std::cerr << "CPU not set!\n";
@@ -153,6 +202,16 @@ bool SIDLoader::loadBIN(const std::string& filename, u16 loadAddr, u16 initAddr,
     return true;
 }
 
+/**
+ * @brief Load a PRG file
+ *
+ * Loads a C64 program file with a built-in load address.
+ *
+ * @param filename Path to the PRG file
+ * @param initAddr Address of initialization routine
+ * @param playAddr Address of play routine
+ * @return true if loading succeeded, false otherwise
+ */
 bool SIDLoader::loadPRG(const std::string& filename, u16 initAddr, u16 playAddr) {
     if (!cpu_) {
         std::cerr << "CPU not set!\n";
@@ -201,6 +260,17 @@ bool SIDLoader::loadPRG(const std::string& filename, u16 initAddr, u16 playAddr)
     return true;
 }
 
+/**
+ * @brief Create a SID header for non-SID format files
+ *
+ * Creates a synthetic SID header with appropriate fields for
+ * BIN or PRG files that don't have their own headers.
+ *
+ * @param loadAddr Memory load address
+ * @param initAddr Initialization routine address
+ * @param playAddr Play routine address
+ * @return true if header creation succeeded
+ */
 bool SIDLoader::createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr) {
     // Create a minimal SID header for non-SID files
     std::memset(&header_, 0, sizeof(header_));
@@ -217,6 +287,17 @@ bool SIDLoader::createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr) {
     return true;
 }
 
+/**
+ * @brief Copy music data to CPU memory
+ *
+ * Loads music data into the CPU's memory at the specified address
+ * and stores a copy for later reference.
+ *
+ * @param data Pointer to the music data
+ * @param size Size of the data in bytes
+ * @param loadAddr Memory address to load the data
+ * @return true if copying succeeded
+ */
 bool SIDLoader::copyMusicToMemory(const u8* data, u16 size, u16 loadAddr) {
     if (!cpu_) {
         std::cerr << "CPU not set!\n";
@@ -242,6 +323,14 @@ bool SIDLoader::copyMusicToMemory(const u8* data, u16 size, u16 loadAddr) {
     return true;
 }
 
+/**
+ * @brief Fix SID header endianness
+ *
+ * SID files store multi-byte values in big-endian format, but the CPU
+ * uses little-endian. This function swaps the byte order as needed.
+ *
+ * @param header Header to fix
+ */
 void SIDLoader::fixHeaderEndianness(SIDHeader& header) {
     // SID files store multi-byte values in big-endian format
     auto swapEndian = [](u16 value) -> u16 {
@@ -258,6 +347,13 @@ void SIDLoader::fixHeaderEndianness(SIDHeader& header) {
     header.flags = swapEndian(header.flags);
 }
 
+/**
+ * @brief Check if the SID file is for PAL or NTSC
+ *
+ * Determines the intended video standard from the SID header flags.
+ *
+ * @return true for PAL, false for NTSC
+ */
 bool SIDLoader::isPAL() const {
     // Default to PAL if no flags or unknown
     if (header_.version < 2 || header_.dataOffset < 0x76) {
@@ -269,6 +365,13 @@ bool SIDLoader::isPAL() const {
     return (video == 0 || video == 3);  // 0 = PAL, 3 = Both -> assume PAL
 }
 
+/**
+ * @brief Backup the current memory to allow restoration later
+ *
+ * Creates a snapshot of the CPU memory for later restoration.
+ *
+ * @return True if backup succeeded
+ */
 bool SIDLoader::backupMemory() {
     if (!cpu_) {
         sidblaster::util::Logger::error("CPU not set for memory backup!");
@@ -285,6 +388,13 @@ bool SIDLoader::backupMemory() {
     return true;
 }
 
+/**
+ * @brief Restore memory from backup
+ *
+ * Restores the CPU memory from a previously created backup.
+ *
+ * @return True if restoration succeeded
+ */
 bool SIDLoader::restoreMemory() {
     if (!cpu_ || memoryBackup_.empty()) {
         sidblaster::util::Logger::error("Cannot restore memory: CPU not set or backup empty!");

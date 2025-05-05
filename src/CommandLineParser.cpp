@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "CommandLineParser.h"
 #include "SIDBlasterUtils.h"
 
@@ -7,6 +12,15 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor that parses command line arguments
+     *
+     * Parses the provided command line arguments into flags, options,
+     * and identifies input/output files.
+     *
+     * @param argc Number of arguments
+     * @param argv Array of argument strings
+     */
     CommandLineParser::CommandLineParser(int argc, char** argv) {
         if (argc > 0) {
             programName_ = std::filesystem::path(argv[0]).filename().string();
@@ -64,14 +78,32 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Get the output file
+     *
+     * @return The output file path
+     */
     const std::string& CommandLineParser::getOutputFile() const {
         return outputFile_;
     }
 
+    /**
+     * @brief Check if a flag is present
+     *
+     * @param flag Flag name (without leading dashes)
+     * @return True if flag is present
+     */
     bool CommandLineParser::hasFlag(const std::string& flag) const {
         return flags_.find(flag) != flags_.end();
     }
 
+    /**
+     * @brief Get the value of an option (first parameter only)
+     *
+     * @param option Option name (without leading dashes)
+     * @param defaultValue Value to return if option not present
+     * @return First parameter value or default
+     */
     std::string CommandLineParser::getOption(const std::string& option, const std::string& defaultValue) const {
         auto it = commands_.find(option);
         if (it != commands_.end() && !it->second.parameters.empty()) {
@@ -80,6 +112,12 @@ namespace sidblaster {
         return defaultValue;
     }
 
+    /**
+     * @brief Get all parameters for a command
+     *
+     * @param command Command name (without leading dashes)
+     * @return Vector of parameter values or empty vector if command not present
+     */
     std::vector<std::string> CommandLineParser::getCommandParameters(const std::string& command) const {
         auto it = commands_.find(command);
         if (it != commands_.end()) {
@@ -88,6 +126,13 @@ namespace sidblaster {
         return {};
     }
 
+    /**
+     * @brief Get the integer value of an option (first parameter only)
+     *
+     * @param option Option name (without leading dashes)
+     * @param defaultValue Value to return if option not present or invalid
+     * @return Option value or default
+     */
     int CommandLineParser::getIntOption(const std::string& option, int defaultValue) const {
         auto optionValue = getOption(option);
         if (optionValue.empty()) {
@@ -102,6 +147,13 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Get the boolean value of an option (first parameter only)
+     *
+     * @param option Option name (without leading dashes)
+     * @param defaultValue Value to return if option not present
+     * @return Option value or default
+     */
     bool CommandLineParser::getBoolOption(const std::string& option, bool defaultValue) const {
         auto optionValue = getOption(option);
         if (optionValue.empty()) {
@@ -120,6 +172,13 @@ namespace sidblaster {
         return defaultValue;
     }
 
+    /**
+     * @brief Get a path option and ensure it exists
+     *
+     * @param option Option name (without leading dashes)
+     * @param defaultValue Value to return if option not present
+     * @return Path value or nullopt if path doesn't exist
+     */
     std::optional<std::filesystem::path> CommandLineParser::getExistingPath(
         const std::string& option,
         const std::filesystem::path& defaultValue) const {
@@ -145,14 +204,32 @@ namespace sidblaster {
         return path;
     }
 
+    /**
+     * @brief Get the input file (SID, PRG, or BIN)
+     *
+     * @return Input file path or empty string if not specified
+     */
     const std::string& CommandLineParser::getInputFile() const {
         return inputFile_;
     }
 
+    /**
+     * @brief Get the program name
+     *
+     * @return Program name (from argv[0])
+     */
     const std::string& CommandLineParser::getProgramName() const {
         return programName_;
     }
 
+    /**
+     * @brief Print usage information
+     *
+     * Displays comprehensive usage information, including available options,
+     * flags, and example usage scenarios.
+     *
+     * @param message Optional message to display before usage
+     */
     void CommandLineParser::printUsage(const std::string& message) const {
         if (!message.empty()) {
             std::cout << message << std::endl << std::endl;
@@ -239,6 +316,14 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Add a flag definition for usage help
+     *
+     * @param flag Flag name (without leading dashes)
+     * @param description Flag description
+     * @param category Category for grouping in help text
+     * @return Reference to this parser (for chaining)
+     */
     CommandLineParser& CommandLineParser::addFlagDefinition(
         const std::string& flag,
         const std::string& description,
@@ -248,6 +333,16 @@ namespace sidblaster {
         return *this;
     }
 
+    /**
+     * @brief Add an option definition for usage help
+     *
+     * @param option Option name (without leading dashes)
+     * @param argName Name of the option's argument
+     * @param description Option description
+     * @param category Category for grouping in help text
+     * @param defaultValue Default value (empty for no default)
+     * @return Reference to this parser (for chaining)
+     */
     CommandLineParser& CommandLineParser::addOptionDefinition(
         const std::string& option,
         const std::string& argName,
@@ -259,6 +354,13 @@ namespace sidblaster {
         return *this;
     }
 
+    /**
+     * @brief Add example usage for help text
+     *
+     * @param example Example command line
+     * @param description Description of what the example does
+     * @return Reference to this parser (for chaining)
+     */
     CommandLineParser& CommandLineParser::addExample(
         const std::string& example,
         const std::string& description) {

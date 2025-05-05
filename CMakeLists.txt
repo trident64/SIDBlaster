@@ -15,7 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(SOURCES
     src/CodeFormatter.cpp
     src/CommandLineParser.cpp
-    src/Common.cpp
+    
     src/cpu6510.cpp
     src/Disassembler.cpp
     src/DisassemblyWriter.cpp

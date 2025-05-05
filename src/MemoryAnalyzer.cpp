@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "MemoryAnalyzer.h"
 #include "SIDBlasterUtils.h"
 
@@ -12,6 +17,17 @@ namespace sidblaster {
         constexpr u8 MemoryAccess_OpCode = 1 << 4;
     }
 
+    /**
+     * @brief Constructor for MemoryAnalyzer
+     *
+     * Initializes the memory analyzer with references to CPU memory and access tracking data,
+     * along with the address range to analyze.
+     *
+     * @param memory Span of CPU memory
+     * @param memoryAccess Span of memory access tracking data
+     * @param startAddress Beginning address of the region to analyze
+     * @param endAddress Ending address of the region to analyze
+     */
     MemoryAnalyzer::MemoryAnalyzer(
         std::span<const u8> memory,
         std::span<const u8> memoryAccess,
@@ -26,6 +42,12 @@ namespace sidblaster {
         memoryTypes_.resize(65536, MemoryType::Unknown);
     }
 
+    /**
+     * @brief Analyze execution patterns in memory
+     *
+     * Examines memory access tracking data to identify regions that were executed as code
+     * and jump targets. Marks these regions with appropriate memory type flags.
+     */
     void MemoryAnalyzer::analyzeExecution() {
         util::Logger::debug("Analyzing execution patterns...");
 
@@ -52,6 +74,12 @@ namespace sidblaster {
             std::to_string(jumpCount) + " jump targets");
     }
 
+    /**
+     * @brief Analyze memory access patterns
+     *
+     * Examines memory reads and writes to identify additional label targets
+     * where memory that is also code is accessed as data.
+     */
     void MemoryAnalyzer::analyzeAccesses() {
         util::Logger::debug("Analyzing memory accesses...");
 
@@ -82,6 +110,13 @@ namespace sidblaster {
         util::Logger::debug("Memory access analysis complete");
     }
 
+    /**
+     * @brief Analyze data regions in memory
+     *
+     * Identifies memory regions that are not already marked as code
+     * and marks them as data. This completes the classification of
+     * all memory in the analyzed range.
+     */
     void MemoryAnalyzer::analyzeData() {
         util::Logger::debug("Analyzing data regions...");
 
@@ -106,6 +141,15 @@ namespace sidblaster {
         util::Logger::debug("Data region analysis complete");
     }
 
+    /**
+     * @brief Find the start of an instruction that covers a specific address
+     *
+     * When an instruction operand is accessed, this finds the opcode address
+     * of the instruction that it belongs to.
+     *
+     * @param addr Address to find the covering instruction for
+     * @return Start address of the instruction
+     */
     u16 MemoryAnalyzer::findInstructionStartCovering(u16 addr) const {
         // Look back up to 3 bytes to find an opcode
         for (int i = 0; i < 3; i++) {
@@ -123,6 +167,12 @@ namespace sidblaster {
         return addr;
     }
 
+    /**
+     * @brief Get the memory type for a specific address
+     *
+     * @param addr Address to check
+     * @return Memory type flags for the address
+     */
     MemoryType MemoryAnalyzer::getMemoryType(u16 addr) const {
         if (addr < memoryTypes_.size()) {
             return memoryTypes_[addr];
@@ -130,10 +180,22 @@ namespace sidblaster {
         return MemoryType::Unknown;
     }
 
+    /**
+     * @brief Get the memory type map
+     *
+     * @return Span of memory types for all addresses
+     */
     std::span<const MemoryType> MemoryAnalyzer::getMemoryTypes() const {
         return std::span<const MemoryType>(memoryTypes_.data(), memoryTypes_.size());
     }
 
+    /**
+     * @brief Find all data ranges in the analyzed memory
+     *
+     * Identifies contiguous regions of memory that are marked as data.
+     *
+     * @return Vector of pairs representing start and end addresses of data blocks
+     */
     std::vector<std::pair<u16, u16>> MemoryAnalyzer::findDataRanges() const {
         std::vector<std::pair<u16, u16>> ranges;
 
@@ -164,6 +226,13 @@ namespace sidblaster {
         return ranges;
     }
 
+    /**
+     * @brief Find all code ranges in the analyzed memory
+     *
+     * Identifies contiguous regions of memory that are marked as code.
+     *
+     * @return Vector of pairs representing start and end addresses of code blocks
+     */
     std::vector<std::pair<u16, u16>> MemoryAnalyzer::findCodeRanges() const {
         std::vector<std::pair<u16, u16>> ranges;
 
@@ -194,6 +263,14 @@ namespace sidblaster {
         return ranges;
     }
 
+    /**
+     * @brief Find all label target addresses in the analyzed memory
+     *
+     * Identifies addresses that are marked as label targets, which includes
+     * jump destinations, subroutine entry points, and other referenced locations.
+     *
+     * @return Vector of addresses that should have labels
+     */
     std::vector<u16> MemoryAnalyzer::findLabelTargets() const {
         std::vector<u16> targets;
 
@@ -207,6 +284,14 @@ namespace sidblaster {
         return targets;
     }
 
+    /**
+     * @brief Check if an address is valid for analysis
+     *
+     * Verifies that an address falls within the range being analyzed.
+     *
+     * @param addr Address to check
+     * @return True if the address is within the analysis range
+     */
     bool MemoryAnalyzer::isValidAddress(u16 addr) const {
         return addr >= startAddress_ && addr < endAddress_;
     }

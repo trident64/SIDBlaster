@@ -1,4 +1,9 @@
-﻿#include "Disassembler.h"
+﻿// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
+#include "Disassembler.h"
 #include "CodeFormatter.h"
 #include "DisassemblyWriter.h"
 #include "LabelGenerator.h"
@@ -8,14 +13,34 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor for Disassembler
+     *
+     * Initializes the disassembler with references to the CPU and SID loader,
+     * then calls initialize() to set up the internal components.
+     *
+     * @param cpu Reference to the CPU with execution state
+     * @param sid Reference to the SID file loader
+     */
     Disassembler::Disassembler(const CPU6510& cpu, const SIDLoader& sid)
         : cpu_(cpu),
         sid_(sid) {
         initialize();
     }
 
+    /**
+     * @brief Destructor for Disassembler
+     *
+     * Default destructor - unique_ptr members will be automatically cleaned up.
+     */
     Disassembler::~Disassembler() = default;
 
+    /**
+     * @brief Initialize the disassembler components
+     *
+     * Sets up the memory analyzer, label generator, code formatter, and disassembly writer.
+     * Also configures the indirect read callback to track memory access patterns.
+     */
     void Disassembler::initialize() {
         util::Logger::debug("Initializing disassembler...");
 
@@ -60,6 +85,18 @@ namespace sidblaster {
         util::Logger::debug("Disassembler initialization complete");
     }
 
+    /**
+     * @brief Generate an assembly file from the loaded SID
+     *
+     * Performs analysis on the CPU memory, generates labels, processes
+     * memory access patterns, and produces an assembly language output file.
+     *
+     * @param outputPath Path to write the assembly file
+     * @param sidLoad New SID load address (for relocation)
+     * @param sidInit New SID init address
+     * @param sidPlay New SID play address
+     * @return Number of unused bytes removed, or -1 on error
+     */
     int Disassembler::generateAsmFile(
         const std::string& outputPath,
         u16 sidLoad,
@@ -92,6 +129,14 @@ namespace sidblaster {
         return writer_->generateAsmFile(outputPath, sidLoad, sidInit, sidPlay);
     }
 
+    /**
+     * @brief Set the callback for indirect memory reads
+     *
+     * Allows external code to be notified of indirect memory accesses
+     * for tracking and analysis.
+     *
+     * @param callback Function to call on indirect reads
+     */
     void Disassembler::setIndirectReadCallback(
         std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> callback) {
 

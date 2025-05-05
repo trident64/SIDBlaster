@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "CodeFormatter.h"
 #include "cpu6510.h"
 
@@ -6,6 +11,16 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor for CodeFormatter
+     *
+     * Initializes the code formatter with references to the CPU, label generator,
+     * and memory data.
+     *
+     * @param cpu Reference to the CPU
+     * @param labelGenerator Reference to the label generator
+     * @param memory Span of memory data
+     */
     CodeFormatter::CodeFormatter(
         const CPU6510& cpu,
         const LabelGenerator& labelGenerator,
@@ -16,6 +31,15 @@ namespace sidblaster {
         // No configuration loading needed anymore
     }
 
+    /**
+     * @brief Format a disassembled instruction
+     *
+     * Converts a machine code instruction at PC into assembly language.
+     * Updates PC to point to the next instruction.
+     *
+     * @param pc Program counter (will be updated to point after instruction)
+     * @return Formatted instruction string
+     */
     std::string CodeFormatter::formatInstruction(u16& pc) const {
         std::ostringstream line;
 
@@ -50,6 +74,21 @@ namespace sidblaster {
         return line.str();
     }
 
+    /**
+     * @brief Format data bytes
+     *
+     * Outputs data bytes in assembly format (.byte directives).
+     * Handles relocation entries and unused bytes.
+     *
+     * @param file Output stream
+     * @param pc Program counter (will be updated)
+     * @param originalMemory Original memory data
+     * @param originalBase Base address of original memory
+     * @param endAddress End address
+     * @param relocationBytes Map of relocation bytes
+     * @param memoryTags Memory type tags
+     * @return Number of unused bytes zeroed out
+     */
     int CodeFormatter::formatDataBytes(
         std::ostream& file,
         u16& pc,
@@ -144,6 +183,17 @@ namespace sidblaster {
         return unusedByteCount;
     }
 
+    /**
+     * @brief Check if a store instruction is a CIA timer patch
+     *
+     * Detects writes to CIA timer registers that should be handled specially.
+     *
+     * @param opcode Instruction opcode
+     * @param mode Addressing mode
+     * @param operand Operand address
+     * @param mnemonic Instruction mnemonic
+     * @return True if this is a CIA timer patch
+     */
     bool CodeFormatter::isCIAStorePatch(
         u8 opcode,
         int mode,
@@ -161,6 +211,16 @@ namespace sidblaster {
         return mnemonic == "sta" || mnemonic == "stx" || mnemonic == "sty";
     }
 
+    /**
+     * @brief Format an instruction operand
+     *
+     * Handles different addressing modes and formats operands appropriately,
+     * including resolving labels and symbolic addresses.
+     *
+     * @param pc Program counter
+     * @param mode Addressing mode
+     * @return Formatted operand string
+     */
     std::string CodeFormatter::formatOperand(u16 pc, int mode) const {
         const auto addressingMode = static_cast<AddressingMode>(mode);
 
@@ -231,6 +291,17 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Format an indexed address with minimum offset
+     *
+     * Formats addresses with index registers, accounting for offsets.
+     * Uses label-based expressions when appropriate.
+     *
+     * @param baseAddr Base address
+     * @param minOffset Minimum offset
+     * @param indexReg Index register ('X' or 'Y')
+     * @return Formatted address string
+     */
     std::string CodeFormatter::formatIndexedAddressWithMinOffset(
         u16 baseAddr,
         u8 minOffset,
@@ -251,6 +322,15 @@ namespace sidblaster {
         return labelGenerator_.formatAddress(baseAddr) + "," + indexReg;
     }
 
+    /**
+     * @brief Format a SID register with its name
+     *
+     * Converts numeric SID register addresses to symbolic names.
+     *
+     * @param addr SID register address
+     * @param usedBases Vector of used SID base addresses
+     * @return Formatted register name
+     */
     std::string CodeFormatter::formatSIDRegister(
         u16 addr,
         const std::vector<u16>& usedBases) const {
@@ -275,6 +355,14 @@ namespace sidblaster {
         return "$" + util::wordToHex(addr);
     }
 
+    /**
+     * @brief Get the name of a SID register
+     *
+     * Maps SID register offsets to their standard names.
+     *
+     * @param offset Register offset
+     * @return Register name
+     */
     std::string CodeFormatter::getSIDRegisterName(u8 offset) const {
         static const std::array<std::string_view, 25> sidRegs = {
             "Voice1FreqLo", "Voice1FreqHi", "Voice1PulseLo", "Voice1PulseHi",

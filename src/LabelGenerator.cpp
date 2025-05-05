@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "LabelGenerator.h"
 #include "SIDBlasterUtils.h"
 
@@ -6,6 +11,16 @@
 
 namespace sidblaster {
 
+    /**
+     * @brief Constructor for LabelGenerator
+     *
+     * Initializes the label generator with a memory analyzer and the
+     * address range to process.
+     *
+     * @param analyzer Memory analyzer to use for code/data analysis
+     * @param loadAddress Load address of the SID file
+     * @param endAddress End address of the SID file
+     */
     LabelGenerator::LabelGenerator(
         const MemoryAnalyzer& analyzer,
         u16 loadAddress,
@@ -15,6 +30,12 @@ namespace sidblaster {
         endAddress_(endAddress) {
     }
 
+    /**
+     * @brief Generate labels for code and data regions
+     *
+     * Creates labels for jump targets, subroutines, and data blocks
+     * based on the memory analysis results.
+     */
     void LabelGenerator::generateLabels() {
         util::Logger::debug("Generating labels...");
 
@@ -56,17 +77,36 @@ namespace sidblaster {
             " data block labels");
     }
 
+    /**
+     * @brief Get the label for a given address
+     *
+     * @param addr Address to look up
+     * @return Label for the address, or empty string if no label
+     */
     std::string LabelGenerator::getLabel(u16 addr) const {
         auto it = labelMap_.find(addr);
         return (it != labelMap_.end()) ? it->second : "";
     }
 
+    /**
+     * @brief Get all identified data blocks
+     *
+     * @return Vector of data blocks
+     */
     const std::vector<DataBlock>& LabelGenerator::getDataBlocks() const {
         return dataBlocks_;
     }
 
-    // Unified formatAddress method in LabelGenerator.cpp
-
+    /**
+     * @brief Format an address with its label and offset
+     *
+     * Converts a numeric address to a symbolic representation, using
+     * labels and offsets as appropriate. Special handling is applied
+     * for hardware registers.
+     *
+     * @param addr Address to format
+     * @return Formatted string
+     */
     std::string LabelGenerator::formatAddress(u16 addr) const {
         // Hardware component check - SID registers
         static const u16 sidBaseAddr = 0xD400;
@@ -148,6 +188,14 @@ namespace sidblaster {
         return "$" + sidblaster::util::wordToHex(addr);
     }
 
+    /**
+     * @brief Format a zero page address with its label
+     *
+     * Converts a zero page address to a symbolic name when possible.
+     *
+     * @param addr Zero page address to format
+     * @return Formatted string
+     */
     std::string LabelGenerator::formatZeroPage(u8 addr) const {
         auto it = zeroPageVars_.find(addr);
         if (it != zeroPageVars_.end()) {
@@ -157,14 +205,36 @@ namespace sidblaster {
         return "$" + util::byteToHex(addr);
     }
 
+    /**
+     * @brief Add a zero page variable definition
+     *
+     * Registers a named zero page variable.
+     *
+     * @param addr Zero page address
+     * @param label Label for the variable
+     */
     void LabelGenerator::addZeroPageVar(u8 addr, const std::string& label) {
         zeroPageVars_[addr] = label;
     }
 
+    /**
+     * @brief Get all zero page variables
+     *
+     * @return Map of zero page addresses to labels
+     */
     const std::map<u8, std::string>& LabelGenerator::getZeroPageVars() const {
         return zeroPageVars_;
     }
 
+    /**
+     * @brief Add a subdivision to a data block
+     *
+     * Subdivides a data block to create more granular structure.
+     *
+     * @param blockLabel Label of the data block
+     * @param startOffset Start offset within the block
+     * @param endOffset End offset within the block
+     */
     void LabelGenerator::addDataBlockSubdivision(
         const std::string& blockLabel,
         u16 startOffset,
@@ -200,6 +270,13 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Add an address that should be considered for subdivision
+     *
+     * Queues an address for potential subdivision during processing.
+     *
+     * @param addr Address to mark for subdivision
+     */
     void LabelGenerator::addPendingSubdivisionAddress(u16 addr) {
         if (addr >= loadAddress_ && addr < endAddress_) {
             pendingSubdivisionAddresses_.insert(addr);
@@ -207,6 +284,12 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Apply subdivisions to all data blocks
+     *
+     * Processes all pending subdivision requests and updates the
+     * data block structure accordingly.
+     */
     void LabelGenerator::applySubdivisions() {
         util::Logger::debug("Applying data block subdivisions...");
 
@@ -324,6 +407,11 @@ namespace sidblaster {
         pendingSubdivisionAddresses_.clear();
     }
 
+    /**
+     * @brief Build subdivisions for data blocks based on memory access patterns
+     *
+     * Analyzes access patterns to intelligently subdivide data blocks.
+     */
     void LabelGenerator::buildDataBlockSubdivisions() {
         for (const auto& block : dataBlocks_) {
             std::string label = block.label;
@@ -389,12 +477,25 @@ namespace sidblaster {
         }
     }
 
+    /**
+     * @brief Get the label map (address to label)
+     *
+     * @return Map of addresses to labels
+     */
     const std::map<u16, std::string>& LabelGenerator::getLabelMap() const {
         return labelMap_;
     }
 
-    // Add these methods to LabelGenerator.cpp
-
+    /**
+     * @brief Add a hardware component base
+     *
+     * Registers a hardware component for special handling in the disassembly.
+     *
+     * @param type Hardware type
+     * @param address Base address
+     * @param index Component index
+     * @param name Component name
+     */
     void LabelGenerator::addHardwareBase(
         HardwareType type,
         u16 address,
@@ -414,6 +515,11 @@ namespace sidblaster {
             std::to_string(index) + ")");
     }
 
+    /**
+     * @brief Get all hardware component bases
+     *
+     * @return Vector of hardware bases
+     */
     const std::vector<HardwareBase>& LabelGenerator::getHardwareBases() const {
         return usedHardwareBases_;
     }

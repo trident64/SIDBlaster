@@ -1,3 +1,8 @@
+// ==================================
+//             SIDBlaster
+//
+//  Raistlin / Genesis Project (G*P)
+// ==================================
 #include "cpu6510.h"
 #include "SIDBlasterUtils.h"
 
@@ -300,10 +305,21 @@ const std::array<OpcodeInfo, 256> CPU6510::opcodeTable_ = { {
         {Instruction::ISC, "isc", AddressingMode::AbsoluteX, 7, true},
 } };
 
+/**
+ * @brief Default constructor for CPU6510
+ *
+ * Creates a new CPU6510 instance and calls reset() to initialize the CPU state.
+ */
 CPU6510::CPU6510() {
     reset();
 }
 
+/**
+ * @brief Reset the CPU to its initial state
+ *
+ * Initializes memory tracking arrays, resets registers to their default values,
+ * sets the status register to default flags, and resets the cycle counter.
+ */
 void CPU6510::reset() {
     lastWriteToAddr_.resize(65536, 0);
     writeSourceInfo_.resize(65536);
@@ -317,6 +333,12 @@ void CPU6510::reset() {
     cycles_ = 0;
 }
 
+/**
+ * @brief Execute a single CPU instruction
+ *
+ * Fetches the opcode at the current program counter, increments the program counter,
+ * executes the instruction, and updates the cycle count.
+ */
 void CPU6510::step() {
     originalPc_ = pc_;
 
@@ -330,22 +352,58 @@ void CPU6510::step() {
     cycles_ += info.cycles;
 }
 
+/**
+ * @brief Fetch an opcode from memory
+ *
+ * Reads a byte from memory at the specified address and marks it as an executed opcode
+ * in the memory access tracking.
+ *
+ * @param addr Memory address to fetch the opcode from
+ * @return The opcode byte at the specified address
+ */
 u8 CPU6510::fetchOpcode(u16 addr) {
     memoryAccess_[addr] |= static_cast<u8>(MemoryAccessFlag::Execute);
     memoryAccess_[addr] |= static_cast<u8>(MemoryAccessFlag::OpCode);
     return memory_[addr];
 }
 
+/**
+ * @brief Fetch an operand from memory
+ *
+ * Reads a byte from memory at the specified address and marks it as executed
+ * in the memory access tracking.
+ *
+ * @param addr Memory address to fetch the operand from
+ * @return The operand byte at the specified address
+ */
 u8 CPU6510::fetchOperand(u16 addr) {
     memoryAccess_[addr] |= static_cast<u8>(MemoryAccessFlag::Execute);
     return memory_[addr];
 }
 
+/**
+ * @brief Read a byte from memory
+ *
+ * Reads a byte from memory at the specified address and marks it as read
+ * in the memory access tracking.
+ *
+ * @param addr Memory address to read from
+ * @return The byte at the specified address
+ */
 u8 CPU6510::readMemory(u16 addr) {
     memoryAccess_[addr] |= static_cast<u8>(MemoryAccessFlag::Read);
     return memory_[addr];
 }
 
+/**
+ * @brief Read a byte using the specified addressing mode
+ *
+ * Reads a byte from memory using the appropriate access method based on the addressing mode.
+ *
+ * @param addr The target memory address
+ * @param mode The addressing mode to use
+ * @return The byte read from memory
+ */
 u8 CPU6510::readByAddressingMode(u16 addr, AddressingMode mode) {
     switch (mode) {
     case AddressingMode::Indirect:
@@ -356,10 +414,27 @@ u8 CPU6510::readByAddressingMode(u16 addr, AddressingMode mode) {
     }
 }
 
+/**
+ * @brief Write a byte to memory (without tracking)
+ *
+ * Writes a byte to memory at the specified address without updating memory access tracking.
+ *
+ * @param addr Memory address to write to
+ * @param value Byte value to write
+ */
 void CPU6510::writeByte(u16 addr, u8 value) {
     memory_[addr] = value;
 }
 
+/**
+ * @brief Write a byte to memory with tracking
+ *
+ * Writes a byte to memory at the specified address, marks it as written in tracking,
+ * and notifies any registered callbacks.
+ *
+ * @param addr Memory address to write to
+ * @param value Byte value to write
+ */
 void CPU6510::writeMemory(u16 addr, u8 value) {
     memoryAccess_[addr] |= static_cast<u8>(MemoryAccessFlag::Write);
     memory_[addr] = value;
@@ -375,6 +450,15 @@ void CPU6510::writeMemory(u16 addr, u8 value) {
     lastWriteToAddr_[addr] = originalPc_;
 }
 
+/**
+ * @brief Write multiple bytes to memory
+ *
+ * Writes a span of bytes to memory starting at the specified address.
+ * Note: This does not update memory access tracking.
+ *
+ * @param address Starting memory address
+ * @param data Span of bytes to write
+ */
 void CPU6510::writeBytes(u16 address, std::span<const u8> data) {
     for (size_t i = 0; i < data.size(); ++i) {
         const auto idx = static_cast<u16>(i);
@@ -384,40 +468,102 @@ void CPU6510::writeBytes(u16 address, std::span<const u8> data) {
     }
 }
 
+/**
+ * @brief Push a byte onto the stack
+ *
+ * Writes a byte to the stack at the current stack pointer location
+ * and decrements the stack pointer.
+ *
+ * @param value Byte value to push onto the stack
+ */
 void CPU6510::push(u8 value) {
     memory_[0x0100 + sp_] = value;
     sp_--;
 }
 
+/**
+ * @brief Pop a byte from the stack
+ *
+ * Increments the stack pointer and reads a byte from the stack
+ * at the updated stack pointer location.
+ *
+ * @return The byte popped from the stack
+ */
 u8 CPU6510::pop() {
     sp_++;
     return memory_[0x0100 + sp_];
 }
 
+/**
+ * @brief Read a 16-bit word from memory
+ *
+ * Reads two consecutive bytes from memory and combines them into a 16-bit word
+ * (little-endian: low byte first, then high byte).
+ *
+ * @param addr Starting memory address
+ * @return The 16-bit word read from memory
+ */
 u16 CPU6510::readWord(u16 addr) {
     const u8 low = readMemory(addr);
     const u8 high = readMemory(addr + 1);
     return static_cast<u16>(low) | (static_cast<u16>(high) << 8);
 }
 
+/**
+ * @brief Read a 16-bit word from the zero page
+ *
+ * Reads two bytes from the zero page with address wrapping and combines them
+ * into a 16-bit word (little-endian).
+ *
+ * @param addr Zero page starting address (0-255)
+ * @return The 16-bit word read from the zero page
+ */
 u16 CPU6510::readWordZeroPage(u8 addr) {
     const u8 low = readMemory(addr);
     const u8 high = readMemory((addr + 1) & 0xFF); // wrap around zero page
     return static_cast<u16>(low) | (static_cast<u16>(high) << 8);
 }
 
+/**
+ * @brief Jump to a specified memory address
+ *
+ * Updates the program counter to the specified address.
+ *
+ * @param address The target memory address to jump to
+ */
 void CPU6510::jumpTo(u16 address) {
     setPC(address);
 }
 
+/**
+ * @brief Set the program counter to a specific address
+ *
+ * Updates the program counter to the specified address.
+ *
+ * @param address The new program counter value
+ */
 void CPU6510::setPC(u16 address) {
     pc_ = address;
 }
 
+/**
+ * @brief Get the current program counter value
+ *
+ * @return The current program counter value
+ */
 u16 CPU6510::getPC() const {
     return pc_;
 }
 
+/**
+ * @brief Execute a function at the specified address
+ *
+ * Simulates a JSR (Jump to Subroutine) call to the specified address and
+ * executes instructions until the matching RTS (Return from Subroutine) is reached.
+ * Includes various safety checks to prevent infinite loops and detect problematic jumps.
+ *
+ * @param address The memory address to execute from
+ */
 void CPU6510::executeFunction(u16 address) {
     // Maximum number of steps to prevent infinite loops
     const int MAX_STEPS = 30000;
@@ -596,14 +742,34 @@ void CPU6510::executeFunction(u16 address) {
     }
 }
 
+/**
+ * @brief Set the stack pointer to a specific value
+ *
+ * @param sp The new stack pointer value
+ */
 void CPU6510::setSP(u8 sp) {
     sp_ = sp;
 }
 
+/**
+ * @brief Get the current stack pointer value
+ *
+ * @return The current stack pointer value
+ */
 u8 CPU6510::getSP() const {
     return sp_;
 }
 
+/**
+ * @brief Calculate the effective address for a given addressing mode
+ *
+ * Computes the target memory address based on the addressing mode,
+ * handling various indexing modes and their cycle penalties.
+ * Also records index register offsets for tracking purposes.
+ *
+ * @param mode The addressing mode to use
+ * @return The calculated effective address
+ */
 u16 CPU6510::getAddress(AddressingMode mode) {
     if (mode == AddressingMode::AbsoluteX || mode == AddressingMode::AbsoluteY ||
         mode == AddressingMode::ZeroPageX || mode == AddressingMode::ZeroPageY ||
@@ -708,12 +874,27 @@ u16 CPU6510::getAddress(AddressingMode mode) {
     }
 }
 
-// Set Zero and Negative flags based on a value
+/**
+ * @brief Set Zero and Negative flags based on a value
+ *
+ * Updates the processor status register's Zero and Negative flags
+ * according to the provided value.
+ *
+ * @param value The value to check for zero and negative flags
+ */
 void CPU6510::setZN(u8 value) {
     setFlag(StatusFlag::Zero, value == 0);
     setFlag(StatusFlag::Negative, (value & 0x80) != 0);
 }
 
+/**
+ * @brief Set or clear a specific status flag
+ *
+ * Updates a specific flag in the processor status register.
+ *
+ * @param flag The flag to update
+ * @param value True to set the flag, false to clear it
+ */
 void CPU6510::setFlag(StatusFlag flag, bool value) {
     if (value) {
         statusReg_ |= static_cast<u8>(flag);
@@ -723,17 +904,37 @@ void CPU6510::setFlag(StatusFlag flag, bool value) {
     }
 }
 
+/**
+ * @brief Test if a specific status flag is set
+ *
+ * @param flag The flag to test
+ * @return True if the flag is set, false otherwise
+ */
 bool CPU6510::testFlag(StatusFlag flag) const {
     return (statusReg_ & static_cast<u8>(flag)) != 0;
 }
 
-// Instruction execution entry point
+/**
+ * @brief Main instruction execution entry point
+ *
+ * Dispatches to the appropriate instruction handler based on the instruction type.
+ *
+ * @param instr The instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::execute(Instruction instr, AddressingMode mode) {
     // Dispatch to appropriate instruction handler
     executeInstruction(instr, mode);
 }
 
-// Execute an instruction based on its type
+/**
+ * @brief Execute an instruction based on its type
+ *
+ * Dispatches the instruction to the appropriate handler method based on its category.
+ *
+ * @param instr The instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeInstruction(Instruction instr, AddressingMode mode) {
     // Group instructions by function
     switch (instr) {
@@ -871,7 +1072,15 @@ void CPU6510::executeInstruction(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Load instruction implementation (LDA, LDX, LDY, LAX)
+/**
+ * @brief Execute load instructions (LDA, LDX, LDY, LAX)
+ *
+ * Handles all register load operations, updating the appropriate register
+ * and processor status flags.
+ *
+ * @param instr The load instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeLoad(Instruction instr, AddressingMode mode) {
     const u16 addr = getAddress(mode);
     const u8 value = readByAddressingMode(addr, mode);
@@ -936,7 +1145,15 @@ void CPU6510::executeLoad(Instruction instr, AddressingMode mode) {
         instr == Instruction::LDY ? regY_ : regA_);
 }
 
-// Store instruction implementation (STA, STX, STY, SAX)
+/**
+ * @brief Execute store instructions (STA, STX, STY, SAX)
+ *
+ * Handles all register store operations, writing register values to memory
+ * and updating tracking information.
+ *
+ * @param instr The store instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeStore(Instruction instr, AddressingMode mode) {
     const u16 addr = getAddress(mode);
 
@@ -966,7 +1183,15 @@ void CPU6510::executeStore(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Arithmetic instruction implementation
+/**
+ * @brief Execute arithmetic instructions
+ *
+ * Handles all arithmetic operations (ADC, SBC, INC, DEC, etc.),
+ * updating registers, memory, and processor status flags.
+ *
+ * @param instr The arithmetic instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeArithmetic(Instruction instr, AddressingMode mode) {
     switch (instr) {
     case Instruction::ADC: {
@@ -1094,7 +1319,15 @@ void CPU6510::executeArithmetic(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Logical instruction implementation
+/**
+ * @brief Execute logical instructions (AND, ORA, EOR, BIT)
+ *
+ * Handles all logical operations between the accumulator and memory,
+ * updating the accumulator and processor status flags.
+ *
+ * @param instr The logical instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeLogical(Instruction instr, AddressingMode mode) {
     const u16 addr = getAddress(mode);
     const u8 value = readByAddressingMode(addr, mode);
@@ -1128,7 +1361,16 @@ void CPU6510::executeLogical(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Branch instruction implementation
+/**
+ * @brief Execute branch instructions (BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS)
+ *
+ * Handles all conditional branch instructions, testing the appropriate status flag
+ * and updating the program counter if the branch is taken. Also accounts for
+ * additional cycles when the branch is taken or crosses a page boundary.
+ *
+ * @param instr The branch instruction to execute
+ * @param mode The addressing mode (always Relative for branch instructions)
+ */
 void CPU6510::executeBranch(Instruction instr, AddressingMode mode) {
     const i8 offset = static_cast<i8>(fetchOperand(pc_++));
     bool branchTaken = false;
@@ -1187,7 +1429,15 @@ void CPU6510::executeBranch(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Jump instruction implementation
+/**
+ * @brief Execute jump instructions (JMP, JSR, RTS, RTI, BRK)
+ *
+ * Handles all instructions that change the program flow unconditionally,
+ * including subroutine calls and returns, and interrupt handling.
+ *
+ * @param instr The jump instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeJump(Instruction instr, AddressingMode mode) {
     switch (instr) {
     case Instruction::JMP: {
@@ -1238,7 +1488,15 @@ void CPU6510::executeJump(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Stack instruction implementation
+/**
+ * @brief Execute stack instructions (PHA, PHP, PLA, PLP)
+ *
+ * Handles all stack manipulation instructions, including pushing/popping
+ * the accumulator and processor status register.
+ *
+ * @param instr The stack instruction to execute
+ * @param mode The addressing mode (always Implied for stack instructions)
+ */
 void CPU6510::executeStack(Instruction instr, AddressingMode mode) {
     switch (instr) {
     case Instruction::PHA:
@@ -1263,7 +1521,15 @@ void CPU6510::executeStack(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Register transfer instruction implementation
+/**
+ * @brief Execute register transfer instructions (TAX, TAY, TXA, TYA, TSX, TXS)
+ *
+ * Handles all register-to-register transfer instructions, copying values
+ * between the accumulator, index registers, and stack pointer.
+ *
+ * @param instr The register transfer instruction to execute
+ * @param mode The addressing mode (always Implied for register transfers)
+ */
 void CPU6510::executeRegister(Instruction instr, AddressingMode mode) {
     switch (instr) {
     case Instruction::TAX:
@@ -1300,7 +1566,15 @@ void CPU6510::executeRegister(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Flag instruction implementation
+/**
+ * @brief Execute flag manipulation instructions (CLC, CLD, CLI, CLV, SEC, SED, SEI)
+ *
+ * Handles all processor status flag manipulation instructions,
+ * setting or clearing specific flags.
+ *
+ * @param instr The flag instruction to execute
+ * @param mode The addressing mode (always Implied for flag instructions)
+ */
 void CPU6510::executeFlag(Instruction instr, AddressingMode mode) {
     switch (instr) {
     case Instruction::CLC:
@@ -1336,7 +1610,15 @@ void CPU6510::executeFlag(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Shift instruction implementation
+/**
+ * @brief Execute shift instructions (ASL, LSR, ROL, ROR)
+ *
+ * Handles all shift and rotate instructions, operating either on the
+ * accumulator or memory depending on the addressing mode.
+ *
+ * @param instr The shift instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeShift(Instruction instr, AddressingMode mode) {
     u16 addr = 0;
     u8 value = 0;
@@ -1396,7 +1678,15 @@ void CPU6510::executeShift(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Compare instruction implementation
+/**
+ * @brief Execute compare instructions (CMP, CPX, CPY)
+ *
+ * Handles all register comparison instructions, setting flags based on
+ * the comparison between the register and memory.
+ *
+ * @param instr The compare instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeCompare(Instruction instr, AddressingMode mode) {
     const u16 addr = getAddress(mode);
     const u8 value = readByAddressingMode(addr, mode);
@@ -1426,7 +1716,16 @@ void CPU6510::executeCompare(Instruction instr, AddressingMode mode) {
     setFlag(StatusFlag::Negative, ((regValue - value) & 0x80) != 0);
 }
 
-// Implementation for illegal/undocumented instructions
+/**
+ * @brief Execute illegal/undocumented instructions
+ *
+ * Handles all illegal opcodes of the 6502 processor. These are undocumented
+ * instructions that have side effects based on the internal workings of the CPU.
+ * Many of these combine multiple operations of documented instructions.
+ *
+ * @param instr The illegal instruction to execute
+ * @param mode The addressing mode to use
+ */
 void CPU6510::executeIllegal(Instruction instr, AddressingMode mode) {
     // Note: These implementations are based on documented behavior of illegal opcodes
 
@@ -1684,8 +1983,16 @@ void CPU6510::executeIllegal(Instruction instr, AddressingMode mode) {
     }
 }
 
-// Utility functions
-
+/**
+ * @brief Load binary data from a file into memory
+ *
+ * Reads a binary file and loads its contents into memory starting at
+ * the specified address.
+ *
+ * @param filename Path to the binary file to load
+ * @param loadAddress Starting memory address to load the data
+ * @throws std::runtime_error if file cannot be opened or data exceeds memory bounds
+ */
 void CPU6510::loadData(const std::string& filename, u16 loadAddress) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) {
@@ -1703,18 +2010,39 @@ void CPU6510::loadData(const std::string& filename, u16 loadAddress) {
     }
 }
 
+/**
+ * @brief Get the total number of CPU cycles elapsed
+ *
+ * @return The current cycle count
+ */
 u64 CPU6510::getCycles() const {
     return cycles_;
 }
 
+/**
+ * @brief Set the CPU cycle counter to a specific value
+ *
+ * @param newCycles The new cycle count value
+ */
 void CPU6510::setCycles(u64 newCycles) {
     cycles_ = newCycles;
 }
 
+/**
+ * @brief Reset the CPU cycle counter to zero
+ */
 void CPU6510::resetCycles() {
     cycles_ = 0;
 }
 
+/**
+ * @brief Dump memory access information to a file
+ *
+ * Writes information about how each memory location was accessed
+ * (read, write, execute, jump target) to a file for analysis.
+ *
+ * @param filename Path to the output file
+ */
 void CPU6510::dumpMemoryAccess(const std::string& filename) {
     std::ofstream file(filename);
     if (!file) {
@@ -1736,10 +2064,25 @@ void CPU6510::dumpMemoryAccess(const std::string& filename) {
     }
 }
 
+/**
+ * @brief Get the mnemonic string for an opcode
+ *
+ * @param opcode The opcode value (0-255)
+ * @return A string view of the mnemonic for the opcode
+ */
 std::string_view CPU6510::getMnemonic(u8 opcode) const {
     return opcodeTable_[opcode].mnemonic;
 }
 
+/**
+ * @brief Get the size of an instruction in bytes
+ *
+ * Determines the number of bytes an instruction occupies in memory
+ * based on its addressing mode.
+ *
+ * @param opcode The opcode value (0-255)
+ * @return The instruction size in bytes (1-3)
+ */
 u8 CPU6510::getInstructionSize(u8 opcode) const {
     const AddressingMode mode = opcodeTable_[opcode].mode;
     switch (mode) {
@@ -1763,14 +2106,34 @@ u8 CPU6510::getInstructionSize(u8 opcode) const {
     }
 }
 
+/**
+ * @brief Get the addressing mode for an opcode
+ *
+ * @param opcode The opcode value (0-255)
+ * @return The addressing mode for the opcode
+ */
 AddressingMode CPU6510::getAddressingMode(u8 opcode) const {
     return opcodeTable_[opcode].mode;
 }
 
+/**
+ * @brief Check if an instruction is an illegal/undocumented opcode
+ *
+ * @param opcode The opcode value (0-255)
+ * @return True if the opcode is an illegal instruction, false otherwise
+ */
 bool CPU6510::isIllegalInstruction(u8 opcode) const {
     return opcodeTable_[opcode].illegal;
 }
 
+/**
+ * @brief Copy a block of data to memory
+ *
+ * Copies a span of bytes to memory starting at the specified address.
+ *
+ * @param start Starting memory address
+ * @param data Span of bytes to copy to memory
+ */
 void CPU6510::copyMemoryBlock(u16 start, std::span<const u8> data) {
     for (size_t i = 0; i < data.size(); ++i) {
         const auto idx = static_cast<u16>(i);
@@ -1780,10 +2143,25 @@ void CPU6510::copyMemoryBlock(u16 start, std::span<const u8> data) {
     }
 }
 
+/**
+ * @brief Record the index offset used for a memory access
+ *
+ * Tracks the range of index values used with a particular instruction,
+ * useful for disassembly and memory analysis.
+ *
+ * @param pc Program counter of the instruction
+ * @param offset Index offset value (X or Y register)
+ */
 void CPU6510::recordIndexOffset(u16 pc, u8 offset) {
     pcIndexRanges_[pc].update(offset);
 }
 
+/**
+ * @brief Get the range of index offsets used with an instruction
+ *
+ * @param pc Program counter of the instruction
+ * @return A pair containing the minimum and maximum index offsets used
+ */
 std::pair<u8, u8> CPU6510::getIndexRange(u16 pc) const {
     auto it = pcIndexRanges_.find(pc);
     if (it == pcIndexRanges_.end()) {
@@ -1792,40 +2170,85 @@ std::pair<u8, u8> CPU6510::getIndexRange(u16 pc) const {
     return it->second.getRange();
 }
 
-// Accessor methods
+/**
+ * @brief Get the full last-write-to-address tracking vector
+ *
+ * @return Reference to the vector containing PC values of last write to each memory address
+ */
 const std::vector<u16>& CPU6510::getLastWriteToAddr() const {
     return lastWriteToAddr_;
 }
 
+/**
+ * @brief Get the program counter of the last instruction that wrote to an address
+ *
+ * @param addr Memory address to check
+ * @return Program counter of the last instruction that wrote to the address
+ */
 u16 CPU6510::getLastWriteTo(u16 addr) const {
     return lastWriteToAddr_[addr];
 }
 
+/**
+ * @brief Get the source information for the A register
+ *
+ * @return Register source information for the accumulator
+ */
 RegisterSourceInfo CPU6510::getRegSourceA() const {
     return regSourceA_;
 }
 
+/**
+ * @brief Get the source information for the X register
+ *
+ * @return Register source information for the X index register
+ */
 RegisterSourceInfo CPU6510::getRegSourceX() const {
     return regSourceX_;
 }
 
+/**
+ * @brief Get the source information for the Y register
+ *
+ * @return Register source information for the Y index register
+ */
 RegisterSourceInfo CPU6510::getRegSourceY() const {
     return regSourceY_;
 }
 
+/**
+ * @brief Get the source information for a memory write
+ *
+ * @param addr Memory address to check
+ * @return Register source information for the last write to the address
+ */
 RegisterSourceInfo CPU6510::getWriteSourceInfo(u16 addr) const {
     return writeSourceInfo_[addr];
 }
 
-// Callback methods
+/**
+ * @brief Set the callback for indirect memory reads
+ *
+ * @param callback Function to be called when an indirect memory read occurs
+ */
 void CPU6510::setOnIndirectReadCallback(IndirectReadCallback callback) {
     onIndirectReadCallback_ = std::move(callback);
 }
 
+/**
+ * @brief Set the callback for memory writes
+ *
+ * @param callback Function to be called when memory is written
+ */
 void CPU6510::setOnWriteMemoryCallback(MemoryWriteCallback callback) {
     onWriteMemoryCallback_ = std::move(callback);
 }
 
+/**
+ * @brief Set the callback for writes to CIA registers
+ *
+ * @param callback Function to be called when a CIA register is written
+ */
 void CPU6510::setOnCIAWriteCallback(MemoryWriteCallback callback) {
     onCIAWriteCallback_ = std::move(callback);
 }
