@@ -1,0 +1,20 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "SIDBlaster.exe",
+      "name": "SIDBlaster.exe",
+      "args": [
+        "-relocate=$2000",
+        "-player=SimpleRaster",
+        "-playeradd=$0900",
+        ".\\sid\\MCH-MontyOnTheRunDnBEdit-2SID.sid",
+        "Monty2000.prg"
+      ],
+      "currentDir": "${workspaceRoot}"
+    }
+  ]
+}

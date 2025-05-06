@@ -1,4 +1,4 @@
-.var FrameHeight = IsPAL ? 312 : 262
+.var FrameHeight = 312 //; TODO: NTSC!
 
 D012_Values:
 .for (var i=0; i<NumCallsPerFrame; i++) {

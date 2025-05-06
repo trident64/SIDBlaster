@@ -171,14 +171,6 @@ public:
     u16 getOriginalMemoryBase() const { return originalMemoryBase_; }
 
     /**
-     * @brief Check if the SID file is for PAL or NTSC
-     * @return true for PAL, false for NTSC
-     *
-     * Determines the video standard based on the SID header flags.
-     */
-    bool isPAL() const;
-
-    /**
      * @brief Get the number of times the play routine should be called per frame
      * @return Number of calls per frame
      */

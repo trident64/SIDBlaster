@@ -3,7 +3,7 @@
 //
 //  Raistlin / Genesis Project (G*P)
 // ==================================
-#include "SIDBlasterApp.h"
+#include "app/SIDBlasterApp.h"
 #include <iostream>
 
 /**

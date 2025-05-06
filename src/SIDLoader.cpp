@@ -348,24 +348,6 @@ void SIDLoader::fixHeaderEndianness(SIDHeader& header) {
 }
 
 /**
- * @brief Check if the SID file is for PAL or NTSC
- *
- * Determines the intended video standard from the SID header flags.
- *
- * @return true for PAL, false for NTSC
- */
-bool SIDLoader::isPAL() const {
-    // Default to PAL if no flags or unknown
-    if (header_.version < 2 || header_.dataOffset < 0x76) {
-        return true;
-    }
-
-    // PSID v2+: flags at 0x76
-    const u8 video = header_.flags & 0xF;
-    return (video == 0 || video == 3);  // 0 = PAL, 3 = Both -> assume PAL
-}
-
-/**
  * @brief Backup the current memory to allow restoration later
  *
  * Creates a snapshot of the CPU memory for later restoration.

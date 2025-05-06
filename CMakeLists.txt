@@ -4,27 +4,26 @@ cmake_minimum_required(VERSION 3.14)
 file(STRINGS "src/Common.h" VERSION_DEFINE REGEX "^#define SIDBLASTER_VERSION")
 string(REGEX REPLACE ".*\"(.*)\".*" "\\1" PROJECT_VERSION "${VERSION_DEFINE}")
 
-project(SIDBlaster VERSION 0.5 LANGUAGES CXX)
+project(SIDBlaster VERSION 0.7 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Include the CPU6510 files
+# Include the APP and CPU6510 files
+include(${CMAKE_CURRENT_SOURCE_DIR}/app_files.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cpu6510_files.cmake)
 
-# Define sources (remove cpu6510.cpp as it's now in CPU6510_SOURCES)
+# Define sources
 set(SOURCES
     src/CodeFormatter.cpp
     src/CommandLineParser.cpp
-    # src/cpu6510.cpp - Removed from here, now included in CPU6510_SOURCES
     src/Disassembler.cpp
     src/DisassemblyWriter.cpp
     src/LabelGenerator.cpp
     src/Main.cpp
     src/MemoryAnalyzer.cpp
-    src/SIDBlasterApp.cpp
     src/SIDBlasterUtils.cpp
     src/SIDLoader.cpp
 )
@@ -32,10 +31,12 @@ set(SOURCES
 # Add executable with all sources
 add_executable(SIDBlaster 
     ${SOURCES}
+    ${APP_SOURCES}
     ${CPU6510_SOURCES}
-)
+ "src/app/TraceLogger.h" "src/app/MusicBuilder.h" "src/app/MusicBuilder.cpp" "src/app/BatchConverter.h" "src/app/BatchConverter.cpp" "src/app/CommandProcessor.h" "src/app/CommandProcessor.cpp"  "src/app/SIDBlasterApp.h" "src/RelocationUtils.cpp" "src/RelocationUtils.h")
 
-# Create a source group for the CPU6510 files (for Visual Studio organization)
+# Create source groups for the APP and CPU6510 files (for Visual Studio organization)
+source_group("APP" FILES ${APP_SOURCES} ${APP_HEADERS})
 source_group("CPU6510" FILES ${CPU6510_SOURCES} ${CPU6510_HEADERS})
 
 # Include directories

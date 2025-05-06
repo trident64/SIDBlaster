@@ -1,0 +1,42 @@
+# SIDBlaster Batch Processing Example
+# This example demonstrates several batch operations:
+# 1. Convert a SID file to PRG with player
+# 2. Create a trace log of the original SID
+# 3. Relocate the SID to $2000
+# 4. Create a trace log of the relocated SID
+# 5. Verify that both trace logs match
+
+[Task1]
+type=Trace
+input=SID\Flex-Lundia.sid
+output=temp\Flex-Lundia-trace.bin
+format=binary
+frames=30000
+
+[Task2]
+type=Relocate
+input=SID\Flex-Lundia.sid
+output=temp\Flex-Lundia-rel2000.sid
+address=0x2000
+
+[Task3]
+type=Trace
+input=temp\Flex-Lundia-rel2000.sid
+output=temp\Flex-Lundia-rel2000-trace.bin
+format=binary
+frames=30000
+
+[Task4]
+type=Verify
+original=temp\Flex-Lundia-trace.bin
+relocated=temp\Flex-Lundia-rel2000-trace.bin
+reportFile=verification.log
+
+[Task5]
+type=Convert
+input=temp\Flex-Lundia-rel2000.sid
+output=test\Flex-Lundia-rel2000-withplayer.prg
+format=PRG
+player=SimpleBitmap
+playerAddr=0x0900
+

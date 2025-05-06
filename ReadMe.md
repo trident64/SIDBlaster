@@ -1,117 +1,285 @@
 # SIDBlaster
 
-A utility for releasing and relocating Commodore 64 SID music files.
+*SIDBlaster 0.7.0 - C64 SID Music File Processor*
 
 Developed by Robert Troughton (Raistlin of Genesis Project)
 
-## Key Features
+## Overview
 
-### Player/Visualizer Integration
-- Add players and visualizers to SID files
-COMINGSOON: - Customizable player integration with various visualization options
+SIDBlaster is a versatile tool for processing C64 SID music files. It can:
 
-### Relocation Capabilities
-- Relocate SID files to different memory addresses
-- Support for adjusting memory locations of existing SID files
-- Preservation of proper playback after relocation
-COMINGSOON: - A "sanity check" to ensure that every single SID write matches the pre-relocated version
+- Convert SID files to PRG (with or without a player)
+- Relocate SID music to different memory addresses
+- Disassemble SID files to human-readable assembly
+- Trace SID register access for analysis and verification
+- Process multiple files in batch mode
 
-NOTE: Work in progress. The relocation code works pretty well with many SIDs but it's not perfect. It also doesn't work for relocating many SIDs by byte offsets - better to move in who Kb for now (so if it was at $1000, keep to $xx00 range, if at $0ff6, keep to $xxf6).
+*- note that we're not at v1.0 status so not all of these will work just yet
 
 ## Usage
 
-### Adding a Player to a SID File
+```
+SIDBlaster [options] inputfile outputfile
+```
 
-  SIDBlaster -player=SimpleBitmap SID/Flex-Lundia.sid lundiaplayer.prg
-   - links "SID/Flex-Lundia.sid" to the SimpleBitmap player and outputs as "lundiaplayer.prg"
+Or for batch mode:
 
-  SIDBlaster -player=SimpleBitmap -playeraddr=$0800 SID/Drax-RockingAround.sid rockingplayer.prg
-   - relocates "SID/Drax-RockingAround.sid" to $8000 and adds the SimpleBitmap player at $0800, outputting as "rockingplayer.prg"
+```
+SIDBlaster [options] -batch=configfile
+```
 
-Available players:
-- SimpleBitmap - just a static bitmap displayed while the music plays
-- SimpleRaster - the simplest player, turns the screen off and you have a single raster showing the timing of the SID play
-- Many more players will be added as we flesh out the system - of course including full visualisers etc
+## Command Line Options
 
-### Relocating a SID File
+### General Options
+- `-help`: Display help message
 
-  SIDBlaster -relocate=$8000 SID/music.sid music-relocated.sid
-   - relocates "SID/music.sid" to $8000 and saves as "music-relocated.sid"
+### SID Options
+- `-title=<text>`: Override SID title
+- `-author=<text>`: Override SID author
+- `-copyright=<text>`: Override SID copyright
+- `-relocate=<address>`: Relocate SID to specified address (e.g., $2000)
+- `-sidloadaddr=<address>`: Override SID load address
+- `-sidinitaddr=<address>`: Override SID init address
+- `-sidplayaddr=<address>`: Override SID play address
 
-## File Format Support
+### Player Options
+- `-player=<name>`: Player name to use (omit for no player)
+- `-playeraddr=<address>`: Player load address
+- `-playerdefs=<file>`: Player definitions file
 
-This tool supports the following input file formats:
-- SID (load/init/play values will be picked up from the SID file - but you can of course override these if you know what you're doing)
-- PRG (nb. if init/play are not at $1000/1003, you'll need to use the -sidinitaddr and -sidplayaddr options to specify the right values)
-- BIN (nb. if not at $1000 with init/play at $1000/1003, you'll need to use the -sidloadaddr, -sidinitaddr and -sidplayaddr options to specify the right values)
+### Processing Options
+- `-batch=<file>`: Batch configuration file for processing multiple files
+- `-defs=<file>`: General definitions file
 
-## Full Help (dumped from the "-help: option)
+### Logging Options
+- `-logfile=<file>`: Log file path (default: SIDBlaster.log)
+- `-tracelog=<file>`: Log file for SID register writes
+- `-traceformat=<format>`: Format for trace log (text/binary)
+- `-verbose`: Enable verbose logging
 
-SIDBlaster 0.6.2
+### Output Options
+- `-nocompress`: Don't compress output PRG files
+- `-force`: Force overwrite output file
 
-Developed by: Robert Troughton (Raistlin of Genesis Project)
+### Tool Paths
+- `-kickass=<path>`: Path to KickAss.jar
+- `-exomizer=<path>`: Path to Exomizer
+- `-compressor=<type>`: Compression tool to use (exomizer, pucrunch)
 
-Usage: SIDBlaster.exe [options] inputfile outputfile
+## Batch Mode
 
-  inputfile             Path to input file (.sid, .prg, or .bin)
-  outputfile            Path to output file (.sid, .prg, or .asm)
+The batch mode allows processing multiple files with different settings. Create a batch configuration file with sections for each task:
 
-Logging Options:
-  -logfile=<file>      Log file path (default: SIDBlaster.log)
+```
+[Task1]
+type=Convert
+input=music.sid
+output=music.prg
+player=SimpleBitmap
+playerAddr=$0900
 
-Player Options:
-  -player=<name>       Player name (default: SimpleRaster)
-  -playeraddr=<address>Player load address (default: $0900)
-  -playerdefs=<file>   Player definitions file
+[Task2]
+type=Relocate
+input=music.sid
+output=relocated.sid
+address=$2000
 
-SID Options:
-  -author=<text>       Override SID author
-  -copyright=<text>    Override SID copyright
-  -defs=<file>         General definitions file
-  -relocate=<address>  Relocation address for the SID
-  -sidinitaddr=<address>Override SID init address (default: $1000)
-  -sidloadaddr=<address>Override SID load address (default: $1000)
-  -sidplayaddr=<address>Override SID play address (default: $1003)
-  -title=<text>        Override SID title
+[Task3]
+type=Trace
+input=music.sid
+output=music_trace.bin
+format=binary
+frames=30000
+```
 
-Tools Options:
-  -compressor=<type>   Compression tool to use (default: exomizer)
-  -exomizer=<path>     Path to Exomizer (default: Exomizer.exe)
-  -kickass=<path>      Path to KickAss.jar (default: java -jar KickAss.jar)
+### Batch Task Types
 
-General Flags:
-  -help                Display this help message
+#### Convert
 
-Logging Flags:
-  -verbose             Enable verbose logging
+Converts between file formats, optionally adding a player:
 
-Output Flags:
-  -force               Force overwrite output file
-  -nocompress          Don't compress output PRG files
+```
+[Task]
+type=Convert
+input=music.sid
+output=music.prg
+format=PRG
+player=SimpleRaster
+playerAddr=0x0900
+compress=true
+```
 
-Player Flags:
-  -noplayer            Don't link player code
+**Parameters:**
+- `input`: Source file path (SID, PRG)
+- `output`: Output file path
+- `format`: Output format (PRG, SID, ASM)
+- `player`: Player name (omit for no player)
+- `playerAddr`: Memory address to load player at (hexadecimal)
+- `compress`: Whether to compress output (true/false)
 
-Examples:
-  SIDBlaster music.sid music.prg
-      Processes music.sid with default settings (creates player-linked PRG)
+#### Relocate
 
-  SIDBlaster music.sid music.asm
-      Disassembles music.sid to an assembly file
+Relocates a SID file to a different memory address:
 
-  SIDBlaster -noplayer music.sid music.prg
-      Creates a PRG file without player code
+```
+[Task]
+type=Relocate
+input=music.sid
+output=relocated.sid
+address=0x2000
+```
 
-  SIDBlaster -relocate=$2000 music.sid relocated.sid
-      Relocates music.sid to $2000 and creates a new SID file
+**Parameters:**
+- `input`: Source SID file
+- `output`: Output SID file
+- `address`: Target relocation address (hexadecimal)
 
-  SIDBlaster -player=SimpleBitmap -playeraddr=$0800 music.sid player.prg
-      Uses the SimpleBitmap player at address $0800
+#### Trace
 
-  SIDBlaster -playerdefs=defs.txt -title="My Music" music.sid music.prg
-      Uses player definitions and overrides the title
+Creates a trace log of SID register writes during playback:
+
+```
+[Task]
+type=Trace
+input=music.sid
+output=music-trace.bin
+format=binary
+frames=30000
+```
+
+**Parameters:**
+- `input`: SID file to trace
+- `output`: Output trace log file
+- `format`: Trace format (binary)
+- `frames`: Number of frames to trace
+- `initAddr`: Optional init address override (hexadecimal)
+- `playAddr`: Optional play address override (hexadecimal)
+
+#### Verify
+
+Compares two trace logs to verify if they match:
+
+```
+[Task]
+type=Verify
+original=original-trace.bin
+relocated=relocated-trace.bin
+reportFile=verification.log
+```
+
+**Parameters:**
+- `original`: Path to first trace log
+- `relocated`: Path to second trace log
+- `reportFile`: Path for comparison report
+
+### Example Batch File
+
+Here's a complete example showing a workflow that:
+1. Converts a SID to PRG with player
+2. Creates a trace log of the original SID
+3. Relocates the SID to a new address
+4. Creates a trace log of the relocated SID
+5. Verifies that both trace logs match
+
+```
+[Task1]
+type=Convert
+input=Test\Music.sid
+output=Test\Music.prg
+format=PRG
+player=SimpleRaster
+playerAddr=0x2000
+compress=true
+
+[Task2]
+type=Trace
+input=Test\Music.sid
+output=Test\Music-trace.bin
+format=binary
+frames=30000
+
+[Task3]
+type=Relocate
+input=Test\Music.sid
+output=Test\Music-relocated.sid
+address=0x2000
+
+[Task4]
+type=Trace
+input=Test\Music-relocated.sid
+output=Test\Music-relocated-trace.bin
+format=binary
+frames=30000
+
+[Task5]
+type=Verify
+original=Test\Music-trace.bin
+relocated=Test\Music-relocated-trace.bin
+reportFile=verification.log
+```
+
+## Examples
+
+Convert a SID file to a PRG with the default player:
+```
+SIDBlaster music.sid music.prg
+```
+
+Disassemble a SID file to assembly:
+```
+SIDBlaster music.sid music.asm
+```
+
+Create a PRG without a player:
+```
+SIDBlaster -player= music.sid music.prg
+```
+
+Relocate a SID file:
+```
+SIDBlaster -relocate=$2000 music.sid relocated.sid
+```
+
+Use a specific player:
+```
+SIDBlaster -player=SimpleBitmap -playeraddr=$0800 music.sid music.prg
+```
+
+Run batch processing:
+```
+SIDBlaster -batch=jobs.txt
+```
+
+## Player Libraries
+
+SIDBlaster supports various player routines:
+
+- **Default**: The simplest .. turns the screen off and plays the music (default)
+- **SimpleRaster**: Basic raster player
+- **SimpleBitmap**: Shows a bitmap - drop your own in or wait for us to provide configuration options (TODO!)
+
+Place custom players in the `SIDPlayers` directory.
+
+## Building
+
+### Windows
+```
+build.bat
+```
+
+### Linux/macOS
+```
+./build.sh
+```
+
+## Dependencies
+
+SIDBlaster requires:
+- KickAss Assembler (for ASM compilation)
+- Exomizer or Pucrunch (for PRG compression)
 
 ## Acknowledgements
 
 - Zagon for Exomizer
 - Mads Nielsen for KickAss
+
