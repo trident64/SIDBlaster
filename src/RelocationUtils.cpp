@@ -214,7 +214,7 @@ namespace sidblaster {
             return true;
         }
 
-        bool util::createSIDFromPRG(
+        bool createSIDFromPRG(
             const fs::path& prgFile,
             const fs::path& sidFile,
             u16 loadAddr,
