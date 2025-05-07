@@ -8,35 +8,35 @@
 
 [Task1]
 type=Trace
-input=SID\MCH-MontyOnTheRunDnBEdit-2SID.sid
-output=temp\MCH-MontyOnTheRunDnBEdit-2SID-trace.bin
+input=D:\SID\*.sid
+output=temp\original-trace.bin
 format=binary
 frames=30000
 
 [Task2]
 type=Relocate
-input=SID\MCH-MontyOnTheRunDnBEdit-2SID.sid
-output=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
-address=0x2000
+input=SID\*.sid
+output=temp\music-rel0800.sid
+address=0x0800
 
 [Task3]
 type=Trace
-input=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
-output=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-trace.bin
+input=temp\music-rel0800.sid
+output=temp\relocated-trace.bin
 format=binary
 frames=30000
 
 [Task4]
 type=Verify
-original=temp\MCH-MontyOnTheRunDnBEdit-2SID-trace.bin
-relocated=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-trace.bin
+original=temp\original-trace.bin
+relocated=temp\relocated-trace.bin
 reportFile=verification.log
 
 [Task5]
 type=Convert
-input=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
-output=test\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-withplayer.prg
+input=temp\music-rel0800.sid
+output=D:\SID-Relocated\*.prg
 format=PRG
-player=SimpleBitmap
-playerAddr=0x0900
+player=SimpleRaster
+playerAddr=0x0400
 

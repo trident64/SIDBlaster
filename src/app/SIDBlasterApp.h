@@ -72,9 +72,25 @@ namespace sidblaster {
 
         /**
          * @brief Run single file processing
+         *
+         * Processes a single input file according to the command line options.
+         * This is the default mode when no batch options are specified.
+         *
          * @return Exit code (0 on success, non-zero on failure)
          */
         int runSingleFileMode();
+
+        /**
+         * @brief Run batch processing with wildcard support
+         *
+         * Processes multiple files matching wildcard patterns in the input/output paths.
+         * Supports relocation, verification, and detailed reporting capabilities.
+         * Preserves subfolder structure when requested.
+         *
+         * @return Exit code (0 on success, non-zero on failure)
+         */
+        int runBatchWildcardMode();
+
     };
 
 } // namespace sidblaster

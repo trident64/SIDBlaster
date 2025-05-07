@@ -4,6 +4,7 @@
 //  Raistlin / Genesis Project (G*P)
 // ==================================
 #include "SIDBlasterApp.h"
+#include "BatchProcessor.h"
 #include "../SIDBlasterUtils.h"
 #include "../cpu6510.h"
 #include "../SIDLoader.h"
@@ -33,6 +34,18 @@ namespace sidblaster {
             return runBatchMode(batchFile);
         }
 
+        // Check for wildcard mode (batch with wildcards)
+        std::string inputFile = cmdParser_.getInputFile();
+        std::string outputFile = cmdParser_.getOutputFile();
+        bool hasWildcards = (inputFile.find('*') != std::string::npos ||
+            inputFile.find('?') != std::string::npos ||
+            outputFile.find('*') != std::string::npos ||
+            outputFile.find('?') != std::string::npos);
+
+        if (hasWildcards) {
+            return runBatchWildcardMode();
+        }
+
         // Otherwise, process a single file
         return runSingleFileMode();
     }
@@ -60,7 +73,10 @@ namespace sidblaster {
         cmdParser_.addOptionDefinition("defs", "file", "General definitions file", "SID", "");
 
         // Batch processing
-        cmdParser_.addOptionDefinition("batch", "file", "Batch configuration file", "Processing", "");
+        cmdParser_.addOptionDefinition("batch", "file", "Batch configuration file", "Batch", "");
+        cmdParser_.addOptionDefinition("batchreport", "file", "Path for batch processing report", "Batch", "SIDBlaster-report.txt");
+        cmdParser_.addFlagDefinition("preserve-subfolders", "Maintain subfolder structure in output", "Batch");
+        cmdParser_.addFlagDefinition("verify", "Verify relocated SIDs by comparing outputs", "Batch");
 
         // Tracelog options
         cmdParser_.addOptionDefinition("tracelog", "file", "Log file for SID register writes", "Logging", "");
@@ -102,6 +118,21 @@ namespace sidblaster {
         cmdParser_.addExample(
             "SIDBlaster -batch=jobs.txt",
             "Executes batch processing from configuration file");
+
+        cmdParser_.addExample(
+            "SIDBlaster -relocate=$2000 -verify SID/*.sid RelocatedSID/*.sid",
+            "Process all SID files in SID folder, relocate to $2000, verify and output to RelocatedSID folder"
+        );
+
+        cmdParser_.addExample(
+            "SIDBlaster -relocate=$1000 -preserve-subfolders \"Collections/C64/**/*.sid\" \"Relocated/*.sid\"",
+            "Process all SID files in Collections/C64 and its subfolders, preserve folder structure in output"
+        );
+
+        cmdParser_.addExample(
+            "SIDBlaster -relocate=$2000 -verify -batchreport=results.txt SID/*.sid RelocatedSID/*.sid",
+            "Process all SIDs and save the verification report to results.txt"
+        );
     }
 
     void SIDBlasterApp::initializeLogging() {
@@ -139,6 +170,14 @@ namespace sidblaster {
         fs::path inputFile = fs::path(cmdParser_.getInputFile());
         fs::path outputFile = fs::path(cmdParser_.getOutputFile());
 
+        // Check if the input/output files include wildcards
+        std::string inputFileStr = cmdParser_.getInputFile();
+        std::string outputFileStr = cmdParser_.getOutputFile();
+        bool hasWildcards = inputFileStr.find('*') != std::string::npos ||
+            inputFileStr.find('?') != std::string::npos ||
+            outputFileStr.find('*') != std::string::npos ||
+            outputFileStr.find('?') != std::string::npos;
+
         // Validate input and output files
         if (inputFile.empty()) {
             std::cout << "Error: No input file specified\n";
@@ -152,14 +191,34 @@ namespace sidblaster {
             return false;
         }
 
-        // Check if input file exists
+        // For wildcard mode, verify relocation address is specified
+        if (hasWildcards) {
+            std::string relocateOption = cmdParser_.getOption("relocate");
+            if (relocateOption.empty()) {
+                std::cout << "Error: Relocation address (-relocate) must be specified when using wildcards\n";
+                std::cout << "Use -help for command line options\n";
+                return false;
+            }
+
+            // Validate the wildcard patterns
+            if (inputFileStr.find('*') == std::string::npos && inputFileStr.find('?') == std::string::npos) {
+                std::cout << "Warning: Output path contains wildcards but input path doesn't.\n";
+                std::cout << "Did you mean to use wildcards in the input path?\n";
+            }
+
+            // For wildcard mode, we don't need to check file existence
+            util::Logger::info("Wildcard mode detected - will process multiple files");
+            return true;
+        }
+
+        // For non-wildcard mode, check if input file exists
         if (!fs::exists(inputFile)) {
             std::cout << "Error: Input file not found: " << inputFile.string() << "\n";
             std::cout << "Use -help for command line options\n";
             return false;
         }
 
-        // Check for input/output file conflicts
+        // Check for input/output file conflicts (only for non-wildcard mode)
         try {
             // Only check equivalence if output file already exists
             if (fs::exists(outputFile) && fs::equivalent(inputFile, outputFile)) {
@@ -321,7 +380,8 @@ namespace sidblaster {
         sid->setCPU(cpu.get());
 
         // Create and run batch converter
-        BatchConverter batchConverter(batchFile, cpu.get(), sid.get());
+        std::string reportPath = cmdParser_.getOption("batchreport");
+        BatchConverter batchConverter(batchFile, cpu.get(), sid.get(), reportPath);
         bool success = batchConverter.execute();
 
         return success ? 0 : 1;
@@ -336,6 +396,62 @@ namespace sidblaster {
         bool success = processor.processFile(options);
 
         return success ? 0 : 1;
+    }
+
+    int SIDBlasterApp::runBatchWildcardMode() {
+        // Check if we have wildcard patterns
+        std::string inputFile = cmdParser_.getInputFile();
+        std::string outputFile = cmdParser_.getOutputFile();
+
+        // Check if either contains wildcards
+        bool hasWildcards = (inputFile.find('*') != std::string::npos ||
+            inputFile.find('?') != std::string::npos ||
+            outputFile.find('*') != std::string::npos ||
+            outputFile.find('?') != std::string::npos);
+
+        if (!hasWildcards) {
+            return runSingleFileMode(); // Handle as normal file
+        }
+
+        // Set up batch processor options
+        BatchProcessor processor;
+        BatchProcessor::BatchOptions options;
+
+        options.inputPattern = fs::path(inputFile);
+        options.outputPattern = fs::path(outputFile);
+        options.reportPath = fs::path(cmdParser_.getOption("batchreport", "batchreport.txt"));
+        options.tempDir = fs::path("temp");
+        options.preserveSubfolders = cmdParser_.hasFlag("preserve-subfolders");
+
+        // Get relocation address
+        std::string relocAddressStr = cmdParser_.getOption("relocate", "");
+        if (!relocAddressStr.empty()) {
+            auto relocAddr = util::parseHex(relocAddressStr);
+            if (relocAddr) {
+                options.relocationAddress = *relocAddr;
+            }
+            else {
+                std::cout << "Error: Invalid relocation address: " << relocAddressStr << std::endl;
+                return 1;
+            }
+        }
+        else {
+            std::cout << "Error: Relocation address must be specified for batch wildcard mode" << std::endl;
+            return 1;
+        }
+
+        // Set verification option
+        options.verify = cmdParser_.hasFlag("verify");
+
+        // Process the batch
+        try {
+            BatchProcessor::BatchResult result = processor.processBatch(options);
+            return 0; // Success
+        }
+        catch (const std::exception& e) {
+            std::cout << "Error during batch processing: " << e.what() << std::endl;
+            return 1;
+        }
     }
 
 } // namespace sidblaster

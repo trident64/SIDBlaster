@@ -22,7 +22,7 @@ public:
     void step();
 
     // Execution control
-    void executeFunction(u16 address);
+    bool executeFunction(u16 address);
     void jumpTo(u16 address);
 
     // Memory operations

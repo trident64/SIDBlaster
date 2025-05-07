@@ -264,9 +264,9 @@ namespace sidblaster {
             });
 
         // Set up Disassembler if needed
-        if (options.outputFormat == OutputFormat::ASM || options.hasRelocation) {
+//        if (options.outputFormat == OutputFormat::ASM || options.hasRelocation) {
             disassembler_ = std::make_unique<Disassembler>(*cpu_, *sid_);
-        }
+//        }
 
         // Set up emulation options
         SIDEmulator emulator(cpu_.get(), sid_.get());
@@ -380,6 +380,7 @@ namespace sidblaster {
     }
 
     bool CommandProcessor::generatePRGOutput(const ProcessingOptions& options) {
+
         // Base name for files
         std::string basename = options.inputFile.stem().string();
 
@@ -389,22 +390,35 @@ namespace sidblaster {
         fs::path tempAsmFile = tempDir / (basename + ".asm");
         fs::path tempPrgFile = tempDir / (basename + ".prg");
 
+        bool bRelocation = options.hasRelocation;
+        bool bIsSID = detectFileType(options.inputFile) == FileType::SID;
+
+        u16 newSidLoad = options.relocationAddress;
+
+        // If we're using a player and have a SID file as input
+        if (options.includePlayer && bIsSID)
+        {
+            if (!bRelocation)
+            {
+                newSidLoad = sid_->getLoadAddress();
+            }
+            bRelocation = true;
+        }
+
         // If the input file is a SID and we haven't extracted it yet, do so now
-        if (detectFileType(options.inputFile) == FileType::SID && !fs::exists(tempExtractedPrg)) {
+        if ((!bRelocation) && (bIsSID) && (!fs::exists(tempExtractedPrg))) {
             util::Logger::debug("Extracting PRG from SID file: " + options.inputFile.string());
-            // Use MusicBuilder to extract the PRG
             MusicBuilder builder(cpu_.get(), sid_.get());
             builder.extractPrgFromSid(options.inputFile, tempExtractedPrg);
         }
 
         // Determine if we need to use the disassembler for relocation
-        if (options.hasRelocation) {
+        if (bRelocation) {
             // Restore original memory for clean disassembly
             sid_->restoreMemory();
 
             // Generate assembly file with relocated addresses
             const u16 sidLoad = sid_->getLoadAddress();
-            const u16 newSidLoad = options.relocationAddress;
             const u16 newSidInit = newSidLoad + (sid_->getInitAddress() - sidLoad);
             const u16 newSidPlay = newSidLoad + (sid_->getPlayAddress() - sidLoad);
 

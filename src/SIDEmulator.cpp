@@ -62,10 +62,19 @@ namespace sidblaster {
         u64 lastCycles = cpu_->getCycles();
 
         // Call play routine for the specified number of frames
+        bool bGood = true;
         for (int frame = 0; frame < options.frames; ++frame) {
             // Execute play routine (multiple times per frame if requested)
             for (int call = 0; call < options.callsPerFrame; ++call) {
-                cpu_->executeFunction(playAddr);
+                bGood = cpu_->executeFunction(playAddr);
+                if (!bGood)
+                {
+                    break;
+                }
+            }
+            if (!bGood)
+            {
+                break;
             }
 
             // Calculate cycles used in this frame

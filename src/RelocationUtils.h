@@ -55,6 +55,32 @@ namespace sidblaster {
             SIDLoader* sid,
             const RelocationParams& params);
 
+        struct RelocationVerificationResult {
+            bool success;                // Whether relocation was successful
+            bool verified;               // Whether verification was attempted
+            bool outputsMatch;           // Whether original and relocated outputs match
+            std::string originalTrace;   // Path to original trace file
+            std::string relocatedTrace;  // Path to relocated trace file
+            std::string diffReport;      // Path to difference report file
+            std::string message;         // Detailed message
+        };
+
+        /**
+         * @brief Relocate a SID file
+         * @param cpu CPU instance for disassembly
+         * @param sid SID loader for file handling
+         * @param params Relocation parameters
+         * @return Result of the relocation
+         */
+        RelocationVerificationResult relocateAndVerifySID(
+            CPU6510* cpu,
+            SIDLoader* sid,
+            const fs::path& inputFile,
+            const fs::path& outputFile,
+            u16 relocationAddress,
+            const fs::path& tempDir);
+
+
         /**
          * @brief Assemble an ASM file to PRG
          * @param asmFile Input assembly file

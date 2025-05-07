@@ -74,7 +74,7 @@ void CPU6510Impl::step() {
  *
  * @param address The memory address to execute from
  */
-void CPU6510Impl::executeFunction(u16 address) {
+bool CPU6510Impl::executeFunction(u16 address) {
     // Maximum number of steps to prevent infinite loops
     const int MAX_STEPS = DEFAULT_SID_EMULATION_FRAMES;
     int stepCount = 0;
@@ -114,7 +114,7 @@ void CPU6510Impl::executeFunction(u16 address) {
                 sidblaster::util::wordToHex(currentPC) +
                 " detected - illegal jump target");
             // Break to avoid immediate crash
-            break;
+            return false;
         }
         else if (currentPC < 0x0100 && !jumpToZeroPageTracked) {  // Any zero page execution
             sidblaster::util::Logger::warning("Zero page execution detected at $" +
@@ -188,6 +188,7 @@ void CPU6510Impl::executeFunction(u16 address) {
                     " to illegal address $" +
                     sidblaster::util::wordToHex(operand));
                 reportedProblematicJumps.insert(operand);
+                return false;
             }
             else if (operand < 0x0100 &&
                 reportedProblematicJumps.find(operand) == reportedProblematicJumps.end()) {
@@ -251,7 +252,9 @@ void CPU6510Impl::executeFunction(u16 address) {
             pcHistoryStr << "$" << sidblaster::util::wordToHex(pcHistory[idx]) << " ";
         }
         sidblaster::util::Logger::error(pcHistoryStr.str());
+        return false;
     }
+    return true;
 }
 
 /**

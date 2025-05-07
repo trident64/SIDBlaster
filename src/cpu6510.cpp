@@ -41,8 +41,8 @@ void CPU6510::step() {
  *
  * @param address The memory address to execute from
  */
-void CPU6510::executeFunction(u16 address) {
-    pImpl_->executeFunction(address);
+bool CPU6510::executeFunction(u16 address) {
+    return pImpl_->executeFunction(address);
 }
 
 /**

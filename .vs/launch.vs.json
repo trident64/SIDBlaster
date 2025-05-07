@@ -8,11 +8,10 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        "-relocate=$2000",
-        "-player=SimpleRaster",
-        "-playeraddr=$0900",
-        ".\\sid\\MCH-MontyOnTheRunDnBEdit-2SID.sid",
-        "Monty2000.prg"
+        "-batch=batch_example.txt",
+        "-batchreport=batchreport.txt",
+        "sid\\*.sid",
+        "test\\*.prg"
       ],
       "currentDir": "${workspaceRoot}"
     }

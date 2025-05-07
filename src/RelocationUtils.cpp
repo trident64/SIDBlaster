@@ -195,6 +195,101 @@ namespace sidblaster {
             return result;
         }
 
+        RelocationVerificationResult relocateAndVerifySID(
+            CPU6510* cpu,
+            SIDLoader* sid,
+            const fs::path& inputFile,
+            const fs::path& outputFile,
+            u16 relocationAddress,
+            const fs::path& tempDir) {
+
+            RelocationVerificationResult result;
+            result.success = false;
+            result.verified = false;
+            result.outputsMatch = false;
+
+            // Prepare paths for verification
+            fs::path originalTrace = tempDir / (inputFile.stem().string() + "-original.trace");
+            fs::path relocatedTrace = tempDir / (inputFile.stem().string() + "-relocated.trace");
+            fs::path diffReport = tempDir / (inputFile.stem().string() + "-diff.txt");
+
+            result.originalTrace = originalTrace.string();
+            result.relocatedTrace = relocatedTrace.string();
+            result.diffReport = diffReport.string();
+
+            try {
+                // Step 1: Create trace of original SID
+                if (!sid->loadSID(inputFile.string())) {
+                    result.message = "Failed to load original SID file";
+                    return result;
+                }
+
+                // Create an emulator for the original SID
+                SIDEmulator originalEmulator(cpu, sid);
+                SIDEmulator::EmulationOptions options;
+                options.frames = DEFAULT_SID_EMULATION_FRAMES;
+                options.traceEnabled = true;
+                options.traceLogPath = originalTrace.string();
+
+                if (!originalEmulator.runEmulation(options)) {
+                    result.message = "Failed to emulate original SID file";
+                    return result;
+                }
+
+                // Step 2: Relocate the SID file
+                util::RelocationParams relocParams;
+                relocParams.inputFile = inputFile;
+                relocParams.outputFile = outputFile;
+                relocParams.tempDir = tempDir;
+                relocParams.relocationAddress = relocationAddress;
+
+                util::RelocationResult relocResult = util::relocateSID(cpu, sid, relocParams);
+
+                if (!relocResult.success) {
+                    result.message = "Relocation failed: " + relocResult.message;
+                    return result;
+                }
+
+                result.success = true;
+
+                // Step 3: Verify the relocated SID
+                if (!sid->loadSID(outputFile.string())) {
+                    result.message = "Relocation succeeded but failed to load relocated SID file";
+                    return result;
+                }
+
+                // Create an emulator for the relocated SID
+                SIDEmulator relocatedEmulator(cpu, sid);
+                options.traceLogPath = relocatedTrace.string();
+
+                if (!relocatedEmulator.runEmulation(options)) {
+                    result.message = "Relocation succeeded but failed to emulate relocated SID file";
+                    return result;
+                }
+
+                result.verified = true;
+
+                // Step 4: Compare trace files
+                result.outputsMatch = TraceLogger::compareTraceLogs(
+                    originalTrace.string(),
+                    relocatedTrace.string(),
+                    diffReport.string());
+
+                if (result.outputsMatch) {
+                    result.message = "Relocation and verification successful";
+                }
+                else {
+                    result.message = "Relocation succeeded but verification failed - outputs differ";
+                }
+
+                return result;
+            }
+            catch (const std::exception& e) {
+                result.message = std::string("Exception during relocation/verification: ") + e.what();
+                return result;
+            }
+        }
+
         bool assembleAsmToPrg(
             const fs::path& asmFile,
             const fs::path& prgFile,
