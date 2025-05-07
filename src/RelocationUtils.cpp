@@ -352,7 +352,7 @@ namespace sidblaster {
          * @param backupAndRestore Whether to backup and restore memory (default: true)
          * @return True if emulation completed successfully
          */
-        bool util::runSIDEmulation(
+        bool runSIDEmulation(
             CPU6510* cpu,
             SIDLoader* sid,
             int frames,
