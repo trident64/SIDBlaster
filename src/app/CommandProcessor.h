@@ -71,7 +71,7 @@ namespace sidblaster {
             bool compress = true;             ///< Whether to compress output
             std::string compressorType = "exomizer";          ///< Compression type
             std::string exomizerPath = "Exomizer.exe";        ///< Path to Exomizer
-            std::string kickAssPath = "java -jar KickAss.jar"; ///< Path to KickAss
+            std::string kickAssPath = "java -jar KickAss.jar -silentMode"; ///< Path to KickAss
 
             // Trace options
             std::string traceLogPath;              ///< Trace log file path

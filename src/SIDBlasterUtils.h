@@ -243,7 +243,7 @@ namespace sidblaster {
             static std::unordered_map<std::string, std::string> configValues_;  // Configuration values
 
             // Default configuration constants
-            static constexpr const char* DEFAULT_KICKASS_PATH = "java -jar KickAss.jar";
+            static constexpr const char* DEFAULT_KICKASS_PATH = "java -jar KickAss.jar -silentMode";
             static constexpr const char* DEFAULT_EXOMIZER_PATH = "Exomizer.exe";
             static constexpr const char* DEFAULT_COMPRESSOR_TYPE = "exomizer";
             static constexpr const char* DEFAULT_PLAYER_NAME = "SimpleRaster";

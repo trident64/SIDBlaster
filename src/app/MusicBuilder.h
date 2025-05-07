@@ -42,7 +42,7 @@ namespace sidblaster {
             std::string exomizerPath = "Exomizer.exe";  ///< Path to Exomizer
 
             // Assembly options
-            std::string kickAssPath = "java -jar KickAss.jar";  ///< Path to KickAss
+            std::string kickAssPath = "java -jar KickAss.jar -silentMode";  ///< Path to KickAss
 
             // SID options
             int playCallsPerFrame = 1;     ///< Number of SID play calls per frame
