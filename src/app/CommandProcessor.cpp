@@ -6,6 +6,7 @@
 #include "CommandProcessor.h"
 #include "../SIDBlasterUtils.h"
 #include "../cpu6510.h"
+#include "../SIDEmulator.h"
 #include "../SIDLoader.h"
 #include "../Disassembler.h"
 #include "../RelocationUtils.h"
@@ -267,16 +268,19 @@ namespace sidblaster {
             disassembler_ = std::make_unique<Disassembler>(*cpu_, *sid_);
         }
 
-        // Create a backup of memory before execution
-        sid_->backupMemory();
+        // Set up emulation options
+        SIDEmulator emulator(cpu_.get(), sid_.get());
+        SIDEmulator::EmulationOptions emulationOptions;
+        emulationOptions.frames = DEFAULT_SID_EMULATION_FRAMES;
+        emulationOptions.backupAndRestore = true;
+        emulationOptions.traceEnabled = options.enableTracing;
+        emulationOptions.traceFormat = options.traceFormat;
+        emulationOptions.traceLogPath = options.traceLogPath;
 
-        // Initialize the SID
-        const u16 initAddr = sid_->getInitAddress();
-        cpu_->executeFunction(initAddr);
-
-        // Mark end of initialization in trace log
-        if (traceLogger_) {
-            traceLogger_->logFrameMarker();
+        // Run the emulation
+        if (!emulator.runEmulation(emulationOptions)) {
+            util::Logger::error("SID emulation failed");
+            return false;
         }
 
         // Get SID info
@@ -294,32 +298,9 @@ namespace sidblaster {
 
         util::Logger::info("Play calls per frame: " + std::to_string(playCallsPerFrame));
 
-        // Call play routine for analysis
-        const int numFrames = 30000; //; TODO: unify-frames!
-        util::Logger::debug("Calling SID play routine " + std::to_string(numFrames) + " times for analysis");
-
-        u64 cycles = cpu_->getCycles();
-        u64 lastCycles = cycles;
-        u64 maxCycles = 0;
-
-        for (int frame = 0; frame < numFrames; ++frame) {
-            cpu_->executeFunction(sidPlay);
-
-            // Mark end of frame in trace log
-            if (traceLogger_) {
-                traceLogger_->logFrameMarker();
-            }
-
-            const u64 cur = cpu_->getCycles();
-            const u64 frameCycles = cur - lastCycles;
-            maxCycles = std::max(maxCycles, frameCycles);
-            lastCycles = cur;
-        }
-
+        // Get cycle statistics
+        auto [avgCycles, maxCycles] = emulator.getCycleStats();
         util::Logger::debug("Maximum cycles per frame: " + std::to_string(maxCycles));
-
-        // Restore original memory
-        sid_->restoreMemory();
 
         return true;
     }

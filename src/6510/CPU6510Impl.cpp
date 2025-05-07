@@ -76,7 +76,7 @@ void CPU6510Impl::step() {
  */
 void CPU6510Impl::executeFunction(u16 address) {
     // Maximum number of steps to prevent infinite loops
-    const int MAX_STEPS = 30000; // TODO
+    const int MAX_STEPS = DEFAULT_SID_EMULATION_FRAMES;
     int stepCount = 0;
     bool enableTracing = false; // Set to false to avoid excessive logging
 

@@ -1,6 +1,7 @@
 #include "RelocationUtils.h"
 #include "SIDBlasterUtils.h"
 #include "cpu6510.h"
+#include "SIDEmulator.h"
 #include "SIDLoader.h"
 #include "Disassembler.h"
 
@@ -72,7 +73,7 @@ namespace sidblaster {
             sidblaster::Disassembler disassembler(*cpu, *sid);
 
             // Run emulation to analyze memory access patterns
-            const int numFrames = 30000;  // TODO: Could be from params.frames if you add it to RelocationParams
+            const int numFrames = 30000; // TODO, this should be coming from (1) a global constant (in common.h), then overriden by the CFG file if there is one, then overridden by batch script or command-line, etc
             if (!runSIDEmulation(cpu, sid, numFrames)) {
                 result.message = "Failed to run SID emulation for memory analysis";
                 Logger::error(result.message);
@@ -351,45 +352,19 @@ namespace sidblaster {
          * @param backupAndRestore Whether to backup and restore memory (default: true)
          * @return True if emulation completed successfully
          */
-        bool runSIDEmulation(
+        bool util::runSIDEmulation(
             CPU6510* cpu,
             SIDLoader* sid,
             int frames,
             bool backupAndRestore) {
 
-            if (!cpu || !sid) {
-                Logger::error("Invalid CPU or SID loader for emulation");
-                return false;
-            }
+            SIDEmulator emulator(cpu, sid);
+            SIDEmulator::EmulationOptions options;
+            options.frames = frames;
+            options.backupAndRestore = backupAndRestore;
+            options.traceEnabled = false;
 
-            // Create a backup of memory if requested
-            if (backupAndRestore) {
-                sid->backupMemory();
-            }
-
-            // Initialize the SID
-            const u16 initAddr = sid->getInitAddress();
-            const u16 playAddr = sid->getPlayAddress();
-
-            Logger::debug("Running SID emulation - Init: $" + wordToHex(initAddr) +
-                ", Play: $" + wordToHex(playAddr) +
-                ", Frames: " + std::to_string(frames));
-
-            // Execute the init routine
-            cpu->executeFunction(initAddr);
-
-            // Call play routine for the specified number of frames
-            for (int frame = 0; frame < frames; ++frame) {
-                cpu->executeFunction(playAddr);
-            }
-
-            // Create a backup of memory if requested
-            if (backupAndRestore) {
-                sid->restoreMemory();
-            }
-
-            Logger::debug("SID emulation complete after " + std::to_string(frames) + " frames");
-            return true;
+            return emulator.runEmulation(options);
         }
 
     }

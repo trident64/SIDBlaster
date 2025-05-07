@@ -1,0 +1,8 @@
+SIDBlaster Trace Log Comparison Report
+Original: temp\MCH-MontyOnTheRunDnBEdit-2SID-trace.bin
+Relocated: temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-trace.bin
+
+Summary:
+File 1: 30002 frames
+File 2: 30002 frames
+Result: NO DIFFERENCES FOUND - 30002 frames verified

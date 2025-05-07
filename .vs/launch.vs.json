@@ -10,7 +10,7 @@
       "args": [
         "-relocate=$2000",
         "-player=SimpleRaster",
-        "-playeradd=$0900",
+        "-playeraddr=$0900",
         ".\\sid\\MCH-MontyOnTheRunDnBEdit-2SID.sid",
         "Monty2000.prg"
       ],

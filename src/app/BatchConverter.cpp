@@ -8,6 +8,7 @@
 #include "../cpu6510.h"
 #include "../SIDLoader.h"
 #include "../RelocationUtils.h"
+#include "../SIDEmulator.h"
 #include "MusicBuilder.h"
 #include <fstream>
 #include <sstream>
@@ -233,19 +234,6 @@ namespace sidblaster {
         const TraceFormat format = (formatStr == "text") ?
             TraceFormat::Text : TraceFormat::Binary;
 
-        // Create a trace logger
-        TraceLogger logger(task.output, format);
-
-        // Set up callback for SID writes
-        cpu_->setOnSIDWriteCallback([&logger](u16 addr, u8 value) {
-            logger.logSIDWrite(addr, value);
-            });
-
-        // Set up callback for CIA writes if needed
-        cpu_->setOnCIAWriteCallback([&logger](u16 addr, u8 value) {
-            logger.logCIAWrite(addr, value);
-            });
-
         // Load the input file
         bool loaded = false;
         const fs::path inputPath(task.input);
@@ -270,33 +258,21 @@ namespace sidblaster {
             return false;
         }
 
-        // Initialize the SID
-        const u16 initAddr = sid_->getInitAddress();
-        const u16 playAddr = sid_->getPlayAddress();
+        // Set up emulation options
+        SIDEmulator emulator(cpu_, sid_);
+        SIDEmulator::EmulationOptions options;
+        options.frames = getParameterInt(task, "frames", DEFAULT_SID_EMULATION_FRAMES);
+        options.backupAndRestore = true;
+        options.traceEnabled = true;
+        options.traceFormat = format;
+        options.traceLogPath = task.output;
+        options.callsPerFrame = getParameterInt(task, "callsPerFrame", 1);
 
-        // Create a backup of memory before execution
-        sid_->backupMemory();
-
-        // Initialize the SID
-        cpu_->executeFunction(initAddr);
-        logger.logFrameMarker();  // Mark end of init
-
-        // Call play routine for analysis
-        const int numFrames = getParameterInt(task, "frames", 30000);
-
-        for (int frame = 0; frame < numFrames; ++frame) {
-            cpu_->executeFunction(playAddr);
-            logger.logFrameMarker();  // Mark end of frame
-        }
-
-        // Flush and close log
-        logger.flushLog();
-
-        // Restore original memory
-        sid_->restoreMemory();
+        // Run emulation
+        bool success = emulator.runEmulation(options);
 
         util::Logger::info("Trace completed: " + task.output);
-        return true;
+        return success;
     }
 
     bool BatchConverter::executeVerification(const BatchTask& task) {

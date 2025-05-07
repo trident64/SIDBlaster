@@ -8,34 +8,34 @@
 
 [Task1]
 type=Trace
-input=SID\Flex-Lundia.sid
-output=temp\Flex-Lundia-trace.bin
+input=SID\MCH-MontyOnTheRunDnBEdit-2SID.sid
+output=temp\MCH-MontyOnTheRunDnBEdit-2SID-trace.bin
 format=binary
 frames=30000
 
 [Task2]
 type=Relocate
-input=SID\Flex-Lundia.sid
-output=temp\Flex-Lundia-rel2000.sid
+input=SID\MCH-MontyOnTheRunDnBEdit-2SID.sid
+output=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
 address=0x2000
 
 [Task3]
 type=Trace
-input=temp\Flex-Lundia-rel2000.sid
-output=temp\Flex-Lundia-rel2000-trace.bin
+input=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
+output=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-trace.bin
 format=binary
 frames=30000
 
 [Task4]
 type=Verify
-original=temp\Flex-Lundia-trace.bin
-relocated=temp\Flex-Lundia-rel2000-trace.bin
+original=temp\MCH-MontyOnTheRunDnBEdit-2SID-trace.bin
+relocated=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-trace.bin
 reportFile=verification.log
 
 [Task5]
 type=Convert
-input=temp\Flex-Lundia-rel2000.sid
-output=test\Flex-Lundia-rel2000-withplayer.prg
+input=temp\MCH-MontyOnTheRunDnBEdit-2SID-rel2000.sid
+output=test\MCH-MontyOnTheRunDnBEdit-2SID-rel2000-withplayer.prg
 format=PRG
 player=SimpleBitmap
 playerAddr=0x0900

@@ -21,6 +21,8 @@ namespace fs = std::filesystem;
  // Tool name and version
 #define SIDBLASTER_VERSION "SIDBlaster 0.7.0"
 
+#define DEFAULT_SID_EMULATION_FRAMES (10 * 60 * 50) // 10 minutes
+
 // Type aliases for consistent usage across the project
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
