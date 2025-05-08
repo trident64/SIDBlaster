@@ -10,6 +10,13 @@
 namespace sidblaster {
     namespace util {
 
+        bool isSidFile(const fs::path& path) {
+            std::string ext = path.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(),
+                [](unsigned char c) { return std::tolower(c); });
+            return ext == ".sid";
+        }
+
         RelocationResult relocateSID(
             CPU6510* cpu,
             SIDLoader* sid,
@@ -17,6 +24,19 @@ namespace sidblaster {
 
             RelocationResult result;
             result.success = false;
+
+            // Validate that both input and output are SID files
+            if (!isSidFile(params.inputFile)) {
+                result.message = "Input file must be a SID file (.sid): " + params.inputFile.string();
+                Logger::error(result.message);
+                return result;
+            }
+
+            if (!isSidFile(params.outputFile)) {
+                result.message = "Output file must be a SID file (.sid): " + params.outputFile.string();
+                Logger::error(result.message);
+                return result;
+            }
 
             // Create temp directory if it doesn't exist
             try {

@@ -1,9 +1,10 @@
 // SIDBlasterApp.h
 #pragma once
 
-#include "CommandLineParser.h"
+#include "../CommandLineParser.h"
 #include "CommandProcessor.h"
-#include "CommandClass.h"
+#include "../CommandClass.h"
+#include "TraceLogger.h"
 #include <memory>
 #include <string>
 
@@ -13,7 +14,7 @@ namespace sidblaster {
      * @class SIDBlasterApp
      * @brief Main application class for SIDBlaster
      *
-     * Handles processing of single commands based on command line arguments.
+     * Handles processing of commands based on command line arguments.
      */
     class SIDBlasterApp {
     public:
@@ -32,7 +33,7 @@ namespace sidblaster {
 
     private:
         CommandLineParser cmdParser_;  ///< Command line parser
-        CommandClass command_;              ///< Current command to execute
+        CommandClass command_;         ///< Current command to execute
         fs::path logFile_;             ///< Log file path
         bool verbose_ = false;         ///< Verbose logging flag
 
@@ -65,22 +66,28 @@ namespace sidblaster {
         int showHelp();
 
         /**
-         * @brief Process a conversion command
+         * @brief Process a LinkPlayer command (link SID with player code)
          * @return Exit code (0 on success, non-zero on failure)
          */
-        int processConversion();
+        int processLinkPlayer();
 
         /**
-         * @brief Process a relocation command
+         * @brief Process a relocation command (relocate SID file)
          * @return Exit code (0 on success, non-zero on failure)
          */
         int processRelocation();
 
         /**
-         * @brief Process a disassembly command
+         * @brief Process a disassembly command (SID to ASM)
          * @return Exit code (0 on success, non-zero on failure)
          */
         int processDisassembly();
+
+        /**
+         * @brief Process a trace command (trace SID register writes)
+         * @return Exit code (0 on success, non-zero on failure)
+         */
+        int processTrace();
     };
 
 } // namespace sidblaster

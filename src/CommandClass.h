@@ -23,9 +23,10 @@ namespace sidblaster {
          * @brief Types of commands supported by SIDBlaster
          */
         enum class Type {
-            Convert,      ///< Convert a SID file to another format
+            LinkPlayer,   ///< Link SID with player code to create executable PRG
             Relocate,     ///< Relocate a SID file to a new address
             Disassemble,  ///< Disassemble a SID file to assembly
+            Trace,        ///< Trace SID register writes
             Help,         ///< Show help information
             Unknown       ///< Unknown command
         };

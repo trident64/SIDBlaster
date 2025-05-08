@@ -8,10 +8,10 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        "-batch=batch_example.txt",
-        "-batchreport=batchreport.txt",
-        "sid\\*.sid",
-        "test\\*.prg"
+        "SID\\Drax-RockingAround.sid",
+        "test\\Drax-RockingAround-8400.sid",
+        "-relocate",
+        "-relocateaddr=$8400"
       ],
       "currentDir": "${workspaceRoot}"
     }

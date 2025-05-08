@@ -68,7 +68,7 @@ namespace sidblaster {
         if (!isOpen_) return;
 
         if (format_ == TraceFormat::Text) {
-            file_ << "--- FRAME ---\n";
+            file_ << "\nFRAME: ";
         }
         else {
             TraceRecord record(FRAME_MARKER);
@@ -83,7 +83,7 @@ namespace sidblaster {
     }
 
     void TraceLogger::writeTextRecord(u16 addr, u8 value) {
-        file_ << util::wordToHex(addr) << ":$" << util::byteToHex(value) << "\n";
+        file_ << util::wordToHex(addr) << ":$" << util::byteToHex(value) << ",";
     }
 
     void TraceLogger::writeBinaryRecord(const TraceRecord& record) {

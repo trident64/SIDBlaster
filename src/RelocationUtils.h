@@ -22,9 +22,9 @@ namespace sidblaster {
             fs::path inputFile;           ///< Input file
             fs::path outputFile;          ///< Output file
             fs::path tempDir;             ///< Temp directory
-            u16 relocationAddress;        ///< Target address for relocation
+            u16 relocationAddress = 0;    ///< Target address for relocation (initialized to 0)
             std::string kickAssPath;      ///< Path to KickAss.jar
-            bool verbose;                 ///< Verbose logging
+            bool verbose = false;         ///< Verbose logging (initialized to false)
         };
 
         /**

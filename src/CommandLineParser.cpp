@@ -67,30 +67,25 @@ namespace sidblaster {
             cmd.setOutputFile(positionalArgs[1]);
         }
 
-        // Determine command type based on flags and options
+        // Determine command type based on flags
         if (cmd.hasFlag("help")) {
             cmd.setType(CommandClass::Type::Help);
         }
-        else if (cmd.hasParameter("relocate")) {
+        else if (cmd.hasFlag("linkplayer")) {
+            cmd.setType(CommandClass::Type::LinkPlayer);
+        }
+        else if (cmd.hasFlag("relocate") || cmd.hasParameter("relocateaddr")) {
             cmd.setType(CommandClass::Type::Relocate);
         }
-        else if (cmd.getOutputFile().empty()) {
-            // If no output file, default to help
-            cmd.setType(CommandClass::Type::Help);
+        else if (cmd.hasFlag("disassemble")) {
+            cmd.setType(CommandClass::Type::Disassemble);
+        }
+        else if (cmd.hasFlag("trace") || !cmd.getParameter("tracelog").empty()) {
+            cmd.setType(CommandClass::Type::Trace);
         }
         else {
-            // Determine by output file extension
-            std::string outputFile = cmd.getOutputFile();
-            std::string ext = std::filesystem::path(outputFile).extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(),
-                [](unsigned char c) { return std::tolower(c); });
-
-            if (ext == ".asm") {
-                cmd.setType(CommandClass::Type::Disassemble);
-            }
-            else {
-                cmd.setType(CommandClass::Type::Convert);
-            }
+            // default to help
+            cmd.setType(CommandClass::Type::Help);
         }
 
         return cmd;
@@ -105,86 +100,76 @@ namespace sidblaster {
             std::cout << message << std::endl << std::endl;
         }
 
+        std::cout << "SIDBlaster - C64 SID Music Utility" << std::endl;
         std::cout << "Developed by: Robert Troughton (Raistlin of Genesis Project)" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "Usage: " << programName_ << " [options] inputfile [outputfile]" << std::endl;
+        // Main usage patterns
+        std::cout << "USAGE:" << std::endl;
+        std::cout << "  " << programName_ << " inputfile.sid outputfile.sid -relocate -relocateaddr=<address>" << std::endl;
+        std::cout << "  " << programName_ << " inputfile.sid -trace [-tracelog=<file>] [-traceformat=<format>]" << std::endl;
+        std::cout << "  " << programName_ << " inputfile.sid outputfile.prg -linkplayer [-linkplayertype=<name>] [-linkplayeraddr=<address>]" << std::endl;
+        std::cout << "  " << programName_ << " inputfile.sid outputfile.asm -disassemble" << std::endl;
+        std::cout << "  " << programName_ << " -help" << std::endl;
         std::cout << std::endl;
-        std::cout << "  inputfile             Path to input file (.sid, .prg, or .bin)" << std::endl;
-        std::cout << "  outputfile            Path to output file (.sid, .prg, or .asm)" << std::endl;
-        std::cout << "                        If not specified, shows information about input file" << std::endl;
+
+        // Command descriptions
+        std::cout << "COMMANDS:" << std::endl;
+        std::cout << "  -relocate        Relocate a SID file to a new memory address" << std::endl;
+        std::cout << "  -trace           Trace SID register writes during emulation" << std::endl;
+        std::cout << "  -linkplayer      Link SID music with a player to create executable PRG" << std::endl;
+        std::cout << "  -disassemble     Disassemble a SID file to assembly code" << std::endl;
+        std::cout << "  -help            Display this help information" << std::endl;
         std::cout << std::endl;
 
-        // Group flags and options by category
-        std::map<std::string, std::vector<std::string>> flagsByCategory;
-        std::map<std::string, std::vector<std::string>> optionsByCategory;
+        // Relocate command options
+        std::cout << "RELOCATE OPTIONS:" << std::endl;
+        std::cout << "  -relocateaddr=<address>  Target memory address for relocation (required)" << std::endl;
+        std::cout << "                           Example: -relocateaddr=$2000" << std::endl;
+        std::cout << std::endl;
 
-        // Collect flags by category
-        for (const auto& [flag, def] : flagDefs_) {
-            flagsByCategory[def.category].push_back(flag);
-        }
+        // Trace command options
+        std::cout << "TRACE OPTIONS:" << std::endl;
+        std::cout << "  -tracelog=<file>         Output file for SID register trace log" << std::endl;
+        std::cout << "                           Default: <inputfile>.trace" << std::endl;
+        std::cout << "  -traceformat=<format>    Format for trace log: 'text' or 'binary'" << std::endl;
+        std::cout << "                           Default: binary" << std::endl;
+        std::cout << std::endl;
 
-        // Collect options by category
-        for (const auto& [option, def] : optionDefs_) {
-            optionsByCategory[def.category].push_back(option);
-        }
+        // LinkPlayer command options
+        std::cout << "LINKPLAYER OPTIONS:" << std::endl;
+        std::cout << "  -linkplayertype=<name>   Player type to use" << std::endl;
+        std::cout << "                           Default: SimpleRaster" << std::endl;
+        std::cout << "  -linkplayeraddr=<address> Player load address" << std::endl;
+        std::cout << "                           Default: $0900" << std::endl;
+        std::cout << "  -linkplayerdefs=<file>   Player definitions file (optional)" << std::endl;
+        std::cout << std::endl;
 
-        // Display options by category
-        for (const auto& [category, options] : optionsByCategory) {
-            std::cout << category << " Options:" << std::endl;
+        // General options
+        std::cout << "GENERAL OPTIONS:" << std::endl;
+        std::cout << "  -verbose                 Enable verbose logging" << std::endl;
+        std::cout << "  -force                   Force overwrite of output file" << std::endl;
+        std::cout << "  -logfile=<file>          Log file path (default: SIDBlaster.log)" << std::endl;
+        std::cout << "  -kickass=<path>          Path to KickAss.jar assembler" << std::endl;
+        std::cout << std::endl;
 
-            for (const auto& option : options) {
-                const auto& def = optionDefs_.find(option)->second;
+        // Examples
+        std::cout << "EXAMPLES:" << std::endl;
+        std::cout << "  " << programName_ << " music.sid relocated.sid -relocate -relocateaddr=$2000" << std::endl;
+        std::cout << "    Relocates music.sid to address $2000 and saves as relocated.sid" << std::endl;
+        std::cout << std::endl;
 
-                std::cout << "  -" << option;
+        std::cout << "  " << programName_ << " music.sid -trace -tracelog=music.trace -traceformat=text" << std::endl;
+        std::cout << "    Traces SID register writes for music.sid in text format" << std::endl;
+        std::cout << std::endl;
 
-                // Format option name and argument name with equals sign
-                std::string optionDesc = "=<" + def.argName + ">";
+        std::cout << "  " << programName_ << " music.sid player.prg -linkplayer -linkplayertype=SimpleBitmap -linkplayeraddr=$0800" << std::endl;
+        std::cout << "    Links music.sid with SimpleBitmap player at address $0800" << std::endl;
+        std::cout << std::endl;
 
-                // Calculate padding for alignment
-                const int padding = std::max(0, 20 - static_cast<int>(option.length() + optionDesc.length()));
-                std::cout << optionDesc << std::string(padding, ' ');
-
-                // Print description and default value
-                std::cout << def.description;
-                if (!def.defaultValue.empty()) {
-                    std::cout << " (default: " << def.defaultValue << ")";
-                }
-
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-        }
-
-        // Display flags by category
-        for (const auto& [category, flags] : flagsByCategory) {
-            std::cout << category << " Flags:" << std::endl;
-
-            for (const auto& flag : flags) {
-                const auto& def = flagDefs_.find(flag)->second;
-
-                std::cout << "  -" << flag;
-
-                // Calculate padding for alignment
-                const int padding = std::max(0, 20 - static_cast<int>(flag.length()));
-                std::cout << std::string(padding, ' ');
-
-                // Print description
-                std::cout << def.description << std::endl;
-            }
-            std::cout << std::endl;
-        }
-
-        // Display examples if any
-        if (!examples_.empty()) {
-            std::cout << "Examples:" << std::endl;
-
-            for (const auto& example : examples_) {
-                std::cout << "  " << example.example << std::endl;
-                std::cout << "      " << example.description << std::endl;
-                std::cout << std::endl;
-            }
-        }
+        std::cout << "  " << programName_ << " music.sid music.asm -disassemble" << std::endl;
+        std::cout << "    Disassembles music.sid to assembly code in music.asm" << std::endl;
+        std::cout << std::endl;
     }
 
     CommandLineParser& CommandLineParser::addFlagDefinition(
