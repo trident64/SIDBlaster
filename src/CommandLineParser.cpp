@@ -1,8 +1,4 @@
-// ==================================
-//             SIDBlaster
-//
-//  Raistlin / Genesis Project (G*P)
-// ==================================
+// CommandLineParser.cpp
 #include "CommandLineParser.h"
 #include "SIDBlasterUtils.h"
 
@@ -12,33 +8,34 @@
 
 namespace sidblaster {
 
-    /**
-     * @brief Constructor that parses command line arguments
-     *
-     * Parses the provided command line arguments into flags, options,
-     * and identifies input/output files.
-     *
-     * @param argc Number of arguments
-     * @param argv Array of argument strings
-     */
     CommandLineParser::CommandLineParser(int argc, char** argv) {
+        // Save program name
         if (argc > 0) {
             programName_ = std::filesystem::path(argv[0]).filename().string();
         }
 
-        // Process command line options first
-        std::vector<std::string> nonOptionArgs;
-        int i = 1;
+        // Save all arguments
+        for (int i = 1; i < argc; ++i) {
+            args_.push_back(argv[i]);
+        }
+    }
 
-        while (i < argc) {
-            std::string arg = argv[i++];
+    CommandClass CommandLineParser::parse() const {
+        CommandClass cmd;
+
+        // Process arguments
+        std::vector<std::string> positionalArgs;
+
+        size_t i = 0;
+        while (i < args_.size()) {
+            std::string arg = args_[i++];
 
             // Skip empty arguments
             if (arg.empty()) {
                 continue;
             }
 
-            // Check if it's a command (starts with '-')
+            // Check if it's an option (starts with '-')
             if (arg[0] == '-') {
                 // Process option with potential parameter
                 std::string option = arg.substr(1);  // Remove leading dash
@@ -48,188 +45,61 @@ namespace sidblaster {
                     // Option with value using equals sign: -option=value
                     std::string name = option.substr(0, equalPos);
                     std::string value = option.substr(equalPos + 1);
-
-                    // Create command option
-                    CommandOption command;
-                    command.name = name;
-                    command.parameters.push_back(value);
-                    commands_[name] = command;
+                    cmd.setParameter(name, value);
                 }
                 else {
                     // Flag without value
-                    flags_.insert(option);
+                    cmd.setFlag(option);
                 }
             }
             else {
-                // This is a non-option argument (input or output file)
-                nonOptionArgs.push_back(arg);
+                // This is a positional argument (input or output file)
+                positionalArgs.push_back(arg);
             }
         }
 
-        // Handle input and output files
-        if (nonOptionArgs.size() >= 2) {
-            // Last two arguments are input and output files
-            inputFile_ = nonOptionArgs[nonOptionArgs.size() - 2];
-            outputFile_ = nonOptionArgs[nonOptionArgs.size() - 1];
-        }
-        else if (nonOptionArgs.size() == 1) {
-            // Only input file provided
-            inputFile_ = nonOptionArgs[0];
-        }
-    }
-
-    /**
-     * @brief Get the output file
-     *
-     * @return The output file path
-     */
-    const std::string& CommandLineParser::getOutputFile() const {
-        return outputFile_;
-    }
-
-    /**
-     * @brief Check if a flag is present
-     *
-     * @param flag Flag name (without leading dashes)
-     * @return True if flag is present
-     */
-    bool CommandLineParser::hasFlag(const std::string& flag) const {
-        return flags_.find(flag) != flags_.end();
-    }
-
-    /**
-     * @brief Get the value of an option (first parameter only)
-     *
-     * @param option Option name (without leading dashes)
-     * @param defaultValue Value to return if option not present
-     * @return First parameter value or default
-     */
-    std::string CommandLineParser::getOption(const std::string& option, const std::string& defaultValue) const {
-        auto it = commands_.find(option);
-        if (it != commands_.end() && !it->second.parameters.empty()) {
-            return it->second.parameters[0];
-        }
-        return defaultValue;
-    }
-
-    /**
-     * @brief Get all parameters for a command
-     *
-     * @param command Command name (without leading dashes)
-     * @return Vector of parameter values or empty vector if command not present
-     */
-    std::vector<std::string> CommandLineParser::getCommandParameters(const std::string& command) const {
-        auto it = commands_.find(command);
-        if (it != commands_.end()) {
-            return it->second.parameters;
-        }
-        return {};
-    }
-
-    /**
-     * @brief Get the integer value of an option (first parameter only)
-     *
-     * @param option Option name (without leading dashes)
-     * @param defaultValue Value to return if option not present or invalid
-     * @return Option value or default
-     */
-    int CommandLineParser::getIntOption(const std::string& option, int defaultValue) const {
-        auto optionValue = getOption(option);
-        if (optionValue.empty()) {
-            return defaultValue;
+        // Handle positional arguments (input and output files)
+        if (!positionalArgs.empty()) {
+            cmd.setInputFile(positionalArgs[0]);
         }
 
-        try {
-            return std::stoi(optionValue);
-        }
-        catch (const std::exception&) {
-            return defaultValue;
-        }
-    }
-
-    /**
-     * @brief Get the boolean value of an option (first parameter only)
-     *
-     * @param option Option name (without leading dashes)
-     * @param defaultValue Value to return if option not present
-     * @return Option value or default
-     */
-    bool CommandLineParser::getBoolOption(const std::string& option, bool defaultValue) const {
-        auto optionValue = getOption(option);
-        if (optionValue.empty()) {
-            return defaultValue;
+        if (positionalArgs.size() >= 2) {
+            cmd.setOutputFile(positionalArgs[1]);
         }
 
-        if (optionValue == "true" || optionValue == "yes" || optionValue == "1" ||
-            optionValue == "on" || optionValue == "enable" || optionValue == "enabled") {
-            return true;
+        // Determine command type based on flags and options
+        if (cmd.hasFlag("help")) {
+            cmd.setType(CommandClass::Type::Help);
         }
-        else if (optionValue == "false" || optionValue == "no" || optionValue == "0" ||
-            optionValue == "off" || optionValue == "disable" || optionValue == "disabled") {
-            return false;
+        else if (cmd.hasParameter("relocate")) {
+            cmd.setType(CommandClass::Type::Relocate);
         }
+        else if (cmd.getOutputFile().empty()) {
+            // If no output file, default to help
+            cmd.setType(CommandClass::Type::Help);
+        }
+        else {
+            // Determine by output file extension
+            std::string outputFile = cmd.getOutputFile();
+            std::string ext = std::filesystem::path(outputFile).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(),
+                [](unsigned char c) { return std::tolower(c); });
 
-        return defaultValue;
-    }
-
-    /**
-     * @brief Get a path option and ensure it exists
-     *
-     * @param option Option name (without leading dashes)
-     * @param defaultValue Value to return if option not present
-     * @return Path value or nullopt if path doesn't exist
-     */
-    std::optional<std::filesystem::path> CommandLineParser::getExistingPath(
-        const std::string& option,
-        const std::filesystem::path& defaultValue) const {
-
-        auto optionValue = getOption(option);
-        if (optionValue.empty()) {
-            if (defaultValue.empty()) {
-                return std::nullopt;
+            if (ext == ".asm") {
+                cmd.setType(CommandClass::Type::Disassemble);
             }
-
-            if (!std::filesystem::exists(defaultValue)) {
-                return std::nullopt;
+            else {
+                cmd.setType(CommandClass::Type::Convert);
             }
-
-            return defaultValue;
         }
 
-        std::filesystem::path path = optionValue;
-        if (!std::filesystem::exists(path)) {
-            return std::nullopt;
-        }
-
-        return path;
+        return cmd;
     }
 
-    /**
-     * @brief Get the input file (SID, PRG, or BIN)
-     *
-     * @return Input file path or empty string if not specified
-     */
-    const std::string& CommandLineParser::getInputFile() const {
-        return inputFile_;
-    }
-
-    /**
-     * @brief Get the program name
-     *
-     * @return Program name (from argv[0])
-     */
     const std::string& CommandLineParser::getProgramName() const {
         return programName_;
     }
 
-    /**
-     * @brief Print usage information
-     *
-     * Displays comprehensive usage information, including available options,
-     * flags, and example usage scenarios.
-     *
-     * @param message Optional message to display before usage
-     */
     void CommandLineParser::printUsage(const std::string& message) const {
         if (!message.empty()) {
             std::cout << message << std::endl << std::endl;
@@ -238,10 +108,11 @@ namespace sidblaster {
         std::cout << "Developed by: Robert Troughton (Raistlin of Genesis Project)" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "Usage: " << programName_ << " [options] inputfile outputfile" << std::endl;
+        std::cout << "Usage: " << programName_ << " [options] inputfile [outputfile]" << std::endl;
         std::cout << std::endl;
         std::cout << "  inputfile             Path to input file (.sid, .prg, or .bin)" << std::endl;
         std::cout << "  outputfile            Path to output file (.sid, .prg, or .asm)" << std::endl;
+        std::cout << "                        If not specified, shows information about input file" << std::endl;
         std::cout << std::endl;
 
         // Group flags and options by category
@@ -316,14 +187,6 @@ namespace sidblaster {
         }
     }
 
-    /**
-     * @brief Add a flag definition for usage help
-     *
-     * @param flag Flag name (without leading dashes)
-     * @param description Flag description
-     * @param category Category for grouping in help text
-     * @return Reference to this parser (for chaining)
-     */
     CommandLineParser& CommandLineParser::addFlagDefinition(
         const std::string& flag,
         const std::string& description,
@@ -333,16 +196,6 @@ namespace sidblaster {
         return *this;
     }
 
-    /**
-     * @brief Add an option definition for usage help
-     *
-     * @param option Option name (without leading dashes)
-     * @param argName Name of the option's argument
-     * @param description Option description
-     * @param category Category for grouping in help text
-     * @param defaultValue Default value (empty for no default)
-     * @return Reference to this parser (for chaining)
-     */
     CommandLineParser& CommandLineParser::addOptionDefinition(
         const std::string& option,
         const std::string& argName,
@@ -354,13 +207,6 @@ namespace sidblaster {
         return *this;
     }
 
-    /**
-     * @brief Add example usage for help text
-     *
-     * @param example Example command line
-     * @param description Description of what the example does
-     * @return Reference to this parser (for chaining)
-     */
     CommandLineParser& CommandLineParser::addExample(
         const std::string& example,
         const std::string& description) {

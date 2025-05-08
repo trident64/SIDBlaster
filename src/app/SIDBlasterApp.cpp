@@ -1,13 +1,10 @@
-// ==================================
-//             SIDBlaster
-//
-//  Raistlin / Genesis Project (G*P)
-// ==================================
+// SIDBlasterApp.cpp
 #include "SIDBlasterApp.h"
-#include "BatchProcessor.h"
-#include "../SIDBlasterUtils.h"
-#include "../cpu6510.h"
-#include "../SIDLoader.h"
+#include "CommandProcessor.h"
+#include "RelocationUtils.h"
+#include "SIDBlasterUtils.h"
+#include "cpu6510.h"
+#include "SIDLoader.h"
 #include <iostream>
 #include <filesystem>
 
@@ -23,31 +20,11 @@ namespace sidblaster {
         // Initialize logging
         initializeLogging();
 
-        // Parse command line arguments
-        if (!parseCommandLine()) {
-            return 1;
-        }
+        // Parse command line into command object
+        command_ = cmdParser_.parse();
 
-        // Check if we're in batch mode
-        std::string batchFile = cmdParser_.getOption("batch");
-        if (!batchFile.empty()) {
-            return runBatchMode(batchFile);
-        }
-
-        // Check for wildcard mode (batch with wildcards)
-        std::string inputFile = cmdParser_.getInputFile();
-        std::string outputFile = cmdParser_.getOutputFile();
-        bool hasWildcards = (inputFile.find('*') != std::string::npos ||
-            inputFile.find('?') != std::string::npos ||
-            outputFile.find('*') != std::string::npos ||
-            outputFile.find('?') != std::string::npos);
-
-        if (hasWildcards) {
-            return runBatchWildcardMode();
-        }
-
-        // Otherwise, process a single file
-        return runSingleFileMode();
+        // Execute the command
+        return executeCommand();
     }
 
     void SIDBlasterApp::setupCommandLine() {
@@ -71,12 +48,6 @@ namespace sidblaster {
             "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
         cmdParser_.addOptionDefinition("playerdefs", "file", "Player definitions file", "Player", "");
         cmdParser_.addOptionDefinition("defs", "file", "General definitions file", "SID", "");
-
-        // Batch processing
-        cmdParser_.addOptionDefinition("batch", "file", "Batch configuration file", "Batch", "");
-        cmdParser_.addOptionDefinition("batchreport", "file", "Path for batch processing report", "Batch", "SIDBlaster-report.txt");
-        cmdParser_.addFlagDefinition("preserve-subfolders", "Maintain subfolder structure in output", "Batch");
-        cmdParser_.addFlagDefinition("verify", "Verify relocated SIDs by comparing outputs", "Batch");
 
         // Tracelog options
         cmdParser_.addOptionDefinition("tracelog", "file", "Log file for SID register writes", "Logging", "");
@@ -114,33 +85,14 @@ namespace sidblaster {
         cmdParser_.addExample(
             "SIDBlaster -player=SimpleBitmap -playeraddr=$0800 music.sid player.prg",
             "Uses the SimpleBitmap player at address $0800");
-
-        cmdParser_.addExample(
-            "SIDBlaster -batch=jobs.txt",
-            "Executes batch processing from configuration file");
-
-        cmdParser_.addExample(
-            "SIDBlaster -relocate=$2000 -verify SID/*.sid RelocatedSID/*.sid",
-            "Process all SID files in SID folder, relocate to $2000, verify and output to RelocatedSID folder"
-        );
-
-        cmdParser_.addExample(
-            "SIDBlaster -relocate=$1000 -preserve-subfolders \"Collections/C64/**/*.sid\" \"Relocated/*.sid\"",
-            "Process all SID files in Collections/C64 and its subfolders, preserve folder structure in output"
-        );
-
-        cmdParser_.addExample(
-            "SIDBlaster -relocate=$2000 -verify -batchreport=results.txt SID/*.sid RelocatedSID/*.sid",
-            "Process all SIDs and save the verification report to results.txt"
-        );
     }
 
     void SIDBlasterApp::initializeLogging() {
-        // Get log file path from command line
-        logFile_ = fs::path(cmdParser_.getOption("logfile", "SIDBlaster.log"));
+        // Get log file path from command parameters
+        logFile_ = fs::path(command_.getParameter("logfile", "SIDBlaster.log"));
 
         // Set log level based on verbose flag
-        verbose_ = cmdParser_.hasFlag("verbose");
+        verbose_ = command_.hasFlag("verbose");
         const auto logLevel = verbose_ ?
             util::Logger::Level::Debug :
             util::Logger::Level::Info;
@@ -152,102 +104,29 @@ namespace sidblaster {
         util::Logger::info(SIDBLASTER_VERSION " started");
     }
 
-    bool SIDBlasterApp::parseCommandLine() {
-        // Check for help
-        if (cmdParser_.hasFlag("help")) {
-            cmdParser_.printUsage(SIDBLASTER_VERSION);
-            return false;
+    int SIDBlasterApp::executeCommand() {
+        // Execute based on command type
+        switch (command_.getType()) {
+        case CommandClass::Type::Help:
+            return showHelp();
+        case CommandClass::Type::Convert:
+            return processConversion();
+        case CommandClass::Type::Relocate:
+            return processRelocation();
+        case CommandClass::Type::Disassemble:
+            return processDisassembly();
+        default:
+            std::cout << "Unknown command type" << std::endl;
+            return 1;
         }
-
-        // Check for batch mode
-        std::string batchFile = cmdParser_.getOption("batch");
-        if (!batchFile.empty()) {
-            // In batch mode, we don't need input/output files
-            return true;
-        }
-
-        // Get input and output files
-        fs::path inputFile = fs::path(cmdParser_.getInputFile());
-        fs::path outputFile = fs::path(cmdParser_.getOutputFile());
-
-        // Check if the input/output files include wildcards
-        std::string inputFileStr = cmdParser_.getInputFile();
-        std::string outputFileStr = cmdParser_.getOutputFile();
-        bool hasWildcards = inputFileStr.find('*') != std::string::npos ||
-            inputFileStr.find('?') != std::string::npos ||
-            outputFileStr.find('*') != std::string::npos ||
-            outputFileStr.find('?') != std::string::npos;
-
-        // Validate input and output files
-        if (inputFile.empty()) {
-            std::cout << "Error: No input file specified\n";
-            std::cout << "Use -help for command line options\n";
-            return false;
-        }
-
-        if (outputFile.empty()) {
-            std::cout << "Error: No output file specified\n";
-            std::cout << "Use -help for command line options\n";
-            return false;
-        }
-
-        // For wildcard mode, verify relocation address is specified
-        if (hasWildcards) {
-            std::string relocateOption = cmdParser_.getOption("relocate");
-            if (relocateOption.empty()) {
-                std::cout << "Error: Relocation address (-relocate) must be specified when using wildcards\n";
-                std::cout << "Use -help for command line options\n";
-                return false;
-            }
-
-            // Validate the wildcard patterns
-            if (inputFileStr.find('*') == std::string::npos && inputFileStr.find('?') == std::string::npos) {
-                std::cout << "Warning: Output path contains wildcards but input path doesn't.\n";
-                std::cout << "Did you mean to use wildcards in the input path?\n";
-            }
-
-            // For wildcard mode, we don't need to check file existence
-            util::Logger::info("Wildcard mode detected - will process multiple files");
-            return true;
-        }
-
-        // For non-wildcard mode, check if input file exists
-        if (!fs::exists(inputFile)) {
-            std::cout << "Error: Input file not found: " << inputFile.string() << "\n";
-            std::cout << "Use -help for command line options\n";
-            return false;
-        }
-
-        // Check for input/output file conflicts (only for non-wildcard mode)
-        try {
-            // Only check equivalence if output file already exists
-            if (fs::exists(outputFile) && fs::equivalent(inputFile, outputFile)) {
-                std::cout << "Error: Input and output files cannot be the same: " << inputFile.string() << "\n";
-                std::cout << "Use -help for command line options\n";
-                return false;
-            }
-        }
-        catch (const std::exception& e) {
-            // Log the exception for debugging
-            util::Logger::error("Error checking file equivalence: " + std::string(e.what()));
-
-            // Alternative check: compare the canonicalized paths
-            if (fs::absolute(inputFile) == fs::absolute(outputFile)) {
-                std::cout << "Error: Input and output files cannot be the same\n";
-                std::cout << "Use -help for command line options\n";
-                return false;
-            }
-        }
-
-        return true;
     }
 
     CommandProcessor::ProcessingOptions SIDBlasterApp::createProcessingOptions() {
         CommandProcessor::ProcessingOptions options;
 
         // Get input and output files
-        options.inputFile = fs::path(cmdParser_.getInputFile());
-        options.outputFile = fs::path(cmdParser_.getOutputFile());
+        options.inputFile = fs::path(command_.getInputFile());
+        options.outputFile = fs::path(command_.getOutputFile());
 
         // Determine output format from extension
         std::string ext = options.outputFile.extension().string();
@@ -282,113 +161,109 @@ namespace sidblaster {
         }
 
         // Player options
-        std::string playerOption = cmdParser_.getOption("player", "");
+        std::string playerOption = command_.getParameter("player", "");
         options.includePlayer = !playerOption.empty();
         options.playerName = playerOption.empty() ? "" : (playerOption == "player") ? "Default" : playerOption;
 
-        // Parse player address
-        std::string playerAddrStr = cmdParser_.getOption("playeraddr",
-            "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
-        auto playerAddr = util::parseHex(playerAddrStr);
-        if (playerAddr) {
-            options.playerAddress = *playerAddr;
-        }
+        // Player address
+        options.playerAddress = command_.getHexParameter("playeraddr", util::Configuration::getPlayerAddress());
 
         // Build options
-        options.compress = !cmdParser_.hasFlag("nocompress");
-        options.compressorType = cmdParser_.getOption("compressor", util::Configuration::getCompressorType());
-        options.exomizerPath = cmdParser_.getOption("exomizer", util::Configuration::getExomizerPath());
-        options.kickAssPath = cmdParser_.getOption("kickass", util::Configuration::getKickAssPath());
+        options.compress = !command_.hasFlag("nocompress");
+        options.compressorType = command_.getParameter("compressor", util::Configuration::getCompressorType());
+        options.exomizerPath = command_.getParameter("exomizer", util::Configuration::getExomizerPath());
+        options.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
 
         // Parse relocation address
-        std::string relocAddressStr = cmdParser_.getOption("relocate", "");
+        std::string relocAddressStr = command_.getParameter("relocate", "");
         if (!relocAddressStr.empty()) {
-            auto relocAddr = util::parseHex(relocAddressStr);
-            if (relocAddr) {
-                options.relocationAddress = *relocAddr;
-                options.hasRelocation = true;
-                util::Logger::debug("Relocation address set to $" + util::wordToHex(options.relocationAddress));
-            }
-            else {
-                util::Logger::error("Invalid relocation address: " + relocAddressStr);
-            }
+            options.relocationAddress = command_.getHexParameter("relocate", 0);
+            options.hasRelocation = true;
+            util::Logger::debug("Relocation address set to $" + util::wordToHex(options.relocationAddress));
         }
 
         // Parse override addresses
-        std::string initAddrStr = cmdParser_.getOption("sidinitaddr", "");
+        std::string initAddrStr = command_.getParameter("sidinitaddr", "");
         if (!initAddrStr.empty()) {
-            auto initAddr = util::parseHex(initAddrStr);
-            if (initAddr) {
-                options.overrideInitAddress = *initAddr;
-                options.hasOverrideInit = true;
-                util::Logger::debug("Override init address: $" + util::wordToHex(options.overrideInitAddress));
-            }
-            else {
-                util::Logger::error("Invalid init address: " + initAddrStr);
-            }
+            options.overrideInitAddress = command_.getHexParameter("sidinitaddr", 0);
+            options.hasOverrideInit = true;
+            util::Logger::debug("Override init address: $" + util::wordToHex(options.overrideInitAddress));
         }
 
-        std::string playAddrStr = cmdParser_.getOption("sidplayaddr", "");
+        std::string playAddrStr = command_.getParameter("sidplayaddr", "");
         if (!playAddrStr.empty()) {
-            auto playAddr = util::parseHex(playAddrStr);
-            if (playAddr) {
-                options.overridePlayAddress = *playAddr;
-                options.hasOverridePlay = true;
-                util::Logger::debug("Override play address: $" + util::wordToHex(options.overridePlayAddress));
-            }
-            else {
-                util::Logger::error("Invalid play address: " + playAddrStr);
-            }
+            options.overridePlayAddress = command_.getHexParameter("sidplayaddr", 0);
+            options.hasOverridePlay = true;
+            util::Logger::debug("Override play address: $" + util::wordToHex(options.overridePlayAddress));
         }
 
-        std::string loadAddrStr = cmdParser_.getOption("sidloadaddr", "");
+        std::string loadAddrStr = command_.getParameter("sidloadaddr", "");
         if (!loadAddrStr.empty()) {
-            auto loadAddr = util::parseHex(loadAddrStr);
-            if (loadAddr) {
-                options.overrideLoadAddress = *loadAddr;
-                options.hasOverrideLoad = true;
-                util::Logger::debug("Override load address: $" + util::wordToHex(options.overrideLoadAddress));
-            }
-            else {
-                util::Logger::error("Invalid load address: " + loadAddrStr);
-            }
+            options.overrideLoadAddress = command_.getHexParameter("sidloadaddr", 0);
+            options.hasOverrideLoad = true;
+            util::Logger::debug("Override load address: $" + util::wordToHex(options.overrideLoadAddress));
         }
 
         // SID metadata overrides
-        options.overrideTitle = cmdParser_.getOption("title", "");
-        options.overrideAuthor = cmdParser_.getOption("author", "");
-        options.overrideCopyright = cmdParser_.getOption("copyright", "");
+        options.overrideTitle = command_.getParameter("title", "");
+        options.overrideAuthor = command_.getParameter("author", "");
+        options.overrideCopyright = command_.getParameter("copyright", "");
 
         // Trace options
-        options.traceLogPath = cmdParser_.getOption("tracelog", "");
+        options.traceLogPath = command_.getParameter("tracelog", "");
         options.enableTracing = !options.traceLogPath.empty();
-        std::string traceFormat = cmdParser_.getOption("traceformat", "binary");
+        std::string traceFormat = command_.getParameter("traceformat", "binary");
         options.traceFormat = (traceFormat == "text") ?
             TraceFormat::Text : TraceFormat::Binary;
 
         return options;
     }
 
-    int SIDBlasterApp::runBatchMode(const std::string& batchFile) {
-        util::Logger::info("Running in batch mode with config: " + batchFile);
-
-        // Create CPU and SID Loader for the batch processor
-        auto cpu = std::make_unique<CPU6510>();
-        cpu->reset();
-
-        auto sid = std::make_unique<SIDLoader>();
-        sid->setCPU(cpu.get());
-
-        // Create and run batch converter
-        std::string reportPath = cmdParser_.getOption("batchreport");
-        BatchConverter batchConverter(batchFile, cpu.get(), sid.get(), reportPath);
-        bool success = batchConverter.execute();
-
-        return success ? 0 : 1;
+    int SIDBlasterApp::showHelp() {
+        cmdParser_.printUsage(SIDBLASTER_VERSION);
+        return 0;
     }
 
-    int SIDBlasterApp::runSingleFileMode() {
-        // Create processing options from command line
+    int SIDBlasterApp::processConversion() {
+        // Validate input file
+        fs::path inputFile = fs::path(command_.getInputFile());
+        fs::path outputFile = fs::path(command_.getOutputFile());
+
+        if (inputFile.empty()) {
+            std::cout << "Error: No input file specified" << std::endl;
+            return 1;
+        }
+
+        if (outputFile.empty()) {
+            std::cout << "Error: No output file specified" << std::endl;
+            return 1;
+        }
+
+        if (!fs::exists(inputFile)) {
+            std::cout << "Error: Input file not found: " << inputFile.string() << std::endl;
+            return 1;
+        }
+
+        // Check for input/output file conflicts
+        try {
+            // Only check equivalence if output file already exists
+            if (fs::exists(outputFile) && fs::equivalent(inputFile, outputFile)) {
+                std::cout << "Error: Input and output files cannot be the same: " << inputFile.string() << std::endl;
+                return 1;
+            }
+        }
+        catch (const std::exception& e) {
+            // Log the exception for debugging
+            util::Logger::error("Error checking file equivalence: " + std::string(e.what()));
+
+            // Alternative check: compare the canonicalized paths
+            if (fs::absolute(inputFile) == fs::absolute(outputFile)) {
+                std::cout << "Error: Input and output files cannot be the same" << std::endl;
+                return 1;
+            }
+        }
+
+        // Create processing options
         CommandProcessor::ProcessingOptions options = createProcessingOptions();
 
         // Create and run command processor
@@ -398,60 +273,84 @@ namespace sidblaster {
         return success ? 0 : 1;
     }
 
-    int SIDBlasterApp::runBatchWildcardMode() {
-        // Check if we have wildcard patterns
-        std::string inputFile = cmdParser_.getInputFile();
-        std::string outputFile = cmdParser_.getOutputFile();
+    int SIDBlasterApp::processRelocation() {
+        // Validate input file
+        fs::path inputFile = fs::path(command_.getInputFile());
+        fs::path outputFile = fs::path(command_.getOutputFile());
 
-        // Check if either contains wildcards
-        bool hasWildcards = (inputFile.find('*') != std::string::npos ||
-            inputFile.find('?') != std::string::npos ||
-            outputFile.find('*') != std::string::npos ||
-            outputFile.find('?') != std::string::npos);
-
-        if (!hasWildcards) {
-            return runSingleFileMode(); // Handle as normal file
-        }
-
-        // Set up batch processor options
-        BatchProcessor processor;
-        BatchProcessor::BatchOptions options;
-
-        options.inputPattern = fs::path(inputFile);
-        options.outputPattern = fs::path(outputFile);
-        options.reportPath = fs::path(cmdParser_.getOption("batchreport", "batchreport.txt"));
-        options.tempDir = fs::path("temp");
-        options.preserveSubfolders = cmdParser_.hasFlag("preserve-subfolders");
-
-        // Get relocation address
-        std::string relocAddressStr = cmdParser_.getOption("relocate", "");
-        if (!relocAddressStr.empty()) {
-            auto relocAddr = util::parseHex(relocAddressStr);
-            if (relocAddr) {
-                options.relocationAddress = *relocAddr;
-            }
-            else {
-                std::cout << "Error: Invalid relocation address: " << relocAddressStr << std::endl;
-                return 1;
-            }
-        }
-        else {
-            std::cout << "Error: Relocation address must be specified for batch wildcard mode" << std::endl;
+        if (inputFile.empty()) {
+            std::cout << "Error: No input file specified" << std::endl;
             return 1;
         }
 
-        // Set verification option
-        options.verify = cmdParser_.hasFlag("verify");
+        if (outputFile.empty()) {
+            std::cout << "Error: No output file specified" << std::endl;
+            return 1;
+        }
 
-        // Process the batch
+        if (!fs::exists(inputFile)) {
+            std::cout << "Error: Input file not found: " << inputFile.string() << std::endl;
+            return 1;
+        }
+
+        // Check if relocation address is specified
+        std::string relocAddressStr = command_.getParameter("relocate", "");
+        if (relocAddressStr.empty()) {
+            std::cout << "Error: Relocation address (-relocate) must be specified for relocation" << std::endl;
+            return 1;
+        }
+
+        // Create CPU and SID Loader
+        auto cpu = std::make_unique<CPU6510>();
+        cpu->reset();
+
+        auto sid = std::make_unique<SIDLoader>();
+        sid->setCPU(cpu.get());
+
+        // Set up relocation parameters
+        util::RelocationParams params;
+        params.inputFile = inputFile;
+        params.outputFile = outputFile;
+        params.tempDir = fs::path("temp");
+        params.relocationAddress = command_.getHexParameter("relocate", 0);
+        params.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
+        params.verbose = command_.hasFlag("verbose");
+
+        // Ensure temp directory exists
         try {
-            BatchProcessor::BatchResult result = processor.processBatch(options);
-            return 0; // Success
+            fs::create_directories(params.tempDir);
         }
         catch (const std::exception& e) {
-            std::cout << "Error during batch processing: " << e.what() << std::endl;
+            util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
             return 1;
         }
+
+        // Relocate the SID file
+        util::RelocationResult result = util::relocateSID(cpu.get(), sid.get(), params);
+
+        if (result.success) {
+            util::Logger::info("Successfully relocated " + inputFile.string() + " to " + outputFile.string() +
+                " (Load: $" + util::wordToHex(result.newLoad) +
+                ", Init: $" + util::wordToHex(result.newInit) +
+                ", Play: $" + util::wordToHex(result.newPlay) + ")");
+            return 0;
+        }
+        else {
+            util::Logger::error("Failed to relocate " + inputFile.string() + ": " + result.message);
+            return 1;
+        }
+    }
+
+    int SIDBlasterApp::processDisassembly() {
+        // This is similar to conversion but specifically for disassembly
+        CommandProcessor::ProcessingOptions options = createProcessingOptions();
+        options.outputFormat = CommandProcessor::OutputFormat::ASM;
+
+        // Create and run command processor
+        CommandProcessor processor;
+        bool success = processor.processFile(options);
+
+        return success ? 0 : 1;
     }
 
 } // namespace sidblaster

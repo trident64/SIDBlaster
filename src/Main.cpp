@@ -1,8 +1,4 @@
-// ==================================
-//             SIDBlaster
-//
-//  Raistlin / Genesis Project (G*P)
-// ==================================
+// Main.cpp
 #include "app/SIDBlasterApp.h"
 #include <iostream>
 

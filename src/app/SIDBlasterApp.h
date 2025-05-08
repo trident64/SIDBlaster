@@ -1,16 +1,11 @@
-// ==================================
-//             SIDBlaster
-//
-//  Raistlin / Genesis Project (G*P)
-// ==================================
+// SIDBlasterApp.h
 #pragma once
 
-#include "../CommandLineParser.h"
+#include "CommandLineParser.h"
 #include "CommandProcessor.h"
-#include "BatchConverter.h"
+#include "CommandClass.h"
 #include <memory>
 #include <string>
-
 
 namespace sidblaster {
 
@@ -18,8 +13,7 @@ namespace sidblaster {
      * @class SIDBlasterApp
      * @brief Main application class for SIDBlaster
      *
-     * This is a slimmed-down version of the original SIDBlasterApp that delegates
-     * most functionality to specialized components.
+     * Handles processing of single commands based on command line arguments.
      */
     class SIDBlasterApp {
     public:
@@ -38,6 +32,7 @@ namespace sidblaster {
 
     private:
         CommandLineParser cmdParser_;  ///< Command line parser
+        CommandClass command_;              ///< Current command to execute
         fs::path logFile_;             ///< Log file path
         bool verbose_ = false;         ///< Verbose logging flag
 
@@ -52,45 +47,40 @@ namespace sidblaster {
         void initializeLogging();
 
         /**
-         * @brief Parse command line arguments
-         * @return True if parsing succeeded
+         * @brief Execute the current command
+         * @return Exit code (0 on success, non-zero on failure)
          */
-        bool parseCommandLine();
+        int executeCommand();
 
         /**
-         * @brief Create command processor options from command line
-         * @return Processing options
+         * @brief Create a CommandProcessor options object from the current command
+         * @return CommandProcessor options
          */
         CommandProcessor::ProcessingOptions createProcessingOptions();
 
         /**
-         * @brief Run batch mode
-         * @param batchFile Batch configuration file
-         * @return Exit code (0 on success, non-zero on failure)
+         * @brief Display help information
+         * @return Exit code (0 on success)
          */
-        int runBatchMode(const std::string& batchFile);
+        int showHelp();
 
         /**
-         * @brief Run single file processing
-         *
-         * Processes a single input file according to the command line options.
-         * This is the default mode when no batch options are specified.
-         *
+         * @brief Process a conversion command
          * @return Exit code (0 on success, non-zero on failure)
          */
-        int runSingleFileMode();
+        int processConversion();
 
         /**
-         * @brief Run batch processing with wildcard support
-         *
-         * Processes multiple files matching wildcard patterns in the input/output paths.
-         * Supports relocation, verification, and detailed reporting capabilities.
-         * Preserves subfolder structure when requested.
-         *
+         * @brief Process a relocation command
          * @return Exit code (0 on success, non-zero on failure)
          */
-        int runBatchWildcardMode();
+        int processRelocation();
 
+        /**
+         * @brief Process a disassembly command
+         * @return Exit code (0 on success, non-zero on failure)
+         */
+        int processDisassembly();
     };
 
 } // namespace sidblaster

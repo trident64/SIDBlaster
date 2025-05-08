@@ -18,6 +18,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cpu6510_files.cmake)
 # Define sources
 set(SOURCES
     src/CodeFormatter.cpp
+    src/CommandClass.cpp
     src/CommandLineParser.cpp
     src/Disassembler.cpp
     src/DisassemblyWriter.cpp
@@ -33,7 +34,7 @@ add_executable(SIDBlaster
     ${SOURCES}
     ${APP_SOURCES}
     ${CPU6510_SOURCES}
- "src/app/TraceLogger.h" "src/app/MusicBuilder.h" "src/app/MusicBuilder.cpp" "src/app/BatchConverter.h" "src/app/BatchConverter.cpp" "src/app/CommandProcessor.h" "src/app/CommandProcessor.cpp"  "src/app/SIDBlasterApp.h" "src/RelocationUtils.cpp" "src/RelocationUtils.h" "src/SIDEmulator.h" "src/SIDEmulator.cpp" "src/app/BatchProcessor.h" "src/app/BatchProcessor.cpp" )
+ "src/app/TraceLogger.h" "src/app/MusicBuilder.h" "src/app/MusicBuilder.cpp"   "src/app/CommandProcessor.h" "src/app/CommandProcessor.cpp"  "src/app/SIDBlasterApp.h" "src/RelocationUtils.cpp" "src/RelocationUtils.h" "src/SIDEmulator.h" "src/SIDEmulator.cpp"   )
 
 # Create source groups for the APP and CPU6510 files (for Visual Studio organization)
 source_group("APP" FILES ${APP_SOURCES} ${APP_HEADERS})
