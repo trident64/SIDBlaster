@@ -102,20 +102,64 @@ bool SIDLoader::loadSID(const std::string& filename) {
 
     // Check if file is large enough to contain a header
     if (fileSize < sizeof(SIDHeader)) {
-        std::cerr << "SID file too small!\n";
+        std::cerr << "SID file too small to contain a valid header!\n";
         return false;
     }
 
-    // Copy and validate header
+    // Copy header data
     std::memcpy(&header_, buffer.data(), sizeof(header_));
 
+    // Check for RSID files, which we don't support
+    if (std::string(header_.magicID, 4) == "RSID") {
+        std::cerr << "RSID file format detected: \"" << filename << "\"\n";
+        std::cerr << "RSID files require a true C64 environment and cannot be emulated by SIDBlaster.\n";
+        std::cerr << "Please use a PSID formatted file instead.\n";
+        return false;
+    }
+
+    // Check for PSID magic ID
     if (std::string(header_.magicID, 4) != "PSID") {
-        std::cerr << "Not a valid SID file!\n";
+        std::cerr << "Invalid SID file: Expected 'PSID' magic ID, found '"
+            << std::string(header_.magicID, 4) << "'\n";
         return false;
     }
 
     // Fix endianness (SID files are big-endian)
     fixHeaderEndianness(header_);
+
+    // Validate version number
+    if (header_.version < 1 || header_.version > 4) {
+        std::cerr << "Unsupported SID version: " << header_.version
+            << ". Supported versions are 1-4.\n";
+        return false;
+    }
+
+    // Handle multi-SID configurations for v3+ files
+    if (header_.version >= 3) {
+        Logger::info("SID file version " + std::to_string(header_.version) +
+            " (supports multiple SID chips)");
+
+        if (header_.secondSIDAddress != 0) {
+            // Address for the second SID is encoded in the secondSIDAddress field
+            u16 secondSIDAddr = header_.secondSIDAddress << 4;  // Convert to actual address
+            Logger::info("Second SID chip at address: $" + wordToHex(secondSIDAddr));
+            // Your code to set up the second SID chip would go here
+        }
+
+        if (header_.version >= 4 && header_.thirdSIDAddress != 0) {
+            // Address for the third SID is encoded in the thirdSIDAddress field (v4 only)
+            u16 thirdSIDAddr = header_.thirdSIDAddress << 4;  // Convert to actual address
+            Logger::info("Third SID chip at address: $" + wordToHex(thirdSIDAddr));
+            // Your code to set up the third SID chip would go here
+        }
+    }
+
+    // Determine the data offset based on version
+    u16 expectedOffset = (header_.version == 1) ? 0x76 : 0x7C;
+    if (header_.dataOffset != expectedOffset) {
+        Logger::warning("Unexpected dataOffset value: " + std::to_string(header_.dataOffset) +
+            ", expected: " + std::to_string(expectedOffset));
+    }
 
     // Handle embedded load address if needed
     if (header_.loadAddress == 0) {
@@ -127,13 +171,20 @@ bool SIDLoader::loadSID(const std::string& filename) {
         const u8 hi = buffer[header_.dataOffset + 1];
         header_.loadAddress = static_cast<u16>(lo | (hi << 8));
         header_.dataOffset += 2;
+        Logger::debug("Using embedded load address: $" + wordToHex(header_.loadAddress));
     }
 
     // Calculate data size
     dataSize_ = static_cast<u16>(fileSize - header_.dataOffset);
 
-    if (dataSize_ <= 0 || header_.loadAddress + dataSize_ > 65536) {
-        std::cerr << "SID file corrupt or too large!\n";
+    if (dataSize_ <= 0) {
+        std::cerr << "SID file contains no music data!\n";
+        return false;
+    }
+
+    if (header_.loadAddress + dataSize_ > 65536) {
+        std::cerr << "SID file data exceeds C64 memory limits! (Load address: $"
+            << wordToHex(header_.loadAddress) << ", Size: " << dataSize_ << " bytes)\n";
         return false;
     }
 
@@ -143,6 +194,17 @@ bool SIDLoader::loadSID(const std::string& filename) {
         std::cerr << "Failed to copy music data to memory!\n";
         return false;
     }
+
+    // Log SID file details
+    Logger::info("Loaded PSID v" + std::to_string(header_.version) +
+        " file: " + std::string(header_.name));
+    Logger::info("Songs: " + std::to_string(header_.songs) +
+        ", Start song: " + std::to_string(header_.startSong));
+    Logger::info("Author: " + std::string(header_.author));
+    Logger::info("Released: " + std::string(header_.copyright));
+    Logger::debug("Load address: $" + wordToHex(header_.loadAddress) +
+        ", Init: $" + wordToHex(header_.initAddress) +
+        ", Play: $" + wordToHex(header_.playAddress));
 
     return true;
 }
@@ -272,7 +334,7 @@ bool SIDLoader::loadPRG(const std::string& filename, u16 initAddr, u16 playAddr)
  * @return true if header creation succeeded
  */
 bool SIDLoader::createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr) {
-    // Create a minimal SID header for non-SID files
+    // Create a minimal SID header for non-SID files (PSID v2NG)
     std::memset(&header_, 0, sizeof(header_));
     std::memcpy(header_.magicID, "PSID", 4);
     header_.version = 2;
@@ -283,6 +345,9 @@ bool SIDLoader::createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr) {
     header_.songs = 1;
     header_.startSong = 1;
     header_.flags = 0;
+
+    // Default to NTSC compatibility
+    header_.flags |= (1 << 2);  // Set the NTSC flag
 
     return true;
 }
@@ -337,6 +402,7 @@ void SIDLoader::fixHeaderEndianness(SIDHeader& header) {
         return (value >> 8) | (value << 8);
         };
 
+    // Swap multi-byte header fields
     header.version = swapEndian(header.version);
     header.dataOffset = swapEndian(header.dataOffset);
     header.loadAddress = swapEndian(header.loadAddress);
@@ -344,7 +410,11 @@ void SIDLoader::fixHeaderEndianness(SIDHeader& header) {
     header.playAddress = swapEndian(header.playAddress);
     header.songs = swapEndian(header.songs);
     header.startSong = swapEndian(header.startSong);
+    header.speed = swapEndian(header.speed);
     header.flags = swapEndian(header.flags);
+
+    // Log version information
+    Logger::debug("SID format version " + std::to_string(header.version) + " detected");
 }
 
 /**
@@ -392,4 +462,50 @@ bool SIDLoader::restoreMemory() {
 
     sidblaster::util::Logger::debug("Memory restored from backup");
     return true;
+}
+
+/**
+ * @brief Get the SID chip model used in this file
+ *
+ * @return String representation of SID model(s)
+ */
+std::string SIDLoader::getSIDModel() const {
+    // Extract model info from flags (bits 4-5 in v2+ files)
+    if (header_.version >= 2) {
+        u16 flags = header_.flags;
+        u8 model = (flags >> 4) & 0x03;
+
+        switch (model) {
+        case 0: return "Unknown";
+        case 1: return "6581 (MOS6581)";
+        case 2: return "8580 (MOS8580)";
+        case 3: return "6581 or 8580";
+        default: return "Unknown";
+        }
+    }
+
+    return "Unknown (not specified in v1 files)";
+}
+
+/**
+ * @brief Get the clock speed used in this file
+ *
+ * @return String representation of clock speed
+ */
+std::string SIDLoader::getClockSpeed() const {
+    // Extract clock info from flags (bits 2-3 in v2+ files)
+    if (header_.version >= 2) {
+        u16 flags = header_.flags;
+        u8 clock = (flags >> 2) & 0x03;
+
+        switch (clock) {
+        case 0: return "Unknown";
+        case 1: return "PAL (50Hz)";
+        case 2: return "NTSC (60Hz)";
+        case 3: return "PAL and NTSC";
+        default: return "Unknown";
+        }
+    }
+
+    return "Unknown (not specified in v1 files)";
 }

@@ -29,8 +29,9 @@ class CPU6510;
  * @class SIDLoader
  * @brief Handles loading and processing SID music files for the C64
  *
- * This class can load SID, PRG, and BIN files containing C64 music data,
+ * This class can load SID (PSID format only), PRG, and BIN files containing C64 music data,
  * and manages loading them into a CPU6510 emulator for playback and analysis.
+ * Supports all versions (1-4) of the PSID file format.
  */
 class SIDLoader {
 public:
@@ -100,6 +101,8 @@ public:
      * @return true if loading succeeded, false otherwise
      *
      * Loads a SID file into memory and parses its header information.
+     * Supports PSID format only, versions 1-4. RSID files are not supported
+     * as they require a true C64 environment.
      */
     bool loadSID(const std::string& filename);
 
@@ -125,6 +128,24 @@ public:
      * Loads a PRG file with its embedded load address.
      */
     bool loadPRG(const std::string& filename, u16 initAddr, u16 playAddr);
+
+    /**
+     * @brief Get the SID file format version
+     * @return Version number (1-4)
+     */
+    u16 getVersion() const { return header_.version; }
+
+    /**
+     * @brief Get the SID chip model used in this file
+     * @return String representation of SID model(s)
+     */
+    std::string getSIDModel() const;
+
+    /**
+     * @brief Get the clock speed used in this file
+     * @return String representation of clock speed
+     */
+    std::string getClockSpeed() const;
 
     // Accessor methods
 
