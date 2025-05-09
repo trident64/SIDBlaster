@@ -101,13 +101,6 @@ namespace sidblaster {
         };
 
         /**
-         * @brief Determine the type of input file
-         * @param inputFile Input file path
-         * @return Type of input file
-         */
-        InputType determineInputType(const fs::path& inputFile) const;
-
-        /**
          * @brief Create a linker file for KickAss assembler
          * @param linkerFile Output linker file path
          * @param musicFile Music file path

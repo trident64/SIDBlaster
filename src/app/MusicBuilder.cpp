@@ -41,7 +41,7 @@ namespace sidblaster {
         fs::path tempExtractedPrg = options.tempDir / (basename + "-extracted.prg");
 
         // Determine input file type
-        InputType inputType = determineInputType(inputFile);
+        std::string ext = getFileExtension(inputFile);
 
         // Handle based on whether to include player or not
         if (!options.playerName.empty()) {
@@ -91,14 +91,14 @@ namespace sidblaster {
             // Pure music without player
 
             // If input is ASM, just assemble it
-            if (inputType == InputType::ASM) {
+            if (ext == ".asm") {
                 // Run assembler to build pure music
                 if (!runAssembler(inputFile, outputFile, options.kickAssPath)) {
                     return false;
                 }
                 return true;
             }
-            else if (inputType == InputType::PRG) {
+            else if (ext == ".prg") {
                 // For PRG input, just copy the file
                 try {
                     fs::copy_file(inputFile, outputFile, fs::copy_options::overwrite_existing);
@@ -109,7 +109,7 @@ namespace sidblaster {
                     return false;
                 }
             }
-            else if (inputType == InputType::SID) {
+            else if (ext == ".sid") {
                 // For SID input, extract the PRG data
                 return extractPrgFromSid(inputFile, outputFile);
             }
@@ -122,29 +122,13 @@ namespace sidblaster {
         return true;
     }
 
-    MusicBuilder::InputType MusicBuilder::determineInputType(const fs::path& inputFile) const {
-        std::string ext = inputFile.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
-        if (ext == ".sid") return InputType::SID;
-        if (ext == ".prg") return InputType::PRG;
-        if (ext == ".asm") return InputType::ASM;
-        if (ext == ".bin") return InputType::BIN;
-
-        // Default to PRG if unknown
-        return InputType::PRG;
-    }
-
     bool MusicBuilder::createLinkerFile(
         const fs::path& linkerFile,
         const fs::path& musicFile,
         const fs::path& playerAsmFile,
         const BuildOptions& options) {
 
-        std::string ext = musicFile.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(),
-            [](unsigned char c) { return std::tolower(c); });
+        std::string ext = getFileExtension(musicFile);
 
         bool bIsSID = (ext == ".sid");
         bool bIsASM = (ext == ".asm");

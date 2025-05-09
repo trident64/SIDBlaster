@@ -84,19 +84,6 @@ namespace sidblaster {
         }
     }
 
-    CommandProcessor::FileType CommandProcessor::detectFileType(const fs::path& filePath) const {
-        std::string ext = filePath.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
-        if (ext == ".sid") return FileType::SID;
-        if (ext == ".prg") return FileType::PRG;
-        if (ext == ".asm") return FileType::ASM;
-        if (ext == ".bin") return FileType::BIN;
-
-        return FileType::Unknown;
-    }
-
     bool CommandProcessor::loadInputFile(const ProcessingOptions& options) {
         // Base name for temporary files
         std::string basename = options.inputFile.stem().string();
@@ -104,30 +91,12 @@ namespace sidblaster {
         // Setup temporary file paths
         fs::path tempExtractedPrg = options.tempDir / (basename + "-original.prg");
 
-        // Determine file type and call appropriate loader
-        FileType fileType = detectFileType(options.inputFile);
-
-        bool loaded = false;
-        switch (fileType) {
-        case FileType::SID:
-            loaded = loadSidFile(options, tempExtractedPrg);
-            break;
-        case FileType::PRG:
-            loaded = loadPrgFile(options, tempExtractedPrg);
-            break;
-        case FileType::BIN:
-            loaded = loadBinFile(options, tempExtractedPrg);
-            break;
-        case FileType::ASM:
-            // Assembly files need to be compiled first
-            util::Logger::error("ASM files not directly supported as input. Convert to PRG first.");
-            return false;
-        default:
-            util::Logger::error("Unsupported file type: " + options.inputFile.string());
+        if (getFileExtension(options.inputFile) != ".sid")
+        {
+            util::Logger::error("Unsupported file type: " + options.inputFile.string() + " - only SID files accepted.");
             return false;
         }
-
-        if (!loaded) {
+        if (!loadSidFile(options, tempExtractedPrg)) {
             util::Logger::error("Failed to load file: " + options.inputFile.string());
             return false;
         }
@@ -163,74 +132,6 @@ namespace sidblaster {
             // Create a temporary MusicBuilder to use its extractPrgFromSid method
             MusicBuilder builder(cpu_.get(), sid_.get());
             builder.extractPrgFromSid(options.inputFile, tempExtractedPrg);
-        }
-
-        return loaded;
-    }
-
-    bool CommandProcessor::loadPrgFile(const ProcessingOptions& options, const fs::path& tempExtractedPrg) {
-        // For PRG files, we need init and play addresses
-        u16 init = options.hasOverrideInit ?
-            options.overrideInitAddress : util::Configuration::getDefaultSidInitAddress();
-        u16 play = options.hasOverridePlay ?
-            options.overridePlayAddress : util::Configuration::getDefaultSidPlayAddress();
-
-        bool loaded = sid_->loadPRG(options.inputFile.string(), init, play);
-
-        if (loaded) {
-            // Copy the PRG to extracted path
-            try {
-                fs::copy_file(options.inputFile, tempExtractedPrg, fs::copy_options::overwrite_existing);
-            }
-            catch (const std::exception& e) {
-                util::Logger::warning(std::string("Failed to copy PRG file: ") + e.what());
-                // Not critical, continue anyway
-            }
-        }
-
-        return loaded;
-    }
-
-    bool CommandProcessor::loadBinFile(const ProcessingOptions& options, const fs::path& tempExtractedPrg) {
-        // For BIN files, we need load, init, and play addresses
-        u16 load = options.hasOverrideLoad ?
-            options.overrideLoadAddress : util::Configuration::getDefaultSidLoadAddress();
-        u16 init = options.hasOverrideInit ?
-            options.overrideInitAddress : util::Configuration::getDefaultSidInitAddress();
-        u16 play = options.hasOverridePlay ?
-            options.overridePlayAddress : util::Configuration::getDefaultSidPlayAddress();
-
-        bool loaded = sid_->loadBIN(options.inputFile.string(), load, init, play);
-
-        if (loaded) {
-            // Create a PRG file from the BIN with load address header
-            std::ifstream binFile(options.inputFile, std::ios::binary | std::ios::ate);
-            if (binFile) {
-                size_t size = static_cast<size_t>(binFile.tellg());
-                binFile.seekg(0, std::ios::beg);
-
-                // Read BIN data
-                std::vector<char> buffer(size);
-                binFile.read(buffer.data(), size);
-                binFile.close();
-
-                // Write as PRG with load address header
-                std::ofstream prgFile(tempExtractedPrg, std::ios::binary);
-                if (prgFile) {
-                    // Write load address (little-endian)
-                    u8 lo = load & 0xFF;
-                    u8 hi = (load >> 8) & 0xFF;
-                    prgFile.write(reinterpret_cast<const char*>(&lo), 1);
-                    prgFile.write(reinterpret_cast<const char*>(&hi), 1);
-
-                    // Write data
-                    prgFile.write(buffer.data(), size);
-                    prgFile.close();
-                }
-                else {
-                    util::Logger::warning("Failed to create PRG from BIN");
-                }
-            }
         }
 
         return loaded;
@@ -332,7 +233,6 @@ namespace sidblaster {
     }
 
     bool CommandProcessor::generateOutput(const ProcessingOptions& options) {
-        bool success = false;
 
         // Determine new addresses for relocation
         u16 newSidLoad;
@@ -361,22 +261,18 @@ namespace sidblaster {
         }
 
         // Generate the appropriate output format
-        switch (options.outputFormat) {
-        case OutputFormat::PRG:
-            success = generatePRGOutput(options);
-            break;
-        case OutputFormat::SID:
-            success = generateSIDOutput(options);
-            break;
-        case OutputFormat::ASM:
-            success = generateASMOutput(options);
-            break;
-        default:
-            util::Logger::error("Unsupported output format");
-            return false;
+        std::string ext = getFileExtension(options.outputFile);
+        if (ext == ".prg") {
+            return generatePRGOutput(options);
         }
-
-        return success;
+        else if (ext == ".sid") {
+            return generateSIDOutput(options);
+        }
+        else if (ext == ".asm") {
+            return generateASMOutput(options);
+        }
+        util::Logger::error("Unsupported output format");
+        return false;
     }
 
     bool CommandProcessor::generatePRGOutput(const ProcessingOptions& options) {
@@ -391,7 +287,8 @@ namespace sidblaster {
         fs::path tempPrgFile = tempDir / (basename + ".prg");
 
         bool bRelocation = options.hasRelocation;
-        bool bIsSID = detectFileType(options.inputFile) == FileType::SID;
+
+        bool bIsSID = (getFileExtension(options.inputFile) == ".sid");
 
         u16 newSidLoad = options.relocationAddress;
 
@@ -478,7 +375,10 @@ namespace sidblaster {
             // No relocation requested - just create a SID file
 
             // Different handling based on input type
-            if (detectFileType(options.inputFile) == FileType::SID) {
+
+            std::string ext = getFileExtension(options.inputFile);
+
+            if (ext == ".sid") {
                 // Input is already a SID - just copy it (or extract/modify if needed)
                 try {
                     fs::copy_file(options.inputFile, options.outputFile, fs::copy_options::overwrite_existing);
@@ -489,7 +389,7 @@ namespace sidblaster {
                     return false;
                 }
             }
-            else if (detectFileType(options.inputFile) == FileType::PRG) {
+            else if (ext == ".prg") {
                 // Input is PRG - need to create a SID file
 
                 // We need load, init, and play addresses

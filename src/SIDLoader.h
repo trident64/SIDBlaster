@@ -107,29 +107,6 @@ public:
     bool loadSID(const std::string& filename);
 
     /**
-     * @brief Load a raw binary file
-     * @param filename Path to the BIN file
-     * @param loadAddr Memory address where the data should be loaded
-     * @param initAddr Address of initialization routine
-     * @param playAddr Address of play routine
-     * @return true if loading succeeded, false otherwise
-     *
-     * Loads a raw binary file with explicit addresses.
-     */
-    bool loadBIN(const std::string& filename, u16 loadAddr, u16 initAddr, u16 playAddr);
-
-    /**
-     * @brief Load a PRG file (C64 program file with load address header)
-     * @param filename Path to the PRG file
-     * @param initAddr Address of initialization routine
-     * @param playAddr Address of play routine
-     * @return true if loading succeeded, false otherwise
-     *
-     * Loads a PRG file with its embedded load address.
-     */
-    bool loadPRG(const std::string& filename, u16 initAddr, u16 playAddr);
-
-    /**
      * @brief Get the SID file format version
      * @return Version number (1-4)
      */

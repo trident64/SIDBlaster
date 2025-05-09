@@ -122,29 +122,6 @@ namespace sidblaster {
         options.inputFile = fs::path(command_.getInputFile());
         options.outputFile = fs::path(command_.getOutputFile());
 
-        // Determine output format from extension
-        std::string ext = options.outputFile.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
-        if (ext == ".prg") {
-            options.outputFormat = CommandProcessor::OutputFormat::PRG;
-        }
-        else if (ext == ".sid") {
-            options.outputFormat = CommandProcessor::OutputFormat::SID;
-        }
-        else if (ext == ".asm") {
-            options.outputFormat = CommandProcessor::OutputFormat::ASM;
-        }
-        else {
-            util::Logger::warning("Unknown output extension: " + ext + ", defaulting to PRG");
-            options.outputFormat = CommandProcessor::OutputFormat::PRG;
-            // Append .prg extension if none provided
-            if (options.outputFile.extension().empty()) {
-                options.outputFile = fs::path(options.outputFile.string() + ".prg");
-            }
-        }
-
         // Create temp directory
         options.tempDir = fs::path("temp");
         try {
@@ -210,19 +187,13 @@ namespace sidblaster {
         }
 
         // Strictly enforce .sid input and .prg output
-        std::string inExt = inputFile.extension().string();
-        std::transform(inExt.begin(), inExt.end(), inExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string inExt = getFileExtension(inputFile);
         if (inExt != ".sid") {
             std::cout << "Error: LinkPlayer command requires a .sid input file, got: " << inExt << std::endl;
             return 1;
         }
 
-        std::string outExt = outputFile.extension().string();
-        std::transform(outExt.begin(), outExt.end(), outExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string outExt = getFileExtension(outputFile);
         if (outExt != ".prg") {
             std::cout << "Error: LinkPlayer command requires a .prg output file, got: " << outExt << std::endl;
             return 1;
@@ -259,19 +230,13 @@ namespace sidblaster {
         }
 
         // Strictly enforce .sid extension for both input and output
-        std::string inExt = inputFile.extension().string();
-        std::transform(inExt.begin(), inExt.end(), inExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string inExt = getFileExtension(inputFile);
         if (inExt != ".sid") {
             std::cout << "Error: Relocate command requires a .sid input file, got: " << inExt << std::endl;
             return 1;
         }
 
-        std::string outExt = outputFile.extension().string();
-        std::transform(outExt.begin(), outExt.end(), outExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string outExt = getFileExtension(inputFile);
         if (outExt != ".sid") {
             std::cout << "Error: Relocate command requires a .sid output file, got: " << outExt << std::endl;
             return 1;
@@ -351,19 +316,13 @@ namespace sidblaster {
         }
 
         // Strictly enforce .sid input and .asm output
-        std::string inExt = inputFile.extension().string();
-        std::transform(inExt.begin(), inExt.end(), inExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string inExt = getFileExtension(inputFile);
         if (inExt != ".sid") {
             std::cout << "Error: Disassemble command requires a .sid input file, got: " << inExt << std::endl;
             return 1;
         }
 
-        std::string outExt = outputFile.extension().string();
-        std::transform(outExt.begin(), outExt.end(), outExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string outExt = getFileExtension(inputFile);
         if (outExt != ".asm") {
             std::cout << "Error: Disassemble command requires an .asm output file, got: " << outExt << std::endl;
             return 1;
@@ -371,7 +330,6 @@ namespace sidblaster {
 
         // Create processing options
         CommandProcessor::ProcessingOptions options = createProcessingOptions();
-        options.outputFormat = CommandProcessor::OutputFormat::ASM;
 
         // Create and run command processor
         CommandProcessor processor;
@@ -402,10 +360,7 @@ namespace sidblaster {
         }
 
         // Strictly enforce .sid extension for input
-        std::string inExt = inputFile.extension().string();
-        std::transform(inExt.begin(), inExt.end(), inExt.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
+        std::string inExt = getFileExtension(inputFile);
         if (inExt != ".sid") {
             std::cout << "Error: Trace command requires a .sid input file, got: " << inExt << std::endl;
             return 1;

@@ -27,16 +27,6 @@ namespace sidblaster {
     class CommandProcessor {
     public:
         /**
-         * @enum OutputFormat
-         * @brief Output file formats
-         */
-        enum class OutputFormat {
-            PRG,  ///< PRG file (C64 program)
-            SID,  ///< SID file (music file)
-            ASM   ///< Assembly file
-        };
-
-        /**
          * @struct ProcessingOptions
          * @brief Options for processing SID files
          */
@@ -45,9 +35,6 @@ namespace sidblaster {
             fs::path inputFile;               ///< Input file path
             fs::path outputFile;              ///< Output file path
             fs::path tempDir = "temp";        ///< Temporary directory
-
-            // Output format
-            OutputFormat outputFormat = OutputFormat::PRG;  ///< Output format
 
             // SID options
             u16 relocationAddress = 0;        ///< Relocation address
@@ -101,25 +88,6 @@ namespace sidblaster {
         std::unique_ptr<SIDLoader> sid_;           ///< SID loader instance
         std::unique_ptr<TraceLogger> traceLogger_; ///< Trace logger
         std::unique_ptr<Disassembler> disassembler_; ///< Disassembler
-
-        /**
-         * @enum FileType
-         * @brief Input file types
-         */
-        enum class FileType {
-            SID,      ///< SID music file
-            PRG,      ///< PRG program file
-            ASM,      ///< Assembly file
-            BIN,      ///< Binary file
-            Unknown   ///< Unknown file type
-        };
-
-        /**
-         * @brief Detect the type of a file
-         * @param filePath File path
-         * @return File type
-         */
-        FileType detectFileType(const fs::path& filePath) const;
 
         /**
          * @brief Load an input file

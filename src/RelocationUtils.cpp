@@ -10,13 +10,6 @@
 namespace sidblaster {
     namespace util {
 
-        bool isSidFile(const fs::path& path) {
-            std::string ext = path.extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(),
-                [](unsigned char c) { return std::tolower(c); });
-            return ext == ".sid";
-        }
-
         RelocationResult relocateSID(
             CPU6510* cpu,
             SIDLoader* sid,
@@ -26,13 +19,15 @@ namespace sidblaster {
             result.success = false;
 
             // Validate that both input and output are SID files
-            if (!isSidFile(params.inputFile)) {
+            const std::string inExt = getFileExtension(params.inputFile);
+            if (inExt != ".sid") {
                 result.message = "Input file must be a SID file (.sid): " + params.inputFile.string();
                 Logger::error(result.message);
                 return result;
             }
 
-            if (!isSidFile(params.outputFile)) {
+            const std::string outExt = getFileExtension(params.outputFile);
+            if (outExt != ".sid") {
                 result.message = "Output file must be a SID file (.sid): " + params.outputFile.string();
                 Logger::error(result.message);
                 return result;
@@ -49,23 +44,7 @@ namespace sidblaster {
             }
 
             // Load the input file
-            bool loaded = false;
-            const std::string ext = params.inputFile.extension().string();
-
-            if (ext == ".sid") {
-                loaded = sid->loadSID(params.inputFile.string());
-            }
-            else if (ext == ".prg") {
-                // For PRG, we need default init and play addresses (could be parameterized)
-                loaded = sid->loadPRG(params.inputFile.string(), 0x1000, 0x1003);
-            }
-            else {
-                result.message = "Unsupported input file type for relocation: " + ext;
-                Logger::error(result.message);
-                return result;
-            }
-
-            if (!loaded) {
+            if (!sid->loadSID(params.inputFile.string())) {
                 result.message = "Failed to load file for relocation: " + params.inputFile.string();
                 Logger::error(result.message);
                 return result;
@@ -100,116 +79,67 @@ namespace sidblaster {
                 return result;
             }
 
-            // Determine output format based on extension
-            const std::string outExt = params.outputFile.extension().string();
+            // For SID output, we need to:
+            // 1. Generate assembly with relocation
+            // 2. Assemble to PRG
+            // 3. Create a SID file with proper header
 
-            if (outExt == ".asm") {
-                // Output as assembly - use the Disassembler directly
-                result.unusedBytesRemoved = disassembler.generateAsmFile(
-                    params.outputFile.string(),
-                    result.newLoad,
-                    result.newInit,
-                    result.newPlay);
+            // Setup temp files
+            const std::string basename = params.inputFile.stem().string();
+            const fs::path tempAsmFile = params.tempDir / (basename + "-relocated.asm");
+            const fs::path tempPrgFile = params.tempDir / (basename + "-relocated.prg");
 
-                result.success = true;
-                result.message = "Relocation to ASM complete. " +
-                    std::to_string(result.unusedBytesRemoved) + " unused bytes removed.";
-                Logger::info(result.message);
+            // Generate ASM with relocated addresses
+            result.unusedBytesRemoved = disassembler.generateAsmFile(
+                tempAsmFile.string(),
+                result.newLoad,
+                result.newInit,
+                result.newPlay);
+
+            // Assemble to PRG
+            if (!assembleAsmToPrg(tempAsmFile, tempPrgFile, params.kickAssPath)) {
+                result.message = "Failed to assemble relocated code: " + tempAsmFile.string();
+                Logger::error(result.message);
+                return result;
             }
-            else if (outExt == ".prg") {
-                // For PRG output, we need to:
-                // 1. Generate assembly with relocation
-                // 2. Assemble the ASM to a PRG
 
-                // Generate ASM with relocated addresses
-                const std::string basename = params.inputFile.stem().string();
-                const fs::path tempAsmFile = params.tempDir / (basename + "-relocated.asm");
+            // Create SID file from PRG
+            const std::string title = sid->getHeader().name;
+            const std::string author = sid->getHeader().author;
+            const std::string copyright = sid->getHeader().copyright;
 
-                result.unusedBytesRemoved = disassembler.generateAsmFile(
-                    tempAsmFile.string(),
-                    result.newLoad,
-                    result.newInit,
-                    result.newPlay);
+            if (!createSIDFromPRG(
+                tempPrgFile,
+                params.outputFile,
+                result.newLoad,
+                result.newInit,
+                result.newPlay,
+                title,
+                author,
+                copyright)) {
 
-                // Assemble to PRG
-                if (!assembleAsmToPrg(tempAsmFile, params.outputFile, params.kickAssPath)) {
-                    result.message = "Failed to assemble relocated code: " + tempAsmFile.string();
-                    Logger::error(result.message);
-                    return result;
-                }
+                // If SID creation fails, fall back to PRG
+                Logger::warning("SID file generation failed. Saving as PRG instead.");
 
-                result.success = true;
-                result.message = "Relocation to PRG complete. " +
-                    std::to_string(result.unusedBytesRemoved) + " unused bytes removed.";
-                Logger::info(result.message);
-            }
-            else if (outExt == ".sid") {
-                // For SID output, we need to:
-                // 1. Generate assembly with relocation
-                // 2. Assemble to PRG
-                // 3. Create a SID file with proper header
+                try {
+                    fs::copy_file(tempPrgFile, params.outputFile, fs::copy_options::overwrite_existing);
 
-                // Setup temp files
-                const std::string basename = params.inputFile.stem().string();
-                const fs::path tempAsmFile = params.tempDir / (basename + "-relocated.asm");
-                const fs::path tempPrgFile = params.tempDir / (basename + "-relocated.prg");
-
-                // Generate ASM with relocated addresses
-                result.unusedBytesRemoved = disassembler.generateAsmFile(
-                    tempAsmFile.string(),
-                    result.newLoad,
-                    result.newInit,
-                    result.newPlay);
-
-                // Assemble to PRG
-                if (!assembleAsmToPrg(tempAsmFile, tempPrgFile, params.kickAssPath)) {
-                    result.message = "Failed to assemble relocated code: " + tempAsmFile.string();
-                    Logger::error(result.message);
-                    return result;
-                }
-
-                // Create SID file from PRG
-                const std::string title = sid->getHeader().name;
-                const std::string author = sid->getHeader().author;
-                const std::string copyright = sid->getHeader().copyright;
-
-                if (!createSIDFromPRG(
-                    tempPrgFile,
-                    params.outputFile,
-                    result.newLoad,
-                    result.newInit,
-                    result.newPlay,
-                    title,
-                    author,
-                    copyright)) {
-
-                    // If SID creation fails, fall back to PRG
-                    Logger::warning("SID file generation failed. Saving as PRG instead.");
-
-                    try {
-                        fs::copy_file(tempPrgFile, params.outputFile, fs::copy_options::overwrite_existing);
-
-                        result.success = true;
-                        result.message = "Relocation complete (saved as PRG). " +
-                            std::to_string(result.unusedBytesRemoved) + " unused bytes removed.";
-                        Logger::info(result.message);
-                    }
-                    catch (const std::exception& e) {
-                        result.message = std::string("Failed to copy output file: ") + e.what();
-                        Logger::error(result.message);
-                        return result;
-                    }
-                }
-                else {
                     result.success = true;
-                    result.message = "Relocation to SID complete. " +
+                    result.message = "Relocation complete (saved as PRG). " +
                         std::to_string(result.unusedBytesRemoved) + " unused bytes removed.";
                     Logger::info(result.message);
                 }
+                catch (const std::exception& e) {
+                    result.message = std::string("Failed to copy output file: ") + e.what();
+                    Logger::error(result.message);
+                    return result;
+                }
             }
             else {
-                result.message = "Unsupported output format for relocation: " + outExt;
-                Logger::error(result.message);
+                result.success = true;
+                result.message = "Relocation to SID complete. " +
+                    std::to_string(result.unusedBytesRemoved) + " unused bytes removed.";
+                Logger::info(result.message);
             }
 
             return result;

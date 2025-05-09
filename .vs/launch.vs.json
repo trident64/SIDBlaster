@@ -8,10 +8,10 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        ".\\sid\\TC87-Crockets.sid",
-        "crocket.sid",
-        "-relocate",
-        "-relocateaddr=$8000"
+        ".\\drax8000.sid",
+        "drax.prg",
+        "-linkplayer",
+        "-linkplayeraddr=$0e00"
       ],
       "currentDir": "${workspaceRoot}"
     }
