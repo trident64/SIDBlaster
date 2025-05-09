@@ -286,7 +286,7 @@ namespace sidblaster {
             util::Logger::info("Successfully relocated " + inputFile.string() + " to " + outputFile.string() +
                 " (Load: $" + util::wordToHex(result.newLoad) +
                 ", Init: $" + util::wordToHex(result.newInit) +
-                ", Play: $" + util::wordToHex(result.newPlay) + ")");
+                ", Play: $" + util::wordToHex(result.newPlay) + ")", true);
             return 0;
         }
         else {
@@ -322,7 +322,7 @@ namespace sidblaster {
             return 1;
         }
 
-        std::string outExt = getFileExtension(inputFile);
+        std::string outExt = getFileExtension(outputFile);
         if (outExt != ".asm") {
             std::cout << "Error: Disassemble command requires an .asm output file, got: " << outExt << std::endl;
             return 1;
@@ -336,7 +336,7 @@ namespace sidblaster {
         bool success = processor.processFile(options);
 
         if (success) {
-            util::Logger::info("Successfully disassembled " + inputFile.string() + " to " + outputFile.string());
+            util::Logger::info("Successfully disassembled " + inputFile.string() + " to " + outputFile.string(), true);
         }
         else {
             util::Logger::error("Failed to disassemble " + inputFile.string());
@@ -417,11 +417,11 @@ namespace sidblaster {
         bool success = emulator.runEmulation(options);
 
         if (success) {
-            std::cout << "Successfully traced SID register writes to: " << traceLogPath << std::endl;
+            util::Logger::info("Successfully traced SID register writes to: " + traceLogPath, true);
             return 0;
         }
         else {
-            std::cout << "Error occurred during SID emulation" << std::endl;
+            util::Logger::error("Error occurred during SID emulation on " + inputFile.string());
             return 1;
         }
     }

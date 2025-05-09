@@ -145,31 +145,31 @@ namespace sidblaster {
              *
              * Logs a message with the specified severity level.
              */
-            static void log(Level level, const std::string& message);
+            static void log(Level level, const std::string& message, bool toConsole = false);
 
             /**
              * @brief Log a debug message
              * @param message Text to log
              */
-            static void debug(const std::string& message);
+            static void debug(const std::string& message, bool toConsole = false);
 
             /**
              * @brief Log an info message
              * @param message Text to log
              */
-            static void info(const std::string& message);
+            static void info(const std::string& message, bool toConsole = false);
 
             /**
              * @brief Log a warning message
              * @param message Text to log
              */
-            static void warning(const std::string& message);
+            static void warning(const std::string& message, bool toConsole = false);
 
             /**
              * @brief Log an error message
              * @param message Text to log
              */
-            static void error(const std::string& message);
+            static void error(const std::string& message, bool toConsole = false);
 
         private:
             static Level minLevel_;                                  // Minimum level to log

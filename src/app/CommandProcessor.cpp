@@ -165,9 +165,7 @@ namespace sidblaster {
             });
 
         // Set up Disassembler if needed
-//        if (options.outputFormat == OutputFormat::ASM || options.hasRelocation) {
-            disassembler_ = std::make_unique<Disassembler>(*cpu_, *sid_);
-//        }
+        disassembler_ = std::make_unique<Disassembler>(*cpu_, *sid_);
 
         // Set up emulation options
         SIDEmulator emulator(cpu_.get(), sid_.get());
@@ -223,7 +221,7 @@ namespace sidblaster {
         // Check for CIA timer
         if ((CIATimerLo != 0) || (CIATimerHi != 0)) {
             const u16 timerValue = CIATimerLo | (CIATimerHi << 8);
-            const double NumCyclesPerFrame = (63.0 * 312.0); //; TODO: NTSC?
+            const double NumCyclesPerFrame = (63.0 * 312.0); // TODO: NTSC?
             const double freq = NumCyclesPerFrame / std::max(1, static_cast<int>(timerValue));
             const int numCalls = static_cast<int>(freq + 0.5);
             numPlayCallsPerFrame = std::clamp(numCalls, 1, 16);
@@ -360,7 +358,6 @@ namespace sidblaster {
             params.tempDir = options.tempDir;
             params.relocationAddress = options.relocationAddress;
             params.kickAssPath = options.kickAssPath;
-//;            params.verbose = options.verbose;
 
             util::Logger::info("Relocating " + options.inputFile.string() + " to $" +
                 util::wordToHex(options.relocationAddress) + " -> " + options.outputFile.string());

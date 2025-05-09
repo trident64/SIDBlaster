@@ -13,7 +13,6 @@
 
 class CPU6510;
 class SIDLoader;
-//;class Disassembler;
 
 namespace sidblaster {
 
@@ -103,22 +102,6 @@ namespace sidblaster {
          * @return True if loading succeeded
          */
         bool loadSidFile(const ProcessingOptions& options, const fs::path& tempExtractedPrg);
-
-        /**
-         * @brief Load a PRG file
-         * @param options Processing options
-         * @param tempExtractedPrg Path to save extracted PRG
-         * @return True if loading succeeded
-         */
-        bool loadPrgFile(const ProcessingOptions& options, const fs::path& tempExtractedPrg);
-
-        /**
-         * @brief Load a BIN file
-         * @param options Processing options
-         * @param tempExtractedPrg Path to save extracted PRG
-         * @return True if loading succeeded
-         */
-        bool loadBinFile(const ProcessingOptions& options, const fs::path& tempExtractedPrg);
 
         /**
          * @brief Analyze music properties

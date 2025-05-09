@@ -267,7 +267,7 @@ namespace sidblaster {
          * @param level Message severity
          * @param message Text to log
          */
-        void Logger::log(Level level, const std::string& message) {
+        void Logger::log(Level level, const std::string& message, bool toConsole) {
             if (level < minLevel_) {
                 return;
             }
@@ -293,25 +293,19 @@ namespace sidblaster {
             std::stringstream fullMessage;
             fullMessage << "[" << timestampStr.str() << "] [" << levelStr << "] " << message;
 
-            // Always show errors on the console in red (if supported)
-            if (level == Level::Error) {
-#ifdef _WIN32
-                std::cerr << fullMessage.str() << std::endl;
-#else
-                // ANSI color codes for Unix-like systems
-                std::cerr << "\033[1;31m" << fullMessage.str() << "\033[0m" << std::endl;
-#endif
-            }
-            else if (consoleOutput_) {
-                std::cout << fullMessage.str() << std::endl;
-            }
-
             // Write to file if enabled
             if (logFile_) {
                 std::ofstream file(logFile_.value(), std::ios::app);
                 if (file) {
                     file << fullMessage.str() << std::endl;
                 }
+            }
+
+            if (level == Level::Error) {
+                std::cerr << fullMessage.str() << std::endl;
+            }
+            if (toConsole) {
+                std::cout << fullMessage.str() << std::endl;
             }
         }
 
@@ -322,8 +316,8 @@ namespace sidblaster {
          *
          * @param message Text to log
          */
-        void Logger::debug(const std::string& message) {
-            log(Level::Debug, message);
+        void Logger::debug(const std::string& message, bool toConsole) {
+            log(Level::Debug, message, toConsole);
         }
 
         /**
@@ -333,8 +327,8 @@ namespace sidblaster {
          *
          * @param message Text to log
          */
-        void Logger::info(const std::string& message) {
-            log(Level::Info, message);
+        void Logger::info(const std::string& message, bool toConsole) {
+            log(Level::Info, message, toConsole);
         }
 
         /**
@@ -344,8 +338,8 @@ namespace sidblaster {
          *
          * @param message Text to log
          */
-        void Logger::warning(const std::string& message) {
-            log(Level::Warning, message);
+        void Logger::warning(const std::string& message, bool toConsole) {
+            log(Level::Warning, message, toConsole);
         }
 
         /**
@@ -355,8 +349,8 @@ namespace sidblaster {
          *
          * @param message Text to log
          */
-        void Logger::error(const std::string& message) {
-            log(Level::Error, message);
+        void Logger::error(const std::string& message, bool toConsole) {
+            log(Level::Error, message, toConsole);
         }
 
         /**
