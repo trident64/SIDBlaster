@@ -1,4 +1,5 @@
 #include "Common.h"
+#include <algorithm>
 
 std::string getFileExtension(const fs::path& filePath) {
     std::string ext = filePath.extension().string();
