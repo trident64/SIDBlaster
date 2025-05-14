@@ -16,7 +16,7 @@ SIDBlaster is a versatile tool for processing C64 SID music files. It provides s
 ## Basic Usage
 
 ```
-SIDBlaster [command] [options] inputfile outputfile
+SIDBlaster [command] [options] inputfile [outputfile]
 ```
 
 ## Commands

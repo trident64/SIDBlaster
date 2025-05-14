@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <set>
 
 namespace sidblaster {
 
@@ -48,8 +49,33 @@ namespace sidblaster {
                     cmd.setParameter(name, value);
                 }
                 else {
-                    // Flag without value
-                    cmd.setFlag(option);
+                    // Check if this option expects a value (not a flag)
+                    if (i < args_.size() && args_[i][0] != '-') {
+                        // Look ahead to see if next arg is not an option
+                        // This handles cases like: -o outputfile
+                        std::string possibleValue = args_[i];
+
+                        // List of options that expect values
+                        static const std::set<std::string> valueOptions = {
+                            "o", "output", "i", "input", "relocateaddr", "linkplayertype",
+                            "linkplayeraddr", "linkplayerdefs", "tracelog", "traceformat",
+                            "logfile", "kickass", "title", "author", "copyright",
+                            "sidloadaddr", "sidinitaddr", "sidplayaddr"
+                        };
+
+                        if (valueOptions.find(option) != valueOptions.end()) {
+                            cmd.setParameter(option, possibleValue);
+                            i++; // Consume the value
+                        }
+                        else {
+                            // Flag without value
+                            cmd.setFlag(option);
+                        }
+                    }
+                    else {
+                        // Flag without value
+                        cmd.setFlag(option);
+                    }
                 }
             }
             else {
@@ -59,6 +85,7 @@ namespace sidblaster {
         }
 
         // Handle positional arguments (input and output files)
+        // These are now expected to be the last parameters
         if (!positionalArgs.empty()) {
             cmd.setInputFile(positionalArgs[0]);
         }
@@ -68,19 +95,19 @@ namespace sidblaster {
         }
 
         // Determine command type based on flags
-        if (cmd.hasFlag("help")) {
+        if (cmd.hasFlag("help") || cmd.hasFlag("h")) {
             cmd.setType(CommandClass::Type::Help);
         }
         else if (cmd.hasFlag("linkplayer")) {
             cmd.setType(CommandClass::Type::LinkPlayer);
         }
-        else if (cmd.hasFlag("relocate") || cmd.hasParameter("relocateaddr")) {
+        else if (cmd.hasFlag("relocate")) {
             cmd.setType(CommandClass::Type::Relocate);
         }
         else if (cmd.hasFlag("disassemble")) {
             cmd.setType(CommandClass::Type::Disassemble);
         }
-        else if (cmd.hasFlag("trace") || !cmd.getParameter("tracelog").empty()) {
+        else if (cmd.hasFlag("trace")) {
             cmd.setType(CommandClass::Type::Trace);
         }
         else {
@@ -104,12 +131,12 @@ namespace sidblaster {
         std::cout << "Developed by: Robert Troughton (Raistlin of Genesis Project)" << std::endl;
         std::cout << std::endl;
 
-        // Main usage patterns
+        // Main usage patterns - updated with command/options first, then files
         std::cout << "USAGE:" << std::endl;
-        std::cout << "  " << programName_ << " inputfile.sid outputfile.sid -relocate -relocateaddr=<address>" << std::endl;
-        std::cout << "  " << programName_ << " inputfile.sid -trace [-tracelog=<file>] [-traceformat=<format>]" << std::endl;
-        std::cout << "  " << programName_ << " inputfile.sid outputfile.prg -linkplayer [-linkplayertype=<name>] [-linkplayeraddr=<address>]" << std::endl;
-        std::cout << "  " << programName_ << " inputfile.sid outputfile.asm -disassemble" << std::endl;
+        std::cout << "  " << programName_ << " -relocate -relocateaddr=<address> inputfile.sid outputfile.sid" << std::endl;
+        std::cout << "  " << programName_ << " -trace [-tracelog=<file>] [-traceformat=<format>] inputfile.sid" << std::endl;
+        std::cout << "  " << programName_ << " -linkplayer [-linkplayertype=<name>] [-linkplayeraddr=<address>] inputfile.sid outputfile.prg" << std::endl;
+        std::cout << "  " << programName_ << " -disassemble inputfile.sid outputfile.asm" << std::endl;
         std::cout << "  " << programName_ << " -help" << std::endl;
         std::cout << std::endl;
 
@@ -153,21 +180,21 @@ namespace sidblaster {
         std::cout << "  -kickass=<path>          Path to KickAss.jar assembler" << std::endl;
         std::cout << std::endl;
 
-        // Examples
+        // Examples - updated with new command syntax
         std::cout << "EXAMPLES:" << std::endl;
-        std::cout << "  " << programName_ << " music.sid relocated.sid -relocate -relocateaddr=$2000" << std::endl;
+        std::cout << "  " << programName_ << " -relocate -relocateaddr=$2000 music.sid relocated.sid" << std::endl;
         std::cout << "    Relocates music.sid to address $2000 and saves as relocated.sid" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "  " << programName_ << " music.sid -trace -tracelog=music.trace -traceformat=text" << std::endl;
+        std::cout << "  " << programName_ << " -trace -tracelog=music.trace -traceformat=text music.sid" << std::endl;
         std::cout << "    Traces SID register writes for music.sid in text format" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "  " << programName_ << " music.sid player.prg -linkplayer -linkplayertype=SimpleBitmap -linkplayeraddr=$0800" << std::endl;
+        std::cout << "  " << programName_ << " -linkplayer -linkplayertype=SimpleBitmap -linkplayeraddr=$0800 music.sid player.prg" << std::endl;
         std::cout << "    Links music.sid with SimpleBitmap player at address $0800" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "  " << programName_ << " music.sid music.asm -disassemble" << std::endl;
+        std::cout << "  " << programName_ << " -disassemble music.sid music.asm" << std::endl;
         std::cout << "    Disassembles music.sid to assembly code in music.asm" << std::endl;
         std::cout << std::endl;
     }
