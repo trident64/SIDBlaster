@@ -48,6 +48,9 @@ namespace sidblaster {
         const auto mode = cpu_.getAddressingMode(opcode);
         const int size = cpu_.getInstructionSize(opcode);
 
+        // Save the start PC for comment
+        const u16 startPC = pc;
+
         // Check for CIA timer patch
         if (static_cast<int>(mode) == static_cast<int>(AddressingMode::Absolute)) {
             const u16 absAddr = memory_[pc + 1] | (memory_[pc + 2] << 8);
@@ -71,7 +74,16 @@ namespace sidblaster {
         // Update PC
         pc += size;
 
-        return line.str();
+        // Calculate the end PC
+        u16 endPC = startPC + size - 1;
+
+        // Pad to fixed column and add address comment
+        std::string lineStr = line.str();
+        int padding = std::max(0, 97 - static_cast<int>(lineStr.length())); // Adjusted to column 97
+
+        return lineStr + std::string(padding, ' ') + "//; $" +
+            util::wordToHex(startPC) + " - " +
+            util::wordToHex(endPC);
     }
 
     /**
@@ -79,7 +91,7 @@ namespace sidblaster {
      *
      * Outputs data bytes in assembly format (.byte directives).
      * Handles relocation entries and unused bytes.
-     * Enhanced to include memory address ranges in comments.
+     * Enhanced to include memory address ranges in comments with proper alignment.
      *
      * @param file Output stream
      * @param pc Program counter (will be updated)
@@ -100,6 +112,7 @@ namespace sidblaster {
         std::span<const MemoryType> memoryTags) const {
 
         int unusedByteCount = 0;
+        const int commentColumn = 97; // Target column for alignment of comments (adjusted +1)
 
         while (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
             // Emit label if present
@@ -116,31 +129,42 @@ namespace sidblaster {
 
                 // Store the current PC for comment
                 const u16 startPC = pc;
+                const u16 endPC = pc; // For relocation entries, end = start (1 byte)
 
-                file << "    .byte ";
+                // Build the line in a string stream
+                std::ostringstream lineSS;
+                lineSS << "    .byte ";
                 if (relocIt->second.type == RelocEntry::Type::Low) {
-                    file << "<(" << targetLabel << ")";
+                    lineSS << "<(" << targetLabel << ")";
                 }
                 else {
-                    file << ">(" << targetLabel << ")";
+                    lineSS << ">(" << targetLabel << ")";
                 }
 
-                // Add address range comment with proper alignment
-                std::string currentLine = "    .byte <(targetLabel)"; // Approximate relocation entry
-                int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
-                file << std::string(paddingSize, ' ') << "//; $"
+                // Get the line as a string
+                std::string line = lineSS.str();
+
+                // Output the line with properly aligned comment
+                file << line;
+
+                // Calculate padding needed
+                int padding = std::max(0, commentColumn - static_cast<int>(line.length()));
+                file << std::string(padding, ' ') << "//; $"
                     << util::wordToHex(startPC) << " - "
-                    << util::wordToHex(pc) << "\n";
+                    << util::wordToHex(endPC) << "\n";
 
                 ++pc;
                 continue;
             }
 
             // Emit normal .byte data
-            file << "    .byte ";
-            int count = 0;
             const u16 lineStartPC = pc; // Remember line start for comment
 
+            // Build the line in a string stream
+            std::ostringstream lineSS;
+            lineSS << "    .byte ";
+
+            int count = 0;
             while (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
                 // Stop at relocation bytes
                 if (relocationBytes.count(pc)) {
@@ -149,7 +173,7 @@ namespace sidblaster {
 
                 // Add comma if not the first byte
                 if (count > 0) {
-                    file << ", ";
+                    lineSS << ", ";
                 }
 
                 // Get the byte from original memory if possible
@@ -158,19 +182,18 @@ namespace sidblaster {
                     byte = originalMemory[pc - originalBase];
                 }
                 else {
-                    // Use memory from the CPU instead of memoryTags (which is a different type)
+                    // Use memory from the CPU instead
                     byte = memory_[pc];
                 }
 
                 // Check if unused (not accessed)
                 bool isUnused = !(memoryTags[pc] & (MemoryType::Accessed | MemoryType::LabelTarget));
-
                 if (isUnused) {
                     byte = 0;  // Always zero out unused bytes to help with compression
                     unusedByteCount++;
                 }
 
-                file << "$" << util::byteToHex(byte);
+                lineSS << "$" << util::byteToHex(byte);
 
                 ++pc;
                 ++count;
@@ -182,49 +205,47 @@ namespace sidblaster {
 
                 // Line break after 16 bytes
                 if (count == 16) {
-                    // Add address range comment before line break
+                    // Get the full line as a string
+                    std::string line = lineSS.str();
+
+                    // Calculate end address for range
                     const u16 lineEndPC = pc - 1; // Last byte processed
 
-                    // Calculate how much padding we need to align the comment
-                    std::string currentLine = "    .byte ";
-                    for (int i = 0; i < 16; i++) {
-                        if (i > 0) currentLine += ", ";
-                        currentLine += "$XX"; // Approximate length of each byte
-                    }
+                    // Output the line with properly aligned comment
+                    file << line;
 
-                    // Use consistent padding to align with code blocks
-                    int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
-                    file << std::string(paddingSize, ' ') << "//; $"
+                    // Calculate padding needed
+                    int padding = std::max(0, commentColumn - static_cast<int>(line.length()));
+                    file << std::string(padding, ' ') << "//; $"
                         << util::wordToHex(lineStartPC) << " - "
-                        << util::wordToHex(lineEndPC);
+                        << util::wordToHex(lineEndPC) << "\n";
 
-                    file << "\n";
+                    // Start a new line if there are more bytes
                     if (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
-                        file << "    .byte ";
+                        lineSS.str("");  // Clear the string stream
+                        lineSS << "    .byte ";
+                        count = 0;
                     }
-                    count = 0;
                 }
             }
 
-            // Add comment to last line (if not already done by the line break)
+            // Output last line if anything remains
             if (count > 0) {
+                // Calculate end address for the final line
                 const u16 lineEndPC = pc - 1; // Last byte processed
 
-                // Build the current line to calculate its length
-                std::string currentLine = "    .byte ";
-                for (int i = 0; i < count; i++) {
-                    if (i > 0) currentLine += ", ";
-                    currentLine += "$XX"; // Approximate length of each byte
-                }
+                // Get the full line as a string
+                std::string line = lineSS.str();
 
-                // Use consistent padding to align with code blocks (target column 96)
-                int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
-                file << std::string(paddingSize, ' ') << "//; $"
+                // Output the line with properly aligned comment
+                file << line;
+
+                // Calculate padding needed
+                int padding = std::max(0, commentColumn - static_cast<int>(line.length()));
+                file << std::string(padding, ' ') << "//; $"
                     << util::wordToHex(lineStartPC) << " - "
-                    << util::wordToHex(lineEndPC);
+                    << util::wordToHex(lineEndPC) << "\n";
             }
-
-            file << "\n";
         }
 
         return unusedByteCount;
