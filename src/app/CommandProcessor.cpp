@@ -372,7 +372,6 @@ namespace sidblaster {
             // No relocation requested - just create a SID file
 
             // Different handling based on input type
-
             std::string ext = getFileExtension(options.inputFile);
 
             if (ext == ".sid") {
@@ -397,6 +396,13 @@ namespace sidblaster {
                 u16 playAddr = options.hasOverridePlay ?
                     options.overridePlayAddress : util::Configuration::getDefaultSidPlayAddress();
 
+                // Get default flags and SID addresses
+                const SIDHeader& originalHeader = sid_->getHeader();
+                u16 flags = originalHeader.flags;
+                u8 secondSIDAddress = originalHeader.secondSIDAddress;
+                u8 thirdSIDAddress = originalHeader.thirdSIDAddress;
+                u16 version = originalHeader.version;
+
                 // Create SID from PRG
                 bool success = util::createSIDFromPRG(
                     options.inputFile,
@@ -406,10 +412,14 @@ namespace sidblaster {
                     playAddr,
                     options.overrideTitle,
                     options.overrideAuthor,
-                    options.overrideCopyright);
+                    options.overrideCopyright,
+                    flags,
+                    secondSIDAddress,
+                    thirdSIDAddress,
+                    version);
 
                 if (!success) {
-                    util::Logger::warning("SID file creation not yet implemented. Copying PRG instead.");
+                    util::Logger::warning("SID file creation failed. Copying PRG instead.");
 
                     try {
                         fs::copy_file(options.inputFile, options.outputFile, fs::copy_options::overwrite_existing);

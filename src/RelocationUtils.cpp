@@ -50,10 +50,17 @@ namespace sidblaster {
                 return result;
             }
 
-            // Get original addresses
+            // Get original addresses and header
             result.originalLoad = sid->getLoadAddress();
             result.originalInit = sid->getInitAddress();
             result.originalPlay = sid->getPlayAddress();
+
+            // Get the original SID header to preserve its flags and additional SID addresses
+            const SIDHeader& originalHeader = sid->getHeader();
+            u16 originalFlags = originalHeader.flags;
+            u8 secondSIDAddress = originalHeader.secondSIDAddress;
+            u8 thirdSIDAddress = originalHeader.thirdSIDAddress;
+            u16 version = originalHeader.version;
 
             // Calculate relocated addresses
             result.newLoad = params.relocationAddress;
@@ -62,7 +69,9 @@ namespace sidblaster {
 
             Logger::info("Original addresses - Load: $" + wordToHex(result.originalLoad) +
                 ", Init: $" + wordToHex(result.originalInit) +
-                ", Play: $" + wordToHex(result.originalPlay));
+                ", Play: $" + wordToHex(result.originalPlay) +
+                ", Flags: $" + wordToHex(originalFlags) +
+                ", Version: " + std::to_string(version));
 
             Logger::info("Relocated addresses - Load: $" + wordToHex(result.newLoad) +
                 ", Init: $" + wordToHex(result.newInit) +
@@ -104,9 +113,9 @@ namespace sidblaster {
             }
 
             // Create SID file from PRG
-            const std::string title = sid->getHeader().name;
-            const std::string author = sid->getHeader().author;
-            const std::string copyright = sid->getHeader().copyright;
+            const std::string title = originalHeader.name;
+            const std::string author = originalHeader.author;
+            const std::string copyright = originalHeader.copyright;
 
             if (!createSIDFromPRG(
                 tempPrgFile,
@@ -116,7 +125,11 @@ namespace sidblaster {
                 result.newPlay,
                 title,
                 author,
-                copyright)) {
+                copyright,
+                originalFlags,       // Pass original header flags
+                secondSIDAddress,    // Pass original secondSIDAddress
+                thirdSIDAddress,    // Pass original thirdSIDAddress
+                version)) {     // Pass original version number
 
                 // If SID creation fails, fall back to PRG
                 Logger::warning("SID file generation failed. Saving as PRG instead.");
@@ -268,7 +281,11 @@ namespace sidblaster {
             u16 playAddr,
             const std::string& title,
             const std::string& author,
-            const std::string& copyright) {
+            const std::string& copyright,
+            u16 flags,
+            u8 secondSIDAddress,
+            u8 thirdSIDAddress,
+            u16 version) {
 
             // Read the PRG file
             std::ifstream prg(prgFile, std::ios::binary | std::ios::ate);
@@ -308,8 +325,8 @@ namespace sidblaster {
 
             // Fill in the header fields (initially in little-endian format)
             std::memcpy(header.magicID, "PSID", 4);  // Magic ID for SID format
-            header.version = 2;              // Version 2
-            header.dataOffset = 0x7C;        // Standard offset
+            header.version = version;        // Use original version number
+            header.dataOffset = (version == 1) ? 0x76 : 0x7C;  // Adjust based on version
             header.loadAddress = 0;          // 0 means load address is in the data
             header.initAddress = initAddr;   // Init address
             header.playAddress = playAddr;   // Play address
@@ -333,12 +350,40 @@ namespace sidblaster {
                 std::strncpy(header.copyright, copyright.c_str(), sizeof(header.copyright) - 1);
             }
 
-            // Set remaining fields
-            header.flags = 0;                // Default flags (PAL)
-            header.startPage = 0;            // Not used in this context
-            header.pageLength = 0;           // Not used in this context
-            header.secondSIDAddress = 0;     // Not used in this context
-            header.thirdSIDAddress = 0;      // Not used in this context
+            // Set flags and SID chip addresses
+            header.flags = flags;                // Use provided flags instead of default 0
+            header.startPage = 0;                // Not used in this context
+            header.pageLength = 0;               // Not used in this context
+
+            // Only set secondSIDAddress if version >= 3
+            if (version >= 3) {
+                header.secondSIDAddress = secondSIDAddress;
+            }
+            else {
+                header.secondSIDAddress = 0;
+                // Log if we're losing information
+                if (secondSIDAddress != 0) {
+                    Logger::warning("Second SID address information ($" +
+                        wordToHex(secondSIDAddress << 4) +
+                        ") lost due to SID version " +
+                        std::to_string(version) + " (requires v3+)");
+                }
+            }
+
+            // Only set thirdSIDAddress if version >= 4
+            if (version >= 4) {
+                header.thirdSIDAddress = thirdSIDAddress;
+            }
+            else {
+                header.thirdSIDAddress = 0;
+                // Log if we're losing information
+                if (thirdSIDAddress != 0) {
+                    Logger::warning("Third SID address information ($" +
+                        wordToHex(thirdSIDAddress << 4) +
+                        ") lost due to SID version " +
+                        std::to_string(version) + " (requires v4)");
+                }
+            }
 
             // Fix endianness (SID files are big-endian)
             // We need to reverse the byte order for all multi-byte fields
@@ -380,7 +425,8 @@ namespace sidblaster {
             Logger::info("Created SID file: " + sidFile.string() +
                 " (Load: $" + wordToHex(loadAddr) +
                 ", Init: $" + wordToHex(initAddr) +
-                ", Play: $" + wordToHex(playAddr) + ")");
+                ", Play: $" + wordToHex(playAddr) +
+                ", Flags: $" + wordToHex(flags) + ")");
 
             return true;
         }

@@ -198,17 +198,6 @@ public:
 
 private:
     /**
-     * @brief Create a SID header for non-SID format files
-     * @param loadAddr Memory load address
-     * @param initAddr Initialization routine address
-     * @param playAddr Play routine address
-     * @return true if header creation succeeded
-     *
-     * Creates a synthetic SID header for PRG or BIN files.
-     */
-    bool createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr);
-
-    /**
      * @brief Copy music data to CPU memory
      * @param data Pointer to the music data
      * @param size Size of the data in bytes

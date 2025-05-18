@@ -210,36 +210,6 @@ bool SIDLoader::loadSID(const std::string& filename) {
 }
 
 /**
- * @brief Create a SID header for non-SID format files
- *
- * Creates a synthetic SID header with appropriate fields for
- * BIN or PRG files that don't have their own headers.
- *
- * @param loadAddr Memory load address
- * @param initAddr Initialization routine address
- * @param playAddr Play routine address
- * @return true if header creation succeeded
- */
-bool SIDLoader::createSIDHeader(u16 loadAddr, u16 initAddr, u16 playAddr) {
-    // Create a minimal SID header for non-SID files (PSID v2NG)
-    std::memset(&header_, 0, sizeof(header_));
-    std::memcpy(header_.magicID, "PSID", 4);
-    header_.version = 2;
-    header_.dataOffset = 0;  // Not used for our purposes
-    header_.loadAddress = loadAddr;
-    header_.initAddress = initAddr;
-    header_.playAddress = playAddr;
-    header_.songs = 1;
-    header_.startSong = 1;
-    header_.flags = 0;
-
-    // Default to NTSC compatibility
-    header_.flags |= (1 << 2);  // Set the NTSC flag
-
-    return true;
-}
-
-/**
  * @brief Copy music data to CPU memory
  *
  * Loads music data into the CPU's memory at the specified address

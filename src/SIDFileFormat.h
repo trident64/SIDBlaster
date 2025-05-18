@@ -26,21 +26,21 @@
 #pragma pack(push, 1)
 struct SIDHeader {
     // ----- v1 Fields (offset 0x00-0x75) -----
-    char magicID[4];     // 'PSID'
-    u16 version;         // 1-4
-    u16 dataOffset;      // Offset to binary data (0x76 for v1, 0x7C for v2+)
-    u16 loadAddress;     // C64 memory load address (0 for embedded address)
-    u16 initAddress;     // Init routine address
-    u16 playAddress;     // Play routine address
-    u16 songs;           // Number of songs
-    u16 startSong;       // Default starting song (1-based)
-    u32 speed;           // Song speed flags (each bit represents a song)
-    char name[32];       // Module name, null-terminated ASCII
-    char author[32];     // Author name, null-terminated ASCII
-    char copyright[32];  // Copyright/release info, null-terminated ASCII
+    char magicID[4];     // 'PSID'                                                      //; $00-03
+    u16 version;         // 1-4                                                         //; $04-05
+    u16 dataOffset;      // Offset to binary data (0x76 for v1, 0x7C for v2+)           //; $06-07
+    u16 loadAddress;     // C64 memory load address (0 for embedded address)            //; $08-09
+    u16 initAddress;     // Init routine address                                        //; $0a-0b
+    u16 playAddress;     // Play routine address                                        //; $0c-0d
+    u16 songs;           // Number of songs                                             //; $0e-0f
+    u16 startSong;       // Default starting song (1-based)                             //; $10-11
+    u32 speed;           // Song speed flags (each bit represents a song)               //; $12-15
+    char name[32];       // Module name, null-terminated ASCII                          //; $16-35
+    char author[32];     // Author name, null-terminated ASCII                          //; $36-55
+    char copyright[32];  // Copyright/release info, null-terminated ASCII               //; $56-75
 
     // ----- v2+ Fields (offset 0x76-0x7B) -----
-    u16 flags;           // Flags for v2+
+    u16 flags;           // Flags for v2+                                               //; $76-77
     // bit 0: MUS data (0=built-in player, 1=MUS format)
     // bit 1: PlaySID specific (PSID) or BASIC flag (RSID)
     // bits 2-3: Clock speed (0=Unknown, 1=PAL, 2=NTSC, 3=PAL/NTSC)

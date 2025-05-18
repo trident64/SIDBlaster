@@ -8,10 +8,10 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        ".\\drax8000.sid",
-        "drax.prg",
-        "-linkplayer",
-        "-linkplayeraddr=$0e00"
+        "-relocate",
+        "-relocateaddr=$1000",
+        "Leaf_No_Trace.sid",
+        "leaf1000.sid"
       ],
       "currentDir": "${workspaceRoot}"
     }

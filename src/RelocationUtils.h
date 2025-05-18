@@ -103,6 +103,10 @@ namespace sidblaster {
          * @param title SID title
          * @param author SID author
          * @param copyright SID copyright
+         * @param flags SID flags (preserved from original file)
+         * @param secondSIDAddress Address for second SID chip
+         * @param thirdSIDAddress Address for third SID chip
+         * @param version SID version number to use (1-4)
          * @return True if SID file creation succeeded
          */
         bool createSIDFromPRG(
@@ -113,7 +117,11 @@ namespace sidblaster {
             u16 playAddr,
             const std::string& title = "",
             const std::string& author = "",
-            const std::string& copyright = "");
+            const std::string& copyright = "",
+            u16 flags = 0,
+            u8 secondSIDAddress = 0,
+            u8 thirdSIDAddress = 0,
+            u16 version = 2);
 
         /**
          * @brief Run SID emulation to analyze memory patterns
