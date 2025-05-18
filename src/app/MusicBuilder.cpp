@@ -34,14 +34,16 @@ namespace sidblaster {
         }
 
         // Setup temporary file paths
-        fs::path tempPrgFile = options.tempDir / (basename + ".prg");
-        fs::path tempPlayerPrgFile = options.tempDir / (basename + "-player.prg");
-        fs::path tempCompressedPrgFile = options.tempDir / (basename + "-compressed.prg");
-        fs::path tempLinkerFile = options.tempDir / (basename + "-linker.asm");
-        fs::path tempExtractedPrg = options.tempDir / (basename + "-extracted.prg");
+        fs::path tempDir = options.tempDir;
+        fs::path tempPrgFile = tempDir / (basename + ".prg");
+        fs::path tempPlayerPrgFile = tempDir / (basename + "-player.prg");
+        fs::path tempLinkerFile = tempDir / (basename + "-linker.asm");
 
         // Determine input file type
         std::string ext = getFileExtension(inputFile);
+        bool bIsSID = (ext == ".sid");
+        bool bIsASM = (ext == ".asm");
+        bool bIsPRG = (ext == ".prg");
 
         // Handle based on whether to include player or not
         if (!options.playerName.empty()) {
@@ -57,7 +59,7 @@ namespace sidblaster {
             // Create the player directory if it doesn't exist
             fs::create_directories(playerAsmFile.parent_path());
 
-            // Create linker file
+            // Create linker file - this now correctly handles SID files with LoadSid
             if (!createLinkerFile(tempLinkerFile, inputFile, playerAsmFile, options)) {
                 return false;
             }
@@ -72,7 +74,17 @@ namespace sidblaster {
                 if (!compressPrg(tempPlayerPrgFile, outputFile, options.playerAddress, options)) {
                     // Fallback to uncompressed if compression fails
                     util::Logger::warning(std::string("Compression failed on ") + tempPlayerPrgFile.string());
+                    try {
+                        fs::copy_file(tempPlayerPrgFile, outputFile,
+                            fs::copy_options::overwrite_existing);
+                        return true;
+                    }
+                    catch (const std::exception& e) {
+                        util::Logger::error(std::string("Failed to copy uncompressed PRG: ") + e.what());
+                        return false;
+                    }
                 }
+                return true;
             }
             else {
                 // Copy uncompressed file to output
@@ -91,14 +103,14 @@ namespace sidblaster {
             // Pure music without player
 
             // If input is ASM, just assemble it
-            if (ext == ".asm") {
+            if (bIsASM) {
                 // Run assembler to build pure music
                 if (!runAssembler(inputFile, outputFile, options.kickAssPath)) {
                     return false;
                 }
                 return true;
             }
-            else if (ext == ".prg") {
+            else if (bIsPRG) {
                 // For PRG input, just copy the file
                 try {
                     fs::copy_file(inputFile, outputFile, fs::copy_options::overwrite_existing);
@@ -109,7 +121,7 @@ namespace sidblaster {
                     return false;
                 }
             }
-            else if (ext == ".sid") {
+            else if (bIsSID) {
                 // For SID input, extract the PRG data
                 return extractPrgFromSid(inputFile, outputFile);
             }
@@ -153,6 +165,7 @@ namespace sidblaster {
 
         if (bIsSID)
         {
+            // For SID files, use LoadSid directly - this is the key change!
             file << ".var music_prg = LoadSid(\"" << musicFile.string() << "\")\n";
             file << "* = music_prg.location \"SID\"\n";
             file << ".fill music_prg.size, music_prg.getData(i)\n";
@@ -162,6 +175,7 @@ namespace sidblaster {
         }
         else
         {
+            // For ASM files, we need explicit addresses
             u16 sidInit = options.sidInitAddr;
             u16 sidPlay = options.sidPlayAddr;
             file << ".var SIDInit = $" << util::wordToHex(sidInit) << "\n";
@@ -207,6 +221,7 @@ namespace sidblaster {
 
         if (bIsASM)
         {
+            // For ASM input, import the source directly
             u16 sidLoad = options.sidLoadAddr;
             file << "* = $" << util::wordToHex(sidLoad) << "\n";
             file << ".import source \"" << musicFile.string() << "\"\n";

@@ -65,9 +65,35 @@ namespace sidblaster {
             // Apply any metadata overrides
             applySIDMetadataOverrides(options);
 
-            // Analyze the music
-            if (!analyzeMusic(options)) {
-                return false;
+            // Determine if we need emulation based on the command type
+            bool needsEmulation = false;
+
+            // If output is ASM (disassembly) or SID with relocation, we need emulation
+            if (getFileExtension(options.outputFile) == ".asm" ||
+                (getFileExtension(options.outputFile) == ".sid" && options.hasRelocation)) {
+                needsEmulation = true;
+            }
+
+            // If trace is enabled, we need emulation
+            if (options.enableTracing) {
+                needsEmulation = true;
+            }
+
+            // If we're just linking a player with SID, we don't need emulation
+            if (options.includePlayer && getFileExtension(options.outputFile) == ".prg") {
+                needsEmulation = false;
+                util::Logger::debug("Skipping emulation for LinkPlayer command - not needed");
+            }
+
+            // Analyze the music (only if needed)
+            if (needsEmulation) {
+                if (!analyzeMusic(options)) {
+                    return false;
+                }
+            }
+            else {
+                // For LinkPlayer, we still need the Disassembler but without running emulation
+                disassembler_ = std::make_unique<Disassembler>(*cpu_, *sid_);
             }
 
             // Generate the output file
@@ -156,6 +182,9 @@ namespace sidblaster {
     }
 
     bool CommandProcessor::analyzeMusic(const ProcessingOptions& options) {
+        // Backup memory before emulation
+        sid_->backupMemory();
+
         // Track CIA timer writes
         u8 CIATimerLo = 0;
         u8 CIATimerHi = 0;
@@ -274,31 +303,40 @@ namespace sidblaster {
     }
 
     bool CommandProcessor::generatePRGOutput(const ProcessingOptions& options) {
-
         // Base name for files
         std::string basename = options.inputFile.stem().string();
 
         // Setup temporary file paths
         fs::path tempDir = options.tempDir;
         fs::path tempExtractedPrg = tempDir / (basename + "-original.prg");
-        fs::path tempAsmFile = tempDir / (basename + ".asm");
-        fs::path tempPrgFile = tempDir / (basename + ".prg");
 
-        bool bRelocation = options.hasRelocation;
+        std::string inputExt = getFileExtension(options.inputFile);
+        bool bIsSID = (inputExt == ".sid");
+        bool bIsASM = (inputExt == ".asm");
+        bool bIsPRG = (inputExt == ".prg");
 
-        bool bIsSID = (getFileExtension(options.inputFile) == ".sid");
+        // For LinkPlayer with SID input, go directly to MusicBuilder without disassembly
+        if (options.includePlayer && bIsSID) {
+            MusicBuilder builder(cpu_.get(), sid_.get());
+            MusicBuilder::BuildOptions buildOptions;
+            buildOptions.includePlayer = true;
+            buildOptions.playerName = options.playerName;
+            buildOptions.playerAddress = options.playerAddress;
+            buildOptions.compress = options.compress;
+            buildOptions.tempDir = tempDir;
+            buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 
-        u16 newSidLoad = options.relocationAddress;
+            // These aren't used for SID input - KickAss will get them from the SID file
+            buildOptions.sidLoadAddr = sid_->getLoadAddress();
+            buildOptions.sidInitAddr = sid_->getInitAddress();
+            buildOptions.sidPlayAddr = sid_->getPlayAddress();
 
-        // If we're using a player and have a SID file as input
-        if (options.includePlayer && bIsSID)
-        {
-            if (!bRelocation)
-            {
-                newSidLoad = sid_->getLoadAddress();
-            }
-            bRelocation = true;
+            return builder.buildMusic(basename, options.inputFile, options.outputFile, buildOptions);
         }
+
+        // The rest of the method handles relocation and other special cases
+        bool bRelocation = options.hasRelocation;
+        u16 newSidLoad = options.relocationAddress;
 
         // If the input file is a SID and we haven't extracted it yet, do so now
         if ((!bRelocation) && (bIsSID) && (!fs::exists(tempExtractedPrg))) {
@@ -309,10 +347,16 @@ namespace sidblaster {
 
         // Determine if we need to use the disassembler for relocation
         if (bRelocation) {
-            // Restore original memory for clean disassembly
-            sid_->restoreMemory();
+            // Only try to restore memory if we've backed it up
+            try {
+                sid_->restoreMemory();
+            }
+            catch (const std::exception& e) {
+                util::Logger::debug("Memory restore skipped (probably not backed up): " + std::string(e.what()));
+            }
 
-            // Generate assembly file with relocated addresses
+            // For relocation, generate assembly file
+            fs::path tempAsmFile = tempDir / (basename + ".asm");
             const u16 sidLoad = sid_->getLoadAddress();
             const u16 newSidInit = newSidLoad + (sid_->getInitAddress() - sidLoad);
             const u16 newSidPlay = newSidLoad + (sid_->getPlayAddress() - sidLoad);
@@ -320,7 +364,7 @@ namespace sidblaster {
             disassembler_->generateAsmFile(tempAsmFile.string(), newSidLoad, newSidInit, newSidPlay);
             util::Logger::info("Generated relocated assembly: " + tempAsmFile.string());
 
-            // Run assembler to build pure music
+            // Run assembler to build with player
             MusicBuilder builder(cpu_.get(), sid_.get());
             MusicBuilder::BuildOptions buildOptions;
             buildOptions.includePlayer = options.includePlayer;
@@ -331,11 +375,13 @@ namespace sidblaster {
             buildOptions.sidLoadAddr = newSidLoad;
             buildOptions.sidInitAddr = newSidInit;
             buildOptions.sidPlayAddr = newSidPlay;
+            buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 
             return builder.buildMusic(basename, tempAsmFile, options.outputFile, buildOptions);
         }
-        else {
-            // No relocation, use original extracted PRG
+        else if (bIsSID) {
+            // No relocation, and input is a SID file - handled earlier for LinkPlayer
+            // This branch handles SID input when not using a player
             MusicBuilder builder(cpu_.get(), sid_.get());
             MusicBuilder::BuildOptions buildOptions;
             buildOptions.includePlayer = options.includePlayer;
@@ -343,8 +389,25 @@ namespace sidblaster {
             buildOptions.playerAddress = options.playerAddress;
             buildOptions.compress = options.compress;
             buildOptions.tempDir = tempDir;
+            buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 
-            return builder.buildMusic(basename, tempExtractedPrg, options.outputFile, buildOptions);
+            return builder.buildMusic(basename, options.inputFile, options.outputFile, buildOptions);
+        }
+        else {
+            // No relocation, input is PRG or ASM
+            MusicBuilder builder(cpu_.get(), sid_.get());
+            MusicBuilder::BuildOptions buildOptions;
+            buildOptions.includePlayer = options.includePlayer;
+            buildOptions.playerName = options.playerName;
+            buildOptions.playerAddress = options.playerAddress;
+            buildOptions.compress = options.compress;
+            buildOptions.tempDir = tempDir;
+            buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
+
+            // Use the original file directly - either ASM or the extracted PRG
+            fs::path inputToUse = bIsASM ? options.inputFile : tempExtractedPrg;
+
+            return builder.buildMusic(basename, inputToUse, options.outputFile, buildOptions);
         }
     }
 

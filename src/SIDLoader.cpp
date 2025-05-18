@@ -305,9 +305,14 @@ bool SIDLoader::backupMemory() {
  * @return True if restoration succeeded
  */
 bool SIDLoader::restoreMemory() {
-    if (!cpu_ || memoryBackup_.empty()) {
-        sidblaster::util::Logger::error("Cannot restore memory: CPU not set or backup empty!");
+    if (!cpu_) {
+        sidblaster::util::Logger::warning("Cannot restore memory: CPU not set");
         return false;
+    }
+
+    if (memoryBackup_.empty()) {
+        sidblaster::util::Logger::debug("Memory backup is empty, skipping restore");
+        return false;  // Return false but don't log as error - this is expected in some workflows
     }
 
     // Copy the backup back to CPU memory
