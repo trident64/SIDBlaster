@@ -125,8 +125,10 @@ namespace sidblaster {
                     file << ">(" << targetLabel << ")";
                 }
 
-                // Add address range comment
-                file << util::padToColumn("", 96 - 20) << "//; $"
+                // Add address range comment with proper alignment
+                std::string currentLine = "    .byte <(targetLabel)"; // Approximate relocation entry
+                int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
+                file << std::string(paddingSize, ' ') << "//; $"
                     << util::wordToHex(startPC) << " - "
                     << util::wordToHex(pc) << "\n";
 
@@ -182,7 +184,17 @@ namespace sidblaster {
                 if (count == 16) {
                     // Add address range comment before line break
                     const u16 lineEndPC = pc - 1; // Last byte processed
-                    file << util::padToColumn("", 96 - 20) << "//; $"
+
+                    // Calculate how much padding we need to align the comment
+                    std::string currentLine = "    .byte ";
+                    for (int i = 0; i < 16; i++) {
+                        if (i > 0) currentLine += ", ";
+                        currentLine += "$XX"; // Approximate length of each byte
+                    }
+
+                    // Use consistent padding to align with code blocks
+                    int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
+                    file << std::string(paddingSize, ' ') << "//; $"
                         << util::wordToHex(lineStartPC) << " - "
                         << util::wordToHex(lineEndPC);
 
@@ -197,7 +209,17 @@ namespace sidblaster {
             // Add comment to last line (if not already done by the line break)
             if (count > 0) {
                 const u16 lineEndPC = pc - 1; // Last byte processed
-                file << util::padToColumn("", 96 - 20) << "//; $"
+
+                // Build the current line to calculate its length
+                std::string currentLine = "    .byte ";
+                for (int i = 0; i < count; i++) {
+                    if (i > 0) currentLine += ", ";
+                    currentLine += "$XX"; // Approximate length of each byte
+                }
+
+                // Use consistent padding to align with code blocks (target column 96)
+                int paddingSize = std::max(0, 96 - static_cast<int>(currentLine.length()));
+                file << std::string(paddingSize, ' ') << "//; $"
                     << util::wordToHex(lineStartPC) << " - "
                     << util::wordToHex(lineEndPC);
             }
