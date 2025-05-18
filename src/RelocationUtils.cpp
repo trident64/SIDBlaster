@@ -7,6 +7,7 @@
 
 #include <fstream>
 
+
 namespace sidblaster {
     namespace util {
 
