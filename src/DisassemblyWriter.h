@@ -121,8 +121,8 @@ namespace sidblaster {
         /**
          * @brief Struct for tracking indirect memory accesses
          *
-         * Records information about indirect memory access patterns
-         * to identify address references.
+         * Records detailed information about indirect memory access patterns
+         * to identify address references and pointer tables.
          */
         struct IndirectAccessInfo {
             u16 instructionAddress;   // Address of the instruction
@@ -133,6 +133,10 @@ namespace sidblaster {
             u16 sourceLowAddress;     // Source of the low byte value
             u16 sourceHighAddress;    // Source of the high byte value
             u16 effectiveAddress;     // Effective address accessed
+
+            // Track if these pointer sources have been marked for relocation
+            bool sourceLowMarked = false;
+            bool sourceHighMarked = false;
         };
 
         std::vector<IndirectAccessInfo> indirectAccesses_;  // List of indirect accesses
@@ -169,6 +173,15 @@ namespace sidblaster {
          * the disassembly to ensure consistent address references.
          */
         void propagateRelocationSources();
+
+        /**
+         * @brief Trace memory dependencies backward to find pointer table sources
+         *
+         * This method performs a multi-pass analysis to trace the origins of
+         * data used in indirect addressing, even when it's copied through
+         * multiple memory locations before being used.
+         */
+        void tracePointerSources();
     };
 
 } // namespace sidblaster

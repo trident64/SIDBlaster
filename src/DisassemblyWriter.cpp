@@ -117,7 +117,7 @@ namespace sidblaster {
      * @brief Add an indirect memory access
      *
      * Records information about an indirect memory access for later analysis.
-     * This helps identify address references and pointer tables.
+     * Enhanced to collect more detailed information about pointer usage.
      *
      * @param pc Program counter
      * @param zpAddr Zero page address
@@ -128,28 +128,44 @@ namespace sidblaster {
         const auto& lowSource = cpu_.getWriteSourceInfo(zpAddr);
         const auto& highSource = cpu_.getWriteSourceInfo(zpAddr + 1);
 
-        // Only process if both low and high bytes were loaded from memory
+        // Get the last instructions that wrote to these ZP addresses
+        u16 lastWriteLow = cpu_.getLastWriteTo(zpAddr);
+        u16 lastWriteHigh = cpu_.getLastWriteTo(zpAddr + 1);
+
+        // Track information even if not loaded from memory
+        IndirectAccessInfo info;
+        info.instructionAddress = pc;
+        info.zpAddr = zpAddr;
+        info.zpPairAddr = zpAddr + 1;
+        info.lastWriteLow = lastWriteLow;
+        info.lastWriteHigh = lastWriteHigh;
+        info.effectiveAddress = effectiveAddr;
+
+        // Capture source addresses when available
+        if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
+            info.sourceLowAddress = lowSource.address;
+        }
+
+        if (highSource.type == RegisterSourceInfo::SourceType::Memory) {
+            info.sourceHighAddress = highSource.address;
+        }
+
+        indirectAccesses_.push_back(info);
+
+        // Enhanced logging
+        std::string sourceInfo;
         if (lowSource.type == RegisterSourceInfo::SourceType::Memory &&
             highSource.type == RegisterSourceInfo::SourceType::Memory) {
-
-            IndirectAccessInfo info;
-            info.instructionAddress = pc;
-            info.zpAddr = zpAddr;
-            info.zpPairAddr = zpAddr + 1;
-            info.lastWriteLow = cpu_.getLastWriteTo(zpAddr);
-            info.lastWriteHigh = cpu_.getLastWriteTo(zpAddr + 1);
-            info.sourceLowAddress = lowSource.address;
-            info.sourceHighAddress = highSource.address;
-            info.effectiveAddress = effectiveAddr;
-
-            indirectAccesses_.push_back(info);
-
-            util::Logger::debug("Recorded indirect access at $" +
-                util::wordToHex(pc) +
-                " through ZP $" + util::byteToHex(zpAddr) +
-                "/$" + util::byteToHex(zpAddr + 1) +
-                " pointing to $" + util::wordToHex(effectiveAddr));
+            sourceInfo = " (sources: $" + util::wordToHex(lowSource.address) +
+                "/$" + util::wordToHex(highSource.address) + ")";
         }
+
+        util::Logger::debug("Recorded indirect access at $" +
+            util::wordToHex(pc) +
+            " through ZP $" + util::byteToHex(zpAddr) +
+            "/$" + util::byteToHex(zpAddr + 1) +
+            " pointing to $" + util::wordToHex(effectiveAddr) +
+            sourceInfo);
     }
 
     /**
@@ -400,8 +416,8 @@ namespace sidblaster {
      * @brief Process all recorded indirect accesses
      *
      * Analyzes indirect memory access patterns to identify address references
-     * and pointer tables. This enhances the quality of the disassembly by
-     * properly labeling and formatting these references.
+     * and pointer tables. This enhanced version looks deeper at memory access
+     * patterns to identify more complex pointer references.
      */
     void DisassemblyWriter::processIndirectAccesses() {
         if (indirectAccesses_.empty()) {
@@ -411,7 +427,8 @@ namespace sidblaster {
 
         util::Logger::debug("Processing " + std::to_string(indirectAccesses_.size()) + " indirect accesses");
 
-        for (const auto& access : indirectAccesses_) {
+        // First pass: Mark all direct ZP pointer sources
+        for (auto& access : indirectAccesses_) {
             // Get the original byte values from the SID to determine the effective address
             const auto& original = sid_.getOriginalMemory();
             const u16 base = sid_.getOriginalMemoryBase();
@@ -436,30 +453,254 @@ namespace sidblaster {
                 originalEffectiveAddr,
                 RelocationInfo::Type::Low
             };
+            access.sourceLowMarked = true;
 
             relocationBytes_[access.sourceHighAddress] = {
                 originalEffectiveAddr,
                 RelocationInfo::Type::High
             };
+            access.sourceHighMarked = true;
 
             util::Logger::debug("Added relocation: $" +
                 util::wordToHex(access.sourceLowAddress) +
                 " (lo) and $" + util::wordToHex(access.sourceHighAddress) +
                 " (hi) for address $" + util::wordToHex(originalEffectiveAddr));
 
-            // Propagate relocations by analyzing the memory that contains these pointers
-            const auto sidStart = sid_.getLoadAddress();
-            if (access.sourceLowAddress >= sidStart &&
-                access.sourceHighAddress >= sidStart) {
-
-                // Mark these bytes for data block subdivision
-                const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceLowAddress);
-                const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceHighAddress);
-            }
+            // Mark these bytes for data block subdivision
+            const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceLowAddress);
+            const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceHighAddress);
         }
+
+        // Run multi-pass trace to find all pointer sources, including those copied during init
+        tracePointerSources();
 
         // After processing all indirect accesses, propagate relocation info
         propagateRelocationSources();
+    }
+
+    /**
+     * @brief Trace memory dependencies backward to find pointer table sources
+     *
+     * This method performs a multi-pass analysis to trace the origins of
+     * data used in indirect addressing, even when it's copied through
+     * multiple memory locations before being used.
+     */
+    void DisassemblyWriter::tracePointerSources() {
+        // First, collect all memory locations that we know are used for indirect addressing
+        std::set<u16> knownIndirectSources;
+        std::set<u16> processedAddresses;
+
+        // Start with known indirect sources (ZP pointer sources)
+        for (const auto& entry : relocationBytes_) {
+            knownIndirectSources.insert(entry.first);
+        }
+
+        // Keep tracking until we reach a fixed point (no new sources found)
+        bool foundNew = true;
+        int pass = 0;
+        const int MAX_PASSES = 5;
+
+        while (foundNew && pass < MAX_PASSES) {
+            foundNew = false;
+            pass++;
+
+            util::Logger::debug("Starting pointer source trace pass " + std::to_string(pass));
+
+            // For each memory address in the SID file
+            for (u16 addr = sid_.getLoadAddress(); addr < sid_.getLoadAddress() + sid_.getDataSize(); ++addr) {
+                // Skip if we've already processed this address
+                if (processedAddresses.count(addr) > 0) {
+                    continue;
+                }
+
+                processedAddresses.insert(addr);
+
+                // Get the RegisterSourceInfo for this address
+                RegisterSourceInfo sourceInfo = cpu_.getWriteSourceInfo(addr);
+
+                // Only interested in memory-to-memory copies
+                if (sourceInfo.type != RegisterSourceInfo::SourceType::Memory) {
+                    continue;
+                }
+
+                // Get source address of the write
+                u16 sourceAddr = sourceInfo.address;
+
+                // Skip if source is outside SID file
+                if (sourceAddr < sid_.getLoadAddress() ||
+                    sourceAddr >= sid_.getLoadAddress() + sid_.getDataSize()) {
+                    continue;
+                }
+
+                // If this address was written to from another address, and its 
+                // value is later used for indirect addressing
+                if (knownIndirectSources.count(addr) > 0) {
+                    // The source is also a pointer source!
+                    if (relocationBytes_.find(sourceAddr) == relocationBytes_.end()) {
+                        // Check if this forms a lo/hi pair with adjacent bytes
+                        u16 pairAddr = 0;
+                        bool isLow = false;
+
+                        // Look at memory written to addr+1 (potential hi byte)
+                        RegisterSourceInfo hiSourceInfo = cpu_.getWriteSourceInfo(addr + 1);
+                        if (hiSourceInfo.type == RegisterSourceInfo::SourceType::Memory &&
+                            hiSourceInfo.address == sourceAddr + 1) {
+                            // Found a lo/hi pair!
+                            pairAddr = sourceAddr + 1;
+                            isLow = true;
+                        }
+
+                        // Look at memory written to addr-1 (potential lo byte if addr is hi)
+                        RegisterSourceInfo loSourceInfo = cpu_.getWriteSourceInfo(addr - 1);
+                        if (loSourceInfo.type == RegisterSourceInfo::SourceType::Memory &&
+                            loSourceInfo.address == sourceAddr - 1) {
+                            // Found a lo/hi pair!
+                            pairAddr = sourceAddr - 1;
+                            isLow = false;
+                        }
+
+                        if (pairAddr != 0) {
+                            // Create relocation entries
+                            u16 loAddr = isLow ? sourceAddr : pairAddr;
+                            u16 hiAddr = isLow ? pairAddr : sourceAddr;
+
+                            // Get original bytes to calculate target address
+                            const auto& original = sid_.getOriginalMemory();
+                            const u16 base = sid_.getOriginalMemoryBase();
+
+                            // Skip if outside original memory range
+                            if (loAddr < base || loAddr >= base + original.size() ||
+                                hiAddr < base || hiAddr >= base + original.size()) {
+                                continue;
+                            }
+
+                            const u8 lo = original[loAddr - base];
+                            const u8 hi = original[hiAddr - base];
+
+                            // Reconstruct the target address
+                            const u16 targetAddr = lo | (hi << 8);
+
+                            // Add relocation entries
+                            relocationBytes_[loAddr] = {
+                                targetAddr,
+                                RelocationInfo::Type::Low
+                            };
+
+                            relocationBytes_[hiAddr] = {
+                                targetAddr,
+                                RelocationInfo::Type::High
+                            };
+
+                            // Add to known sources for next pass
+                            knownIndirectSources.insert(loAddr);
+                            knownIndirectSources.insert(hiAddr);
+
+                            // Mark as needing more passes
+                            foundNew = true;
+
+                            util::Logger::debug("Traced pointer source: $" +
+                                util::wordToHex(loAddr) + " (lo) and $" +
+                                util::wordToHex(hiAddr) + " (hi) for target $" +
+                                util::wordToHex(targetAddr));
+                        }
+                        else {
+                            // Single byte relocation (less common)
+                            RelocationInfo::Type relType =
+                                (addr % 2 == 0) ? RelocationInfo::Type::Low : RelocationInfo::Type::High;
+
+                            // Find the corresponding entry for this address
+                            auto it = relocationBytes_.find(addr);
+                            if (it != relocationBytes_.end()) {
+                                // Add relocation entry for the source
+                                relocationBytes_[sourceAddr] = {
+                                    it->second.effectiveAddr,
+                                    relType
+                                };
+
+                                // Add to known sources for next pass
+                                knownIndirectSources.insert(sourceAddr);
+
+                                // Mark as needing more passes
+                                foundNew = true;
+
+                                util::Logger::debug("Traced single byte pointer source: $" +
+                                    util::wordToHex(sourceAddr) + " for target $" +
+                                    util::wordToHex(it->second.effectiveAddr));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check for nearby entries that might be part of a table
+            std::vector<u16> tableSources(knownIndirectSources.begin(), knownIndirectSources.end());
+            for (u16 addr : tableSources) {
+                // Check for potential table entries nearby
+                for (int offset = -8; offset <= 8; offset += 2) {
+                    if (offset == 0) continue; // Skip the source itself
+
+                    u16 tableAddr = addr + offset;
+
+                    // Skip if outside SID file or already known
+                    if (tableAddr < sid_.getLoadAddress() ||
+                        tableAddr >= sid_.getLoadAddress() + sid_.getDataSize() ||
+                        knownIndirectSources.count(tableAddr) > 0 ||
+                        relocationBytes_.find(tableAddr) != relocationBytes_.end()) {
+                        continue;
+                    }
+
+                    // Check if content appears to be similar to other pointer values
+                    const auto& original = sid_.getOriginalMemory();
+                    const u16 base = sid_.getOriginalMemoryBase();
+
+                    // Skip if outside original memory
+                    if (tableAddr < base || tableAddr >= base + original.size() ||
+                        tableAddr + 1 < base || tableAddr + 1 >= base + original.size()) {
+                        continue;
+                    }
+
+                    const u8 lo = original[tableAddr - base];
+                    const u8 hi = original[tableAddr + 1 - base];
+
+                    // Check if this looks like a pointer (hi byte in reasonable range)
+                    if (hi >= 0x10 && hi <= 0x90) {
+                        const u16 potentialTarget = lo | (hi << 8);
+
+                        // Check if the target is within SID file
+                        if (potentialTarget >= sid_.getLoadAddress() &&
+                            potentialTarget < sid_.getLoadAddress() + sid_.getDataSize()) {
+
+                            // Add relocation entries
+                            relocationBytes_[tableAddr] = {
+                                potentialTarget,
+                                RelocationInfo::Type::Low
+                            };
+
+                            relocationBytes_[tableAddr + 1] = {
+                                potentialTarget,
+                                RelocationInfo::Type::High
+                            };
+
+                            // Add to known sources for next pass
+                            knownIndirectSources.insert(tableAddr);
+                            knownIndirectSources.insert(tableAddr + 1);
+
+                            // Mark as needing more passes
+                            foundNew = true;
+
+                            util::Logger::debug("Found table entry: $" +
+                                util::wordToHex(tableAddr) + " (lo) and $" +
+                                util::wordToHex(tableAddr + 1) + " (hi) for target $" +
+                                util::wordToHex(potentialTarget));
+                        }
+                    }
+                }
+            }
+        }
+
+        util::Logger::debug("Pointer source tracing completed after " +
+            std::to_string(pass) + " passes, found " +
+            std::to_string(relocationBytes_.size()) + " relocation bytes");
     }
 
 } // namespace sidblaster

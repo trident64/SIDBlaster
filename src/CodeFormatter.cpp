@@ -79,6 +79,7 @@ namespace sidblaster {
      *
      * Outputs data bytes in assembly format (.byte directives).
      * Handles relocation entries and unused bytes.
+     * Enhanced to include memory address ranges in comments.
      *
      * @param file Output stream
      * @param pc Program counter (will be updated)
@@ -113,6 +114,9 @@ namespace sidblaster {
                 const u16 target = relocIt->second.effectiveAddr;
                 const std::string targetLabel = labelGenerator_.formatAddress(target);
 
+                // Store the current PC for comment
+                const u16 startPC = pc;
+
                 file << "    .byte ";
                 if (relocIt->second.type == RelocEntry::Type::Low) {
                     file << "<(" << targetLabel << ")";
@@ -120,7 +124,12 @@ namespace sidblaster {
                 else {
                     file << ">(" << targetLabel << ")";
                 }
-                file << "\n";
+
+                // Add address range comment
+                file << util::padToColumn("", 96 - 20) << "//; $"
+                    << util::wordToHex(startPC) << " - "
+                    << util::wordToHex(pc) << "\n";
+
                 ++pc;
                 continue;
             }
@@ -128,6 +137,7 @@ namespace sidblaster {
             // Emit normal .byte data
             file << "    .byte ";
             int count = 0;
+            const u16 lineStartPC = pc; // Remember line start for comment
 
             while (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
                 // Stop at relocation bytes
@@ -146,6 +156,7 @@ namespace sidblaster {
                     byte = originalMemory[pc - originalBase];
                 }
                 else {
+                    // Use memory from the CPU instead of memoryTags (which is a different type)
                     byte = memory_[pc];
                 }
 
@@ -169,12 +180,26 @@ namespace sidblaster {
 
                 // Line break after 16 bytes
                 if (count == 16) {
+                    // Add address range comment before line break
+                    const u16 lineEndPC = pc - 1; // Last byte processed
+                    file << util::padToColumn("", 96 - 20) << "//; $"
+                        << util::wordToHex(lineStartPC) << " - "
+                        << util::wordToHex(lineEndPC);
+
                     file << "\n";
                     if (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
                         file << "    .byte ";
                     }
                     count = 0;
                 }
+            }
+
+            // Add comment to last line (if not already done by the line break)
+            if (count > 0) {
+                const u16 lineEndPC = pc - 1; // Last byte processed
+                file << util::padToColumn("", 96 - 20) << "//; $"
+                    << util::wordToHex(lineStartPC) << " - "
+                    << util::wordToHex(lineEndPC);
             }
 
             file << "\n";
