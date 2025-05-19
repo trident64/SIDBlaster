@@ -211,28 +211,19 @@ namespace sidblaster {
         // Get memory data flow from CPU
         const auto& dataFlow = cpu_.getMemoryDataFlow();
 
-        // Step 1: Initialize a RelocationTable
-        RelocationTable relocTable;
+        // Step 1: Initialize the RelocationTable (clear any existing entries)
+        relocTable_.clear();
 
         // Step 2: Process each indirect access
         for (const auto& access : indirectAccesses_) {
             u16 targetAddr = access.targetAddress;
             const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(targetAddr);
-            processRelocationChain(dataFlow, relocTable, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
-            processRelocationChain(dataFlow, relocTable, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
+            processRelocationChain(dataFlow, relocTable_, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
+            processRelocationChain(dataFlow, relocTable_, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
         }
 
         // Step 3: Dump the relocation table to a file for debugging
-        relocTable.dumpToFile("relocation_table.log");
-
-        // Step 4: Convert the relocation table to relocationBytes_ for backward compatibility
-        relocationBytes_.clear();
-        for (const auto& [addr, entry] : relocTable.getAllEntries()) {
-            relocationBytes_[addr] = {
-                entry.targetAddress,
-                entry.type == RelocationEntry::Type::Low ? RelocationInfo::Type::Low : RelocationInfo::Type::High
-            };
-        }
+        relocTable_.dumpToFile("relocation_table.log");
     }
 
     void DisassemblyWriter::processRelocationChain(const MemoryDataFlow& dataFlow, RelocationTable& relocTable, u16 addr, u16 targetAddr, RelocationEntry::Type relocType)
@@ -374,16 +365,6 @@ namespace sidblaster {
                     << util::wordToHex(pc - 1) << "\n";
             }
             else if (analyzer_.getMemoryType(pc) & MemoryType::Data) {
-                // Convert RelocationInfo to map of RelocEntry format expected by formatter
-                std::map<u16, struct RelocEntry> formatterRelocBytes;
-                for (const auto& [addr, info] : relocationBytes_) {
-                    RelocEntry entry;
-                    entry.targetAddr = info.targetAddr;
-                    entry.type = (info.type == RelocationInfo::Type::Low) ?
-                        RelocEntry::Type::Low : RelocEntry::Type::High;
-                    formatterRelocBytes[addr] = entry;
-                }
-
                 // Format data bytes
                 unusedByteCount += formatter_.formatDataBytes(
                     file,
@@ -391,7 +372,7 @@ namespace sidblaster {
                     sid_.getOriginalMemory(),
                     sid_.getOriginalMemoryBase(),
                     sidEnd,
-                    formatterRelocBytes,
+                    relocTable_.getAllEntries(),
                     analyzer_.getMemoryTypes());
             }
             else {

@@ -5,6 +5,7 @@
 // ==================================
 #include "CodeFormatter.h"
 #include "cpu6510.h"
+#include "DisassemblyWriter.h"
 
 #include <algorithm>
 #include <sstream>
@@ -107,7 +108,7 @@ namespace sidblaster {
         std::span<const u8> originalMemory,
         u16 originalBase,
         u16 endAddress,
-        const std::map<u16, RelocEntry>& relocationBytes,
+        const std::map<u16, RelocationEntry>& relocationBytes,
         std::span<const MemoryType> memoryTags) const {
 
         int unusedByteCount = 0;
@@ -123,7 +124,7 @@ namespace sidblaster {
             // Check for relocation byte
             auto relocIt = relocationBytes.find(pc);
             if (relocIt != relocationBytes.end()) {
-                const u16 target = relocIt->second.targetAddr;
+                const u16 target = relocIt->second.targetAddress;
                 const std::string targetLabel = labelGenerator_.formatAddress(target);
 
                 // Store the current PC for comment
@@ -133,7 +134,7 @@ namespace sidblaster {
                 // Build the line in a string stream
                 std::ostringstream lineSS;
                 lineSS << "    .byte ";
-                if (relocIt->second.type == RelocEntry::Type::Low) {
+                if (relocIt->second.type == RelocationEntry::Type::Low) {
                     lineSS << "<(" << targetLabel << ")";
                 }
                 else {

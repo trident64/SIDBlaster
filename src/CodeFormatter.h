@@ -5,9 +5,9 @@
 // ==================================
 #pragma once
 
-#include "DisassemblyTypes.h"
 #include "LabelGenerator.h"
 #include "SIDBlasterUtils.h"
+#include "RelocationStructs.h"
 
 #include <memory>
 #include <span>
@@ -78,7 +78,7 @@ namespace sidblaster {
             std::span<const u8> originalMemory,
             u16 originalBase,
             u16 endAddress,
-            const std::map<u16, RelocEntry>& relocationBytes,
+            const std::map<u16, RelocationEntry>& relocationBytes,
             std::span<const MemoryType> memoryTags) const;
 
         /**
