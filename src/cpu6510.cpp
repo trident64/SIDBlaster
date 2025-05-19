@@ -25,6 +25,10 @@ void CPU6510::reset() {
     pImpl_->reset();
 }
 
+void CPU6510::resetRegistersAndFlags() {
+    pImpl_->resetRegistersAndFlags();
+}
+
 /**
  * @brief Execute a single CPU instruction
  *

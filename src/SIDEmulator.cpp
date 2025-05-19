@@ -46,6 +46,7 @@ namespace sidblaster {
             ", Frames: " + std::to_string(options.frames));
 
         // Execute the init routine once
+        cpu_->resetRegistersAndFlags();
         cpu_->executeFunction(initAddr);
 
         // Run a short playback period to identify initial memory patterns
@@ -53,6 +54,7 @@ namespace sidblaster {
         const int preAnalysisFrames = 100;  // A small number of frames for initial analysis
         for (int frame = 0; frame < preAnalysisFrames; ++frame) {
             for (int call = 0; call < options.callsPerFrame; ++call) {
+                cpu_->resetRegistersAndFlags();
                 if (!cpu_->executeFunction(playAddr)) {
                     return false;
                 }
@@ -65,6 +67,7 @@ namespace sidblaster {
         }
 
         // Re-run the init routine to reset the player state
+        cpu_->resetRegistersAndFlags();
         cpu_->executeFunction(initAddr);
 
         // Mark end of initialization in trace log
@@ -85,6 +88,7 @@ namespace sidblaster {
         for (int frame = 0; frame < options.frames; ++frame) {
             // Execute play routine (multiple times per frame if requested)
             for (int call = 0; call < options.callsPerFrame; ++call) {
+                cpu_->resetRegistersAndFlags();
                 bGood = cpu_->executeFunction(playAddr);
                 if (!bGood)
                 {

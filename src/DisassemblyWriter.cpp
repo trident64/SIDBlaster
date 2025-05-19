@@ -147,7 +147,20 @@ namespace sidblaster {
             info.sourceHighAddress = highSource.address;
         }
 
-        indirectAccesses_.push_back(info);
+        // Check if this entry already exists before adding it
+        bool isDuplicate = false;
+        for (const auto& existing : indirectAccesses_) {
+            if (existing.zpAddr == zpAddr &&
+                existing.effectiveAddress == effectiveAddr) {
+                isDuplicate = true;
+                break;
+            }
+        }
+
+        // Only add if it's not a duplicate
+        if (!isDuplicate) {
+            indirectAccesses_.push_back(info);
+        }
     }
 
     /**

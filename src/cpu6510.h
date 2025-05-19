@@ -192,6 +192,7 @@ public:
     CPU6510& operator=(CPU6510&&) = delete;
 
     void reset();
+    void resetRegistersAndFlags();
     void step();
 
     // Execution control

@@ -46,6 +46,17 @@ void CPU6510Impl::reset() {
     onVICWriteCallback_ = nullptr;
 }
 
+void CPU6510Impl::resetRegistersAndFlags() {
+    // Reset A, X, Y registers to 0
+    cpuState_.setA(0);
+    cpuState_.setX(0);
+    cpuState_.setY(0);
+
+    // Reset status register to default value
+    // Keep Unused flag set (bit 5), set Interrupt flag
+    cpuState_.setStatus(static_cast<u8>(StatusFlag::Interrupt) | static_cast<u8>(StatusFlag::Unused));
+}
+
 /**
  * @brief Execute a single CPU instruction
  *

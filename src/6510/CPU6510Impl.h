@@ -21,6 +21,7 @@ public:
     ~CPU6510Impl() = default;
 
     void reset();
+    void resetRegistersAndFlags();
     void step();
 
     // Execution control
