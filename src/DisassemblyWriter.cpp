@@ -231,18 +231,9 @@ namespace sidblaster {
 
         // Step 2: Process each indirect access
         for (const auto& access : indirectAccesses_) {
-            // Get the zero page addresses used for indirect addressing
-            u16 zpLow = access.zpAddr;
-            u16 zpHigh = access.zpAddr + 1;
             u16 targetAddr = access.effectiveAddress;
-
-            u16 sourceLo = access.sourceLowAddress;
-            u16 sourceHi = access.sourceHighAddress;
-            relocTable.addEntry(sourceLo, targetAddr, RelocationEntry::Type::Low);
-            relocTable.addEntry(sourceHi, targetAddr, RelocationEntry::Type::High);
-
-            processRelocationChain(sourceLo, targetAddr, RelocationEntry::Type::Low, dataFlow, relocTable);
-            processRelocationChain(sourceHi, targetAddr, RelocationEntry::Type::High, dataFlow, relocTable);
+            processRelocationChain(dataFlow, relocTable, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
+            processRelocationChain(dataFlow, relocTable, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
         }
 
         // Step 3: Dump the relocation table to a file for debugging
@@ -258,45 +249,20 @@ namespace sidblaster {
         }
     }
 
-    /**
-     * @brief Process a relocation chain
-     *
-     * Recursively follows the data flow backwards to find all sources that
-     * feed into a relocation point.
-     */
-    void DisassemblyWriter::processRelocationChain(u16 currentAddr, u16 targetAddr,
-        RelocationEntry::Type type,
-        const MemoryDataFlow& dataFlow,
-        RelocationTable& relocTable,
-        int depth) {
-        // Limit recursion depth to prevent stack overflow
-        if (depth > 10) {
-            return;
-        }
+    void DisassemblyWriter::processRelocationChain(const MemoryDataFlow& dataFlow, RelocationTable& relocTable, u16 addr, u16 targetAddr, RelocationEntry::Type relocType)
+    {
+        relocTable.addEntry(addr, targetAddr, relocType);
+        const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(addr);
 
-        // Look for sources of this address in the data flow
-        auto it = dataFlow.memoryWriteSources.find(currentAddr);
-        if (it == dataFlow.memoryWriteSources.end() || it->second.empty()) {
-            return; // No sources found
-        }
+        auto it = dataFlow.memoryWriteSources.find(addr);
+        if (it != dataFlow.memoryWriteSources.end())
+        {
+            const std::vector<u16>& newAddrs = it->second;
 
-        // Process each source
-        for (u16 sourceAddr : it->second) {
-            // Skip self-references and already processed addresses
-            if (sourceAddr == currentAddr || relocTable.hasEntry(sourceAddr)) {
-                continue;
+            for (u16 newAddr : newAddrs)
+            {
+                processRelocationChain(dataFlow, relocTable, newAddr, targetAddr, relocType);
             }
-
-            util::Logger::debug("    Source: $" + util::wordToHex(sourceAddr));
-
-            // Add this source to the relocation table
-            relocTable.addEntry(sourceAddr, targetAddr, type);
-
-            // Mark for potential subdivision in the ASM output
-            const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(sourceAddr);
-
-            // Recursively process this source's sources
-            processRelocationChain(sourceAddr, targetAddr, type, dataFlow, relocTable, depth + 1);
         }
     }
 

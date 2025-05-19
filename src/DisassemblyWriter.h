@@ -272,22 +272,8 @@ namespace sidblaster {
          */
         void buildRelocationTable();
 
-        /**
-         * @brief Process a relocation chain
-         *
-         * Recursively follows the data flow backwards to find all sources that
-         * feed into a relocation point.
-         *
-         * @param currentAddr Current address to process
-         * @param targetAddr Target address for relocation
-         * @param type Relocation type (low or high byte)
-         * @param dataFlow Memory data flow information
-         * @param relocTable Relocation table to update
-         * @param depth Current recursion depth (for limiting)
-         */
-        void processRelocationChain(u16 currentAddr, u16 targetAddr, RelocationEntry::Type type,
-            const MemoryDataFlow& dataFlow, RelocationTable& relocTable,
-            int depth = 0);
+        void processRelocationChain(const MemoryDataFlow& dataFlow, RelocationTable& relocTable, u16 addr, u16 targetAddr, RelocationEntry::Type relocType);
+
     };
 
 } // namespace sidblaster
