@@ -127,7 +127,6 @@ namespace sidblaster {
         struct IndirectAccessInfo {
             u16 instructionAddress;   // Address of the instruction
             u8 zpAddr;                // Zero page pointer address (low byte)
-            u8 zpPairAddr;            // Zero page pointer address (high byte)
             u16 lastWriteLow;         // Address of last write to low byte
             u16 lastWriteHigh;        // Address of last write to high byte
             u16 sourceLowAddress;     // Source of the low byte value
@@ -174,14 +173,6 @@ namespace sidblaster {
          */
         void propagateRelocationSources();
 
-        /**
-         * @brief Trace memory dependencies backward to find pointer table sources
-         *
-         * This method performs a multi-pass analysis to trace the origins of
-         * data used in indirect addressing, even when it's copied through
-         * multiple memory locations before being used.
-         */
-        void tracePointerSources();
     };
 
 } // namespace sidblaster

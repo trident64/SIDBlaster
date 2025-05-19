@@ -6,6 +6,8 @@
 #include "AddressingModes.h"
 #include "CPUState.h"
 
+struct MemoryDataFlow;  // Forward declaration
+
 /**
  * @brief Implementation class for CPU6510
  *
@@ -68,6 +70,12 @@ public:
     RegisterSourceInfo getRegSourceX() const;
     RegisterSourceInfo getRegSourceY() const;
     RegisterSourceInfo getWriteSourceInfo(u16 addr) const;
+
+    /**
+     * @brief Get the memory data flow tracking information
+     * @return Reference to the memory data flow tracking
+     */
+    const MemoryDataFlow& getMemoryDataFlow() const;
 
     // Callbacks
     using IndirectReadCallback = CPU6510::IndirectReadCallback;

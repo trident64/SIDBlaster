@@ -129,31 +129,4 @@ namespace sidblaster {
         return writer_->generateAsmFile(outputPath, sidLoad, sidInit, sidPlay);
     }
 
-    /**
-     * @brief Set the callback for indirect memory reads
-     *
-     * Allows external code to be notified of indirect memory accesses
-     * for tracking and analysis.
-     *
-     * @param callback Function to call on indirect reads
-     */
-    void Disassembler::setIndirectReadCallback(
-        std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> callback) {
-
-        indirectReadCallback_ = std::move(callback);
-
-        // If writer exists, set up the indirect access handler
-        if (writer_ && indirectReadCallback_) {
-            indirectReadCallback_ = [this](u16 pc, u8 zpAddr, u16 effectiveAddr) {
-                // Process in the writer
-                writer_->addIndirectAccess(pc, zpAddr, effectiveAddr);
-
-                // Forward to user callback if any
-                if (this->indirectReadCallback_) {
-                    this->indirectReadCallback_(pc, zpAddr, effectiveAddr);
-                }
-                };
-        }
-    }
-
 } // namespace sidblaster

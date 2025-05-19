@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "cpu6510.h"
 #include <array>
@@ -129,6 +129,12 @@ public:
      */
     void setWriteSourceInfo(u16 addr, const RegisterSourceInfo& info);
 
+    /**
+     * @brief Get the memory data flow tracking information
+     * @return Reference to the memory data flow tracking
+     */
+    const MemoryDataFlow& getMemoryDataFlow() const;
+
 private:
     // Reference to CPU implementation
     CPU6510Impl& cpu_;
@@ -142,4 +148,7 @@ private:
     // Track the source of writes to memory
     std::vector<u16> lastWriteToAddr_;
     std::vector<RegisterSourceInfo> writeSourceInfo_;
+
+    MemoryDataFlow dataFlow_;  // Memory data flow tracking
+
 };

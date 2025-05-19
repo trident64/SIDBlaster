@@ -69,16 +69,6 @@ namespace sidblaster {
             u16 sidInit,
             u16 sidPlay);
 
-        /**
-         * @brief Set the callback for indirect memory reads
-         * @param callback Function to call on indirect reads
-         *
-         * Allows external code to be notified of indirect memory accesses
-         * for tracking and analysis.
-         */
-        void setIndirectReadCallback(
-            std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> callback);
-
     private:
         const CPU6510& cpu_;  // Reference to CPU
         const SIDLoader& sid_;  // Reference to SID loader
@@ -88,9 +78,6 @@ namespace sidblaster {
         std::unique_ptr<LabelGenerator> labelGenerator_;
         std::unique_ptr<CodeFormatter> formatter_;
         std::unique_ptr<DisassemblyWriter> writer_;
-
-        // Callback for indirect memory reads
-        std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)> indirectReadCallback_;
 
         /**
          * @brief Initialize the disassembler components

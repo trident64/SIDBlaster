@@ -10,6 +10,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -147,6 +148,37 @@ struct OpcodeInfo {
     bool illegal;
 };
 
+/**
+ * @struct MemoryDataFlow
+ * @brief Tracks data flow between memory locations
+ *
+ * Used to analyze how data moves through memory, especially for tracking
+ * pointer chains used in indirect addressing.
+ */
+struct MemoryDataFlow {
+    /**
+     * @struct SourceInfo
+     * @brief Information about a memory location that provided data
+     */
+    struct SourceInfo {
+        u16 address;    ///< Source memory address
+    };
+
+    /**
+     * @struct DestInfo
+     * @brief Information about a memory location that received data
+     */
+    struct DestInfo {
+        u16 address;    ///< Destination memory address
+    };
+
+    /// Mapping from destination addresses to their source addresses
+    std::map<u16, std::vector<SourceInfo>> memoryWriteSources;
+
+    /// Mapping from source addresses to their destination addresses
+    std::map<u16, std::vector<DestInfo>> memoryWriteDests;
+};
+
 class CPU6510 {
 public:
     // Constructor and basic operations
@@ -210,6 +242,12 @@ public:
     RegisterSourceInfo getRegSourceY() const;
     RegisterSourceInfo getWriteSourceInfo(u16 addr) const;
 
+    /**
+   * @brief Get the memory data flow tracking information
+   * @return Reference to the memory data flow tracking
+   */
+    const MemoryDataFlow& getMemoryDataFlow() const;
+    
     // Callbacks
     using IndirectReadCallback = std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)>;
     using MemoryWriteCallback = std::function<void(u16 addr, u8 value)>;

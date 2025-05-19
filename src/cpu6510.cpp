@@ -406,3 +406,7 @@ void CPU6510::setOnSIDWriteCallback(MemoryWriteCallback callback) {
 void CPU6510::setOnVICWriteCallback(MemoryWriteCallback callback) {
     pImpl_->setOnVICWriteCallback(std::move(callback));
 }
+
+const MemoryDataFlow& CPU6510::getMemoryDataFlow() const {
+    return pImpl_->getMemoryDataFlow();
+}
