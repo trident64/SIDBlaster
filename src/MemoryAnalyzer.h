@@ -143,13 +143,6 @@ namespace sidblaster {
         u16 startAddress_;                  // Start address of region to analyze
         u16 endAddress_;                    // End address of region to analyze
         std::vector<MemoryType> memoryTypes_; // Classification of each memory byte
-
-        /**
-         * @brief Check if an address is valid for analysis
-         * @param addr Address to check
-         * @return True if the address is within the analysis range
-         */
-        bool isValidAddress(u16 addr) const;
     };
 
 } // namespace sidblaster

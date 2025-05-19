@@ -28,7 +28,6 @@ namespace sidblaster {
         : cpu_(cpu),
         labelGenerator_(labelGenerator),
         memory_(memory) {
-        // No configuration loading needed anymore
     }
 
     /**
@@ -388,66 +387,6 @@ namespace sidblaster {
         }
 
         return labelGenerator_.formatAddress(baseAddr) + "," + indexReg;
-    }
-
-    /**
-     * @brief Format a SID register with its name
-     *
-     * Converts numeric SID register addresses to symbolic names.
-     *
-     * @param addr SID register address
-     * @param usedBases Vector of used SID base addresses
-     * @return Formatted register name
-     */
-    std::string CodeFormatter::formatSIDRegister(
-        u16 addr,
-        const std::vector<u16>& usedBases) const {
-
-        const u16 base = addr & 0xffe0; // Align to 32 bytes
-        const u8 offset = addr & 0x1f;
-
-        // Find the SID index
-        for (size_t i = 0; i < usedBases.size(); ++i) {
-            if (usedBases[i] == base) {
-                const std::string regName = getSIDRegisterName(offset);
-                if (!regName.empty()) {
-                    return "SID" + std::to_string(i) + "." + regName;
-                }
-                else {
-                    return "SID" + std::to_string(i) + "+" + std::to_string(offset);
-                }
-            }
-        }
-
-        // Fall back to hex
-        return "$" + util::wordToHex(addr);
-    }
-
-    /**
-     * @brief Get the name of a SID register
-     *
-     * Maps SID register offsets to their standard names.
-     *
-     * @param offset Register offset
-     * @return Register name
-     */
-    std::string CodeFormatter::getSIDRegisterName(u8 offset) const {
-        static const std::array<std::string_view, 25> sidRegs = {
-            "Voice1FreqLo", "Voice1FreqHi", "Voice1PulseLo", "Voice1PulseHi",
-            "Voice1Control", "Voice1AttackDecay", "Voice1SustainRelease",
-            "Voice2FreqLo", "Voice2FreqHi", "Voice2PulseLo", "Voice2PulseHi",
-            "Voice2Control", "Voice2AttackDecay", "Voice2SustainRelease",
-            "Voice3FreqLo", "Voice3FreqHi", "Voice3PulseLo", "Voice3PulseHi",
-            "Voice3Control", "Voice3AttackDecay", "Voice3SustainRelease",
-            "FilterCutoffLo", "FilterCutoffHi", "FilterResonanceRouting",
-            "FilterModeVolume"
-        };
-
-        if (offset < sidRegs.size()) {
-            return std::string(sidRegs[offset]);
-        }
-
-        return "";
     }
 
 } // namespace sidblaster

@@ -78,7 +78,6 @@ bool CPU6510Impl::executeFunction(u16 address) {
     // Maximum number of steps to prevent infinite loops
     const int MAX_STEPS = DEFAULT_SID_EMULATION_FRAMES;
     int stepCount = 0;
-    bool enableTracing = false; // Set to false to avoid excessive logging
 
     // Track the last few PCs to detect tight loops
     const int HISTORY_SIZE = 8;
@@ -131,44 +130,6 @@ bool CPU6510Impl::executeFunction(u16 address) {
 
         // Fetch the opcode
         const u8 opcode = fetchOpcode(currentPC);
-
-        // Log the current instruction if tracing is enabled
-        if (enableTracing) {
-            std::ostringstream logStr;
-            logStr << "$" << sidblaster::util::wordToHex(currentPC) << ": "
-                << std::string(getMnemonic(opcode)) << " ";
-
-            // Add operand information based on addressing mode
-            const auto mode = getAddressingMode(opcode);
-            const int size = getInstructionSize(opcode);
-
-            if (size > 1) {
-                // Get operand bytes
-                if (size == 2) {
-                    logStr << "#$" << sidblaster::util::byteToHex(memory_.getMemoryAt(currentPC + 1));
-                }
-                else if (size == 3) {
-                    const u16 operand = memory_.getMemoryAt(currentPC + 1) |
-                        (memory_.getMemoryAt(currentPC + 2) << 8);
-
-                    // Check for problematic jump targets
-                    if ((opcode == 0x4C || opcode == 0x20) && // JMP or JSR
-                        operand < 0x0100 &&
-                        reportedProblematicJumps.find(operand) == reportedProblematicJumps.end()) {
-
-                        sidblaster::util::Logger::warning("Potential problematic jump at $" +
-                            sidblaster::util::wordToHex(currentPC) +
-                            " to zero page address $" +
-                            sidblaster::util::wordToHex(operand));
-                        reportedProblematicJumps.insert(operand);
-                    }
-
-                    logStr << "$" << sidblaster::util::wordToHex(operand);
-                }
-            }
-
-            sidblaster::util::Logger::debug(logStr.str());
-        }
 
         // Special handling for key instructions even when tracing is disabled
         const auto mode = getAddressingMode(opcode);

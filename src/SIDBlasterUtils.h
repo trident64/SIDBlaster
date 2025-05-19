@@ -92,20 +92,6 @@ namespace sidblaster {
         };
 
         /**
-         * @brief Normalize various address formats to a single numeric representation
-         * @param addrStr The address string to normalize
-         * @return The normalized address as a numeric value
-         * @throws std::exception if the address cannot be parsed
-         *
-         * Supports multiple common formats:
-         * - Decimal: "1024" (interpreted as decimal)
-         * - Hex with 0x prefix: "0x400" (interpreted as hex)
-         * - Hex with $ prefix: "$400" (interpreted as hex)
-         * - Unprefixed hex: "400" (interpreted as hex if it contains A-F chars)
-         */
-        uint32_t normalizeAddress(const std::string& addrStr);
-
-        /**
          * @class Logger
          * @brief Logging utility for the SIDBlaster project
          *

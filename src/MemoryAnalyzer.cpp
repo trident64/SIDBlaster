@@ -268,16 +268,4 @@ namespace sidblaster {
         return targets;
     }
 
-    /**
-     * @brief Check if an address is valid for analysis
-     *
-     * Verifies that an address falls within the range being analyzed.
-     *
-     * @param addr Address to check
-     * @return True if the address is within the analysis range
-     */
-    bool MemoryAnalyzer::isValidAddress(u16 addr) const {
-        return addr >= startAddress_ && addr < endAddress_;
-    }
-
 } // namespace sidblaster

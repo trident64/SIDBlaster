@@ -217,13 +217,6 @@ namespace sidblaster {
         std::unordered_map<std::string, std::vector<AccessInfo>> dataBlockAccessMap_;
         std::unordered_map<std::string, std::vector<std::pair<u16, u16>>> dataBlockSubdivisions_;
         std::set<u16> pendingSubdivisionAddresses_;  // Addresses pending subdivision
-
-        /**
-         * @brief Build subdivisions for data blocks
-         *
-         * Analyzes access patterns to intelligently subdivide data blocks.
-         */
-        void buildDataBlockSubdivisions();
     };
 
 } // namespace sidblaster

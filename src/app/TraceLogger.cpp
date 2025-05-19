@@ -95,12 +95,9 @@ namespace sidblaster {
         const std::string& relocatedLog,
         const std::string& reportFile) {
 
-        // Create a local non-const copy for internal use
-        std::string reportFilePath = reportFile;
-
         std::ifstream original(originalLog, std::ios::binary);
         std::ifstream relocated(relocatedLog, std::ios::binary);
-        std::ofstream report(reportFilePath);
+        std::ofstream report(reportFile);
 
         if (!original || !relocated || !report) {
             util::Logger::error("Failed to open trace log files for comparison");

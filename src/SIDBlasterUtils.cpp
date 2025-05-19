@@ -148,48 +148,6 @@ namespace sidblaster {
         }
 
         /**
-         * @brief Normalize various address formats to a numeric value
-         *
-         * Handles different address format notations including decimal,
-         * hexadecimal with various prefixes, and auto-detecting hex.
-         *
-         * @param addrStr The address string to normalize
-         * @return The normalized address as a numeric value
-         */
-        uint32_t normalizeAddress(const std::string& addrStr) {
-            std::string trimmed = addrStr;
-
-            // Handle hex format with 0x prefix
-            if (trimmed.size() >= 2 && trimmed.substr(0, 2) == "0x") {
-                return std::stoul(trimmed.substr(2), nullptr, 16);
-            }
-            // Handle hex format with $ prefix
-            else if (!trimmed.empty() && trimmed[0] == '$') {
-                return std::stoul(trimmed.substr(1), nullptr, 16);
-            }
-            // Try to determine format based on content
-            else {
-                // Check if it looks like a hex number (contains A-F)
-                bool containsHexChars = false;
-                for (char c : trimmed) {
-                    if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-                        containsHexChars = true;
-                        break;
-                    }
-                }
-
-                if (containsHexChars) {
-                    // It's a hex number without prefix
-                    return std::stoul(trimmed, nullptr, 16);
-                }
-                else {
-                    // Assume decimal
-                    return std::stoul(trimmed, nullptr, 10);
-                }
-            }
-        }
-
-        /**
          * @brief Helper function for safe localtime
          *
          * Provides a cross-platform way to get the local time structure

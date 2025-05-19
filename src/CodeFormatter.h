@@ -121,32 +121,10 @@ namespace sidblaster {
             u8 minOffset,
             char indexReg) const;
 
-        /**
-         * @brief Format a SID register with its name
-         * @param addr SID register address
-         * @param usedBases Vector of used SID base addresses
-         * @return Formatted register name
-         *
-         * Converts numeric SID register addresses to symbolic names.
-         */
-        std::string formatSIDRegister(
-            u16 addr,
-            const std::vector<u16>& usedBases) const;
-
-        /**
-         * @brief Get the name of a SID register
-         * @param offset Register offset
-         * @return Register name
-         *
-         * Maps SID register offsets to their standard names.
-         */
-        std::string getSIDRegisterName(u8 offset) const;
-
     private:
         const CPU6510& cpu_;                      // Reference to CPU
         const LabelGenerator& labelGenerator_;    // Reference to label generator
         std::span<const u8> memory_;              // Memory data
-        std::vector<u16> usedSidBases_;           // SID base addresses in use
     };
 
 } // namespace sidblaster
