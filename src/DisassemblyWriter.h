@@ -5,6 +5,7 @@
 // ==================================
 #pragma once
 
+#include "cpu6510.h"
 #include "CodeFormatter.h"
 #include "DisassemblyTypes.h"
 #include "LabelGenerator.h"
@@ -40,6 +41,104 @@ namespace sidblaster {
     struct RelocationInfo {
         u16 effectiveAddr;                  // Target address being referenced
         enum class Type { Low, High } type; // Whether this is a low or high byte
+    };
+
+    /**
+     * @struct RelocationEntry
+     * @brief Information about a memory location that needs relocation
+     */
+    struct RelocationEntry {
+        u16 targetAddress;          // The effective address being pointed to
+        enum class Type {
+            Low,                    // Low byte of address
+            High                    // High byte of address
+        } type;
+
+        std::string toString() const {
+            return std::string(type == Type::Low ? "LOW" : "HIGH") +
+                " byte of $" + util::wordToHex(targetAddress);
+        }
+    };
+
+    /**
+     * @class RelocationTable
+     * @brief Central registry of all memory locations that need relocation
+     */
+    class RelocationTable {
+    public:
+        /**
+         * @brief Add a relocation entry
+         * @param addr Memory address to mark for relocation
+         * @param targetAddr The target address it points to
+         * @param type Whether this is a low or high byte
+         */
+        void addEntry(u16 addr, u16 targetAddr, RelocationEntry::Type type) {
+            entries_[addr] = { targetAddr, type };
+        }
+
+        /**
+         * @brief Check if an address needs relocation
+         * @param addr Memory address to check
+         * @return True if address is marked for relocation
+         */
+        bool hasEntry(u16 addr) const {
+            return entries_.find(addr) != entries_.end();
+        }
+
+        /**
+         * @brief Get the relocation entry for an address
+         * @param addr Memory address
+         * @return The relocation entry or nullptr if not found
+         */
+        const RelocationEntry* getEntry(u16 addr) const {
+            auto it = entries_.find(addr);
+            if (it != entries_.end()) {
+                return &it->second;
+            }
+            return nullptr;
+        }
+
+        /**
+         * @brief Get all relocation entries
+         * @return The map of addresses to relocation entries
+         */
+        const std::map<u16, RelocationEntry>& getAllEntries() const {
+            return entries_;
+        }
+
+        /**
+         * @brief Clear all entries
+         */
+        void clear() {
+            entries_.clear();
+        }
+
+        /**
+         * @brief Dump the relocation table to a file
+         * @param filename Output file path
+         */
+        void dumpToFile(const std::string& filename) const {
+            std::ofstream file(filename);
+            if (!file) {
+                util::Logger::error("Failed to open relocation table dump file: " + filename);
+                return;
+            }
+
+            file << "===== RELOCATION TABLE =====\n\n";
+            file << "Format: address -> target (type)\n\n";
+
+            for (const auto& [addr, entry] : entries_) {
+                file << "$" << util::wordToHex(addr) << " -> $"
+                    << util::wordToHex(entry.targetAddress) << " ("
+                    << (entry.type == RelocationEntry::Type::Low ? "LOW" : "HIGH") << ")\n";
+            }
+
+            file.close();
+            util::Logger::info("Relocation table written to: " + filename);
+        }
+
+    private:
+        std::map<u16, RelocationEntry> entries_;
     };
 
     /**
@@ -166,13 +265,29 @@ namespace sidblaster {
         int disassembleToFile(std::ofstream& file);
 
         /**
-         * @brief Propagate relocation sources
+         * @brief Build the relocation table from indirect accesses and data flow
          *
-         * Analyzes and propagates relocation information across
-         * the disassembly to ensure consistent address references.
+         * Analyzes all indirect memory accesses and traces data flow chains
+         * to build a consolidated table of all addresses needing relocation.
          */
-        void propagateRelocationSources();
+        void buildRelocationTable();
 
+        /**
+         * @brief Process a relocation chain
+         *
+         * Recursively follows the data flow backwards to find all sources that
+         * feed into a relocation point.
+         *
+         * @param currentAddr Current address to process
+         * @param targetAddr Target address for relocation
+         * @param type Relocation type (low or high byte)
+         * @param dataFlow Memory data flow information
+         * @param relocTable Relocation table to update
+         * @param depth Current recursion depth (for limiting)
+         */
+        void processRelocationChain(u16 currentAddr, u16 targetAddr, RelocationEntry::Type type,
+            const MemoryDataFlow& dataFlow, RelocationTable& relocTable,
+            int depth = 0);
     };
 
 } // namespace sidblaster

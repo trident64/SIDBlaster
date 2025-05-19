@@ -179,17 +179,25 @@ RegisterSourceInfo MemorySubsystem::getWriteSourceInfo(u16 addr) const {
 void MemorySubsystem::setWriteSourceInfo(u16 addr, const RegisterSourceInfo& info) {
     writeSourceInfo_[addr] = info;
 
-    // Also update data flow if this is a memory-to-memory copy
-    if (info.type == RegisterSourceInfo::SourceType::Memory) {
-        // Record that this memory location's data came from another memory location
-        dataFlow_.memoryWriteSources[addr].push_back({
-            info.address,
-            });
+    // Update data flow if this is a memory-to-memory copy and not a self-reference
+    if (info.type == RegisterSourceInfo::SourceType::Memory && info.address != addr) {
+        u16 sourceAddr = info.address;
 
-        // Record the reverse relationship too
-        dataFlow_.memoryWriteDests[info.address].push_back({
-            addr,
-            });
+        // Check if this source is already recorded
+        auto& sources = dataFlow_.memoryWriteSources[addr];
+        bool alreadyExists = false;
+
+        for (const auto& existingSource : sources) {
+            if (existingSource == sourceAddr) {
+                alreadyExists = true;
+                break;
+            }
+        }
+
+        // Only add if it's not already in the list
+        if (!alreadyExists) {
+            sources.push_back(sourceAddr);
+        }
     }
 }
 

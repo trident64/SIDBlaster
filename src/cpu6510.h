@@ -156,27 +156,7 @@ struct OpcodeInfo {
  * pointer chains used in indirect addressing.
  */
 struct MemoryDataFlow {
-    /**
-     * @struct SourceInfo
-     * @brief Information about a memory location that provided data
-     */
-    struct SourceInfo {
-        u16 address;    ///< Source memory address
-    };
-
-    /**
-     * @struct DestInfo
-     * @brief Information about a memory location that received data
-     */
-    struct DestInfo {
-        u16 address;    ///< Destination memory address
-    };
-
-    /// Mapping from destination addresses to their source addresses
-    std::map<u16, std::vector<SourceInfo>> memoryWriteSources;
-
-    /// Mapping from source addresses to their destination addresses
-    std::map<u16, std::vector<DestInfo>> memoryWriteDests;
+    std::map<u16, std::vector<u16>> memoryWriteSources;
 };
 
 class CPU6510 {
