@@ -132,14 +132,12 @@ namespace sidblaster {
          * @param cpu Pointer to CPU instance
          * @param sid Pointer to SID loader instance
          * @param frames Number of frames to emulate
-         * @param backupAndRestore Whether to backup and restore memory (default: true)
          * @return True if emulation completed successfully
          */
         bool runSIDEmulation(
             CPU6510* cpu,
             SIDLoader* sid,
-            int frames,
-            bool backupAndRestore = true);
+            int frames);
 
     }
 }

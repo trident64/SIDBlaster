@@ -205,7 +205,6 @@ namespace sidblaster {
         emulationOptions.frames = options.frames > 0 ?
             options.frames : util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES);
 
-        emulationOptions.backupAndRestore = true;
         emulationOptions.traceEnabled = options.enableTracing;
         emulationOptions.traceFormat = options.traceFormat;
         emulationOptions.traceLogPath = options.traceLogPath;

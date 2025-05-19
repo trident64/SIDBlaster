@@ -32,10 +32,8 @@ namespace sidblaster {
             util::Logger::debug("Trace logging enabled to: " + options.traceLogPath);
         }
 
-        // Create a backup of memory if requested
-        if (options.backupAndRestore) {
-            sid_->backupMemory();
-        }
+        // Create a backup of memory
+        sid_->backupMemory();
 
         // Initialize the SID
         const u16 initAddr = sid_->getInitAddress();
@@ -121,10 +119,8 @@ namespace sidblaster {
         util::Logger::debug("SID emulation complete - Average cycles per frame: " +
             std::to_string(avgCycles) + ", Maximum: " + std::to_string(maxCyclesPerFrame_));
 
-        // Restore original memory if requested
-        if (options.backupAndRestore) {
-            sid_->restoreMemory();
-        }
+        // Restore original memory
+        sid_->restoreMemory();
 
         return true;
     }

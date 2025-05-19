@@ -156,8 +156,7 @@ namespace sidblaster {
                 continue;
             }
 
-            // Emit normal .byte data
-            const u16 lineStartPC = pc; // Remember line start for comment
+            u16 lineStartPC = pc; // Remember line start for comment
 
             // Build the line in a string stream
             std::ostringstream lineSS;
@@ -165,6 +164,7 @@ namespace sidblaster {
 
             int count = 0;
             while (pc < endAddress && (memoryTags[pc] & MemoryType::Data)) {
+
                 // Stop at relocation bytes
                 if (relocationBytes.count(pc)) {
                     break;
@@ -225,6 +225,8 @@ namespace sidblaster {
                         lineSS << "    .byte ";
                         count = 0;
                     }
+
+                    lineStartPC = pc;
                 }
             }
 

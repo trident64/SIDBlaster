@@ -166,7 +166,9 @@ namespace sidblaster {
                 return bestLabel;
             }
             else {
-                return bestLabel + "+" + std::to_string(offset);
+                std::ostringstream oss;
+                oss << bestLabel << " + $" << std::hex << std::uppercase << offset;
+                return oss.str();
             }
         }
 
@@ -178,7 +180,9 @@ namespace sidblaster {
                     return block.label;
                 }
                 else {
-                    return block.label + "+" + std::to_string(offset);
+                    std::ostringstream oss;
+                    oss << block.label << " + $" << std::hex << std::uppercase << offset;
+                    return oss.str();
                 }
             }
         }

@@ -224,19 +224,14 @@ namespace sidblaster {
          * to identify address references and pointer tables.
          */
         struct IndirectAccessInfo {
-            u16 instructionAddress;   // Address of the instruction
-            u8 zpAddr;                // Zero page pointer address (low byte)
-            u16 lastWriteLow;         // Address of last write to low byte
-            u16 lastWriteHigh;        // Address of last write to high byte
-            u16 sourceLowAddress;     // Source of the low byte value
-            u16 sourceHighAddress;    // Source of the high byte value
-            u16 effectiveAddress;     // Effective address accessed
-
-            // Track if these pointer sources have been marked for relocation
-            bool sourceLowMarked = false;
-            bool sourceHighMarked = false;
+            u16 instructionAddress = 0;   // Address of the instruction
+            u8 zpAddr = 0;                // Zero page pointer address (low byte)
+            u16 lastWriteLow = 0;         // Address of last write to low byte
+            u16 lastWriteHigh = 0;        // Address of last write to high byte
+            u16 sourceLowAddress = 0;     // Source of the low byte value
+            u16 sourceHighAddress = 0;    // Source of the high byte value
+            u16 targetAddress = 0;        // Effective address targetted
         };
-
         std::vector<IndirectAccessInfo> indirectAccesses_;  // List of indirect accesses
 
         /**

@@ -136,7 +136,7 @@ namespace sidblaster {
         info.zpAddr = zpAddr;
         info.lastWriteLow = lastWriteLow;
         info.lastWriteHigh = lastWriteHigh;
-        info.effectiveAddress = effectiveAddr;
+        info.targetAddress = effectiveAddr;
 
         // Capture source addresses when available
         if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
@@ -151,7 +151,7 @@ namespace sidblaster {
         bool isDuplicate = false;
         for (const auto& existing : indirectAccesses_) {
             if (existing.zpAddr == zpAddr &&
-                existing.effectiveAddress == effectiveAddr) {
+                existing.targetAddress == effectiveAddr) {
                 isDuplicate = true;
                 break;
             }
@@ -231,7 +231,8 @@ namespace sidblaster {
 
         // Step 2: Process each indirect access
         for (const auto& access : indirectAccesses_) {
-            u16 targetAddr = access.effectiveAddress;
+            u16 targetAddr = access.targetAddress;
+            const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(targetAddr);
             processRelocationChain(dataFlow, relocTable, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
             processRelocationChain(dataFlow, relocTable, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
         }

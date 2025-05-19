@@ -25,7 +25,6 @@ namespace sidblaster {
          */
         struct EmulationOptions {
             int frames = DEFAULT_SID_EMULATION_FRAMES;   ///< Number of frames to emulate
-            bool backupAndRestore = true;                ///< Whether to backup/restore memory
             bool traceEnabled = false;                   ///< Whether to generate trace logs
             TraceFormat traceFormat = TraceFormat::Binary; ///< Format for trace logs
             std::string traceLogPath;                    ///< Path for trace log (if enabled)
