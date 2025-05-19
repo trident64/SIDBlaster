@@ -63,6 +63,7 @@ namespace sidblaster {
             std::string traceLogPath;              ///< Trace log file path
             bool enableTracing = false;            ///< Whether to enable tracing
             TraceFormat traceFormat = TraceFormat::Binary;  ///< Trace format
+            int frames = DEFAULT_SID_EMULATION_FRAMES;    ///< Number of frames to emulate
         };
 
         /**

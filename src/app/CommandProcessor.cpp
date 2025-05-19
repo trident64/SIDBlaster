@@ -117,7 +117,8 @@ namespace sidblaster {
         // Setup temporary file paths
         fs::path tempExtractedPrg = options.tempDir / (basename + "-original.prg");
 
-        if (getFileExtension(options.inputFile) != ".sid")
+        std::string ext = getFileExtension(options.inputFile);
+        if (ext != ".sid")
         {
             util::Logger::error("Unsupported file type: " + options.inputFile.string() + " - only SID files accepted.");
             return false;
@@ -199,7 +200,11 @@ namespace sidblaster {
         // Set up emulation options
         SIDEmulator emulator(cpu_.get(), sid_.get());
         SIDEmulator::EmulationOptions emulationOptions;
-        emulationOptions.frames = DEFAULT_SID_EMULATION_FRAMES;
+
+        // Use frames count from options (from command line or config)
+        emulationOptions.frames = options.frames > 0 ?
+            options.frames : util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES);
+
         emulationOptions.backupAndRestore = true;
         emulationOptions.traceEnabled = options.enableTracing;
         emulationOptions.traceFormat = options.traceFormat;
@@ -244,13 +249,19 @@ namespace sidblaster {
             }
         }
 
-        // Default to 1 call per frame if no speed bits set, or clamp to 1-16 range
-        int numPlayCallsPerFrame = std::clamp(count == 0 ? 1 : count, 1, 16);
+        // Default to calls per frame from config, or 1 if not set
+        int defaultCalls = util::Configuration::getInt("defaultPlayCallsPerFrame", 1);
+        int numPlayCallsPerFrame = std::clamp(count == 0 ? defaultCalls : count, 1, 16);
 
         // Check for CIA timer
         if ((CIATimerLo != 0) || (CIATimerHi != 0)) {
             const u16 timerValue = CIATimerLo | (CIATimerHi << 8);
-            const double NumCyclesPerFrame = (63.0 * 312.0); // TODO: NTSC?
+
+            // Use clock speed from config if available (default to PAL at 63 cycles per line, 312 lines)
+            double cyclesPerLine = util::Configuration::getDouble("cyclesPerLine", 63.0);
+            double linesPerFrame = util::Configuration::getDouble("linesPerFrame", 312.0);
+
+            const double NumCyclesPerFrame = (cyclesPerLine * linesPerFrame);
             const double freq = NumCyclesPerFrame / std::max(1, static_cast<int>(timerValue));
             const int numCalls = static_cast<int>(freq + 0.5);
             numPlayCallsPerFrame = std::clamp(numCalls, 1, 16);
@@ -323,6 +334,9 @@ namespace sidblaster {
             buildOptions.playerName = options.playerName;
             buildOptions.playerAddress = options.playerAddress;
             buildOptions.compress = options.compress;
+            buildOptions.compressorType = options.compressorType;
+            buildOptions.exomizerPath = options.exomizerPath;
+            buildOptions.kickAssPath = options.kickAssPath;
             buildOptions.tempDir = tempDir;
             buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 
@@ -371,6 +385,9 @@ namespace sidblaster {
             buildOptions.playerName = options.playerName;
             buildOptions.playerAddress = options.playerAddress;
             buildOptions.compress = options.compress;
+            buildOptions.compressorType = options.compressorType;
+            buildOptions.exomizerPath = options.exomizerPath;
+            buildOptions.kickAssPath = options.kickAssPath;
             buildOptions.tempDir = tempDir;
             buildOptions.sidLoadAddr = newSidLoad;
             buildOptions.sidInitAddr = newSidInit;
@@ -388,6 +405,9 @@ namespace sidblaster {
             buildOptions.playerName = options.playerName;
             buildOptions.playerAddress = options.playerAddress;
             buildOptions.compress = options.compress;
+            buildOptions.compressorType = options.compressorType;
+            buildOptions.exomizerPath = options.exomizerPath;
+            buildOptions.kickAssPath = options.kickAssPath;
             buildOptions.tempDir = tempDir;
             buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 
@@ -401,6 +421,9 @@ namespace sidblaster {
             buildOptions.playerName = options.playerName;
             buildOptions.playerAddress = options.playerAddress;
             buildOptions.compress = options.compress;
+            buildOptions.compressorType = options.compressorType;
+            buildOptions.exomizerPath = options.exomizerPath;
+            buildOptions.kickAssPath = options.kickAssPath;
             buildOptions.tempDir = tempDir;
             buildOptions.playCallsPerFrame = sid_->getNumPlayCallsPerFrame();
 

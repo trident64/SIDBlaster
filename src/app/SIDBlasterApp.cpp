@@ -2,17 +2,25 @@
 #include "SIDBlasterApp.h"
 #include "CommandProcessor.h"
 #include "RelocationUtils.h"
-#include "SIDBlasterUtils.h"
-#include "cpu6510.h"
-#include "SIDLoader.h"
-#include "SIDEmulator.h"
+#include "../SIDBlasterUtils.h"
+#include "../cpu6510.h"
+#include "../SIDLoader.h"
+#include "../SIDEmulator.h"
 #include <iostream>
 #include <filesystem>
 
 namespace sidblaster {
 
     SIDBlasterApp::SIDBlasterApp(int argc, char** argv)
-        : cmdParser_(argc, argv) {
+        : cmdParser_(argc, argv),
+        command_(CommandClass::Type::Unknown) {
+
+        // Look for configuration file in current directory and load if available
+        fs::path configFile = "SIDBlaster.cfg";
+        if (fs::exists(configFile)) {
+            util::Configuration::loadFromFile(configFile);
+        }
+
         // Setup command line options
         setupCommandLine();
     }
@@ -36,7 +44,10 @@ namespace sidblaster {
         cmdParser_.addFlagDefinition("trace", "Trace SID register writes during emulation", "Commands");
 
         // LinkPlayer options
-        cmdParser_.addOptionDefinition("linkplayertype", "name", "Player type to use (default: SimpleRaster)", "LinkPlayer", "SimpleRaster");
+        std::string defaultPlayerName = util::Configuration::getPlayerName();
+        cmdParser_.addOptionDefinition("linkplayertype", "name", "Player type to use", "LinkPlayer",
+            defaultPlayerName);
+
         cmdParser_.addOptionDefinition("linkplayeraddr", "address", "Player load address", "LinkPlayer",
             "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
         cmdParser_.addOptionDefinition("linkplayerdefs", "file", "Player definitions file", "LinkPlayer", "");
@@ -47,15 +58,24 @@ namespace sidblaster {
         // Trace options
         cmdParser_.addOptionDefinition("tracelog", "file", "Output file for SID register trace log", "Trace", "");
         cmdParser_.addOptionDefinition("traceformat", "format", "Format for trace log (text/binary)", "Trace", "binary");
+        cmdParser_.addOptionDefinition("frames", "number", "Number of frames to trace", "Trace",
+            std::to_string(DEFAULT_SID_EMULATION_FRAMES));
 
         // General options
-        cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "General", "SIDBlaster.log");
-        cmdParser_.addOptionDefinition("kickass", "path", "Path to KickAss.jar", "General", util::Configuration::getKickAssPath());
+        cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "General",
+            util::Configuration::getString("logFile", "SIDBlaster.log"));
+
+        cmdParser_.addOptionDefinition("kickass", "path", "Path to KickAss.jar", "General",
+            util::Configuration::getKickAssPath());
+
+        cmdParser_.addOptionDefinition("exomizer", "path", "Path to Exomizer", "General",
+            util::Configuration::getExomizerPath());
 
         // Flags
         cmdParser_.addFlagDefinition("verbose", "Enable verbose logging", "General");
         cmdParser_.addFlagDefinition("help", "Display this help message", "General");
         cmdParser_.addFlagDefinition("force", "Force overwrite of output file", "General");
+        cmdParser_.addFlagDefinition("nocompress", "Disable compression for PRG output", "General");
 
         // Add example usages
         cmdParser_.addExample(
@@ -80,14 +100,19 @@ namespace sidblaster {
     }
 
     void SIDBlasterApp::initializeLogging() {
-        // Get log file path from command parameters
-        logFile_ = fs::path(command_.getParameter("logfile", "SIDBlaster.log"));
+        // Get log file path from command parameters or config
+        std::string logFilePath = command_.getParameter("logfile",
+            util::Configuration::getString("logFile", "SIDBlaster.log"));
+        logFile_ = fs::path(logFilePath);
 
-        // Set log level based on verbose flag
+        // Set log level based on verbose flag or config
         verbose_ = command_.hasFlag("verbose");
-        const auto logLevel = verbose_ ?
+
+        // Convert integer log level from config to Logger::Level
+        int configLogLevel = util::Configuration::getInt("logLevel", 3); // Default to Info
+        auto logLevel = verbose_ ?
             util::Logger::Level::Debug :
-            util::Logger::Level::Info;
+            static_cast<util::Logger::Level>(std::min(std::max(configLogLevel - 1, 0), 3));
 
         // Initialize logger
         util::Logger::initialize(logFile_);
@@ -134,7 +159,7 @@ namespace sidblaster {
         // Player options for LinkPlayer command
         if (command_.getType() == CommandClass::Type::LinkPlayer) {
             options.includePlayer = true;
-            options.playerName = command_.getParameter("linkplayertype", "SimpleRaster");
+            options.playerName = command_.getParameter("linkplayertype", util::Configuration::getPlayerName());
             options.playerAddress = command_.getHexParameter("linkplayeraddr", util::Configuration::getPlayerAddress());
         }
         else {
@@ -143,6 +168,9 @@ namespace sidblaster {
 
         // Build options
         options.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
+        options.exomizerPath = command_.getParameter("exomizer", util::Configuration::getExomizerPath());
+        options.compressorType = util::Configuration::getCompressorType();
+        options.compress = !command_.hasFlag("nocompress");
 
         // Parse relocation address for Relocate command
         if (command_.getType() == CommandClass::Type::Relocate) {
@@ -157,6 +185,10 @@ namespace sidblaster {
         std::string traceFormat = command_.getParameter("traceformat", "binary");
         options.traceFormat = (traceFormat == "text") ?
             TraceFormat::Text : TraceFormat::Binary;
+
+        // Get frames to emulate from command line or config
+        options.frames = command_.getIntParameter("frames",
+            util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
 
         return options;
     }
@@ -204,7 +236,7 @@ namespace sidblaster {
 
         // Set LinkPlayer specific options
         options.includePlayer = true;
-        options.playerName = command_.getParameter("linkplayertype", "SimpleRaster");
+        options.playerName = command_.getParameter("linkplayertype", util::Configuration::getPlayerName());
         options.playerAddress = command_.getHexParameter("linkplayeraddr", util::Configuration::getPlayerAddress());
 
         // Create and run command processor
@@ -236,7 +268,7 @@ namespace sidblaster {
             return 1;
         }
 
-        std::string outExt = getFileExtension(inputFile);
+        std::string outExt = getFileExtension(outputFile);
         if (outExt != ".sid") {
             std::cout << "Error: Relocate command requires a .sid output file, got: " << outExt << std::endl;
             return 1;
@@ -407,7 +439,11 @@ namespace sidblaster {
         // Create emulator
         SIDEmulator emulator(cpu.get(), sid.get());
         SIDEmulator::EmulationOptions options;
-        options.frames = DEFAULT_SID_EMULATION_FRAMES;
+
+        // Get frames count from command line or config
+        options.frames = command_.getIntParameter("frames",
+            util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
+
         options.backupAndRestore = false;
         options.traceEnabled = true;
         options.traceFormat = traceFormat;

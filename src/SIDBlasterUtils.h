@@ -224,6 +224,14 @@ namespace sidblaster {
              */
             static bool getBool(const std::string& key, bool defaultValue = false);
 
+            /**
+             * @brief Get a double (floating-point) configuration value
+             * @param key Configuration key
+             * @param defaultValue Default value if key not found
+             * @return Configuration value as double
+             */
+            static double getDouble(const std::string& key, double defaultValue = 0.0);
+
             // Tool paths
             static std::string getKickAssPath();      // Path to KickAss assembler
             static std::string getExomizerPath();     // Path to Exomizer compressor

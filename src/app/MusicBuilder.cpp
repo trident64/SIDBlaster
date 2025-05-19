@@ -16,6 +16,7 @@ namespace sidblaster {
 
     MusicBuilder::MusicBuilder(const CPU6510* cpu, const SIDLoader* sid)
         : cpu_(cpu), sid_(sid) {
+        // Initialize with default values from configuration
     }
 
     bool MusicBuilder::buildMusic(
@@ -50,14 +51,21 @@ namespace sidblaster {
             // Set default player name if none specified
             std::string playerToUse = options.playerName;
             if (playerToUse == "default") {
-                playerToUse = "SimpleRaster";  // Default player name
+                playerToUse = util::Configuration::getPlayerName();
             }
 
-            // Get player assembly file path
-            fs::path playerAsmFile = fs::path("SIDPlayers") / playerToUse / (playerToUse + ".asm");
+            // Get player assembly file path - check configuration for player directory
+            std::string playerDir = util::Configuration::getString("playerDirectory", "SIDPlayers");
+            fs::path playerAsmFile = fs::path(playerDir) / playerToUse / (playerToUse + ".asm");
 
             // Create the player directory if it doesn't exist
-            fs::create_directories(playerAsmFile.parent_path());
+            try {
+                fs::create_directories(playerAsmFile.parent_path());
+            }
+            catch (const std::exception& e) {
+                util::Logger::warning(std::string("Failed to create player directory: ") + e.what());
+                // Continue anyway, the assembler will fail if the file doesn't exist
+            }
 
             // Create linker file - this now correctly handles SID files with LoadSid
             if (!createLinkerFile(tempLinkerFile, inputFile, playerAsmFile, options)) {
@@ -131,6 +139,32 @@ namespace sidblaster {
             }
         }
 
+        // Clean up temporary files if configured not to keep them
+        if (!util::Configuration::getBool("keepTempFiles", false)) {
+            util::Logger::debug("Cleaning up temporary files");
+
+            std::vector<fs::path> tempFiles = {
+                tempLinkerFile,
+                tempPlayerPrgFile,
+                tempPrgFile
+                // Add any other temp files created during the process
+            };
+
+            for (const auto& file : tempFiles) {
+                if (fs::exists(file)) {
+                    try {
+                        fs::remove(file);
+                        util::Logger::debug("Removed temporary file: " + file.string());
+                    }
+                    catch (const std::exception& e) {
+                        // Just log cleanup errors, don't fail the build
+                        util::Logger::debug("Failed to remove temporary file: " + file.string() +
+                            " - " + e.what());
+                    }
+                }
+            }
+        }
+
         return true;
     }
 
@@ -165,7 +199,7 @@ namespace sidblaster {
 
         if (bIsSID)
         {
-            // For SID files, use LoadSid directly - this is the key change!
+            // For SID files, use LoadSid directly
             file << ".var music_prg = LoadSid(\"" << musicFile.string() << "\")\n";
             file << "* = music_prg.location \"SID\"\n";
             file << ".fill music_prg.size, music_prg.getData(i)\n";
@@ -228,6 +262,25 @@ namespace sidblaster {
             file << "\n";
         }
 
+        // Add debug info if enabled in configuration
+        if (util::Configuration::getBool("debugComments", false)) {
+            file << "// Debug Information\n";
+            file << "// -----------------\n";
+            file << "// Player: " << options.playerName << "\n";
+            file << "// Player Address: $" << util::wordToHex(options.playerAddress) << "\n";
+            file << "// Calls Per Frame: " << options.playCallsPerFrame << "\n";
+            if (bIsSID) {
+                file << "// SID File: " << musicFile.string() << "\n";
+            }
+            else {
+                file << "// ASM File: " << musicFile.string() << "\n";
+                file << "// Load Address: $" << util::wordToHex(options.sidLoadAddr) << "\n";
+                file << "// Init Address: $" << util::wordToHex(options.sidInitAddr) << "\n";
+                file << "// Play Address: $" << util::wordToHex(options.sidPlayAddr) << "\n";
+            }
+            file << "\n";
+        }
+
         file.close();
 
         util::Logger::debug("Created player linker file: " + linkerFile.string());
@@ -267,12 +320,18 @@ namespace sidblaster {
         std::string compressCommand;
 
         if (options.compressorType == "exomizer") {
+            // Get additional options from configuration if available
+            std::string exomizerOptions = util::Configuration::getString("exomizerOptions", "-x 3 -q");
+
             compressCommand = options.exomizerPath + " sfx " + std::to_string(loadAddress) +
-                " -x 3 -q \"" + inputPrg.string() + "\" -o \"" + outputPrg.string() + "\"";
+                " " + exomizerOptions + " \"" + inputPrg.string() + "\" -o \"" + outputPrg.string() + "\"";
         }
         else if (options.compressorType == "pucrunch") {
-            std::string pucrunchPath = "pucrunch"; // Default, should be configurable
-            compressCommand = pucrunchPath + " -x " + std::to_string(loadAddress) +
+            // Get pucrunch path and options from configuration
+            std::string pucrunchPath = util::Configuration::getString("pucrunchPath", "pucrunch");
+            std::string pucrunchOptions = util::Configuration::getString("pucrunchOptions", "-x");
+
+            compressCommand = pucrunchPath + " " + pucrunchOptions + " " + std::to_string(loadAddress) +
                 " \"" + inputPrg.string() + "\" \"" + outputPrg.string() + "\"";
         }
         else {

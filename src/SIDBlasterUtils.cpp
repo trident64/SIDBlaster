@@ -451,6 +451,7 @@ namespace sidblaster {
             }
         }
 
+
         /**
          * @brief Get a boolean configuration value
          *
@@ -478,6 +479,29 @@ namespace sidblaster {
             }
 
             return defaultValue;
+        }
+
+        /**
+         * @brief Get a double (floating-point) configuration value
+         *
+         * Retrieves a value from the configuration map and converts it to a double.
+         *
+         * @param key Configuration key
+         * @param defaultValue Default value if key not found or conversion fails
+         * @return Configuration value as double or default
+         */
+        double Configuration::getDouble(const std::string& key, double defaultValue) {
+            const auto it = configValues_.find(key);
+            if (it == configValues_.end()) {
+                return defaultValue;
+            }
+
+            try {
+                return std::stod(it->second);
+            }
+            catch (const std::exception&) {
+                return defaultValue;
+            }
         }
 
         /**

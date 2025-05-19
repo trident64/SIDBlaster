@@ -30,6 +30,7 @@ namespace sidblaster {
          * @struct BuildOptions
          * @brief Options for building music
          */
+
         struct BuildOptions {
             // Player options
             bool includePlayer = true;     ///< Whether to include player code
