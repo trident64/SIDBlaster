@@ -45,7 +45,26 @@ namespace sidblaster {
             ", Play: $" + util::wordToHex(playAddr) +
             ", Frames: " + std::to_string(options.frames));
 
-        // Execute the init routine
+        // Execute the init routine once
+        cpu_->executeFunction(initAddr);
+
+        // Run a short playback period to identify initial memory patterns
+        // This helps with memory copies performed during initialization
+        const int preAnalysisFrames = 100;  // A small number of frames for initial analysis
+        for (int frame = 0; frame < preAnalysisFrames; ++frame) {
+            for (int call = 0; call < options.callsPerFrame; ++call) {
+                if (!cpu_->executeFunction(playAddr)) {
+                    return false;
+                }
+            }
+
+            // Mark end of frame in trace log
+            if (traceLogger_) {
+                traceLogger_->logFrameMarker();
+            }
+        }
+
+        // Re-run the init routine to reset the player state
         cpu_->executeFunction(initAddr);
 
         // Mark end of initialization in trace log

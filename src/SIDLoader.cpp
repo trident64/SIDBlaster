@@ -232,7 +232,7 @@ bool SIDLoader::copyMusicToMemory(const u8* data, u16 size, u16 loadAddr) {
     }
 
     // Load data into CPU memory
-    for (u16 i = 0; i < size; ++i) {
+    for (u32 i = 0; i < size; ++i) {
         cpu_->writeByte(loadAddr + i, data[i]);
     }
 

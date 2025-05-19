@@ -187,7 +187,7 @@ namespace sidblaster {
         u16 rangeStart = 0;
 
         // Only look at the SID range
-        for (u16 addr = startAddress_; addr < endAddress_; ++addr) {
+        for (u32 addr = startAddress_; addr < endAddress_; ++addr) {
             const bool isData = memoryTypes_[addr] & MemoryType::Data;
 
             if (isData && !inDataRange) {
@@ -224,7 +224,7 @@ namespace sidblaster {
         u16 rangeStart = 0;
 
         // Only look at the SID range
-        for (u16 addr = startAddress_; addr < endAddress_; ++addr) {
+        for (u32 addr = startAddress_; addr < endAddress_; ++addr) {
             const bool isCode = memoryTypes_[addr] & MemoryType::Code;
 
             if (isCode && !inCodeRange) {
@@ -259,7 +259,7 @@ namespace sidblaster {
         std::vector<u16> targets;
 
         // Only look at the SID range
-        for (u16 addr = startAddress_; addr < endAddress_; ++addr) {
+        for (u32 addr = startAddress_; addr < endAddress_; ++addr) {
             if (memoryTypes_[addr] & MemoryType::LabelTarget) {
                 targets.push_back(addr);
             }
