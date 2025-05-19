@@ -183,26 +183,7 @@ namespace sidblaster {
             result.diffReport = diffReport.string();
 
             try {
-                // Step 1: Create trace of original SID
-                if (!sid->loadSID(inputFile.string())) {
-                    result.message = "Failed to load original SID file";
-                    return result;
-                }
-
-                // Create an emulator for the original SID
-                SIDEmulator originalEmulator(cpu, sid);
-                SIDEmulator::EmulationOptions options;
-                options.frames = DEFAULT_SID_EMULATION_FRAMES;
-                options.traceEnabled = true;
-                options.traceLogPath = originalTrace.string();
-
-                cpu->reset();
-                if (!originalEmulator.runEmulation(options)) {
-                    result.message = "Failed to emulate original SID file";
-                    return result;
-                }
-
-                // Step 2: Relocate the SID file
+                // Step 1: Relocate the SID file
                 util::RelocationParams relocParams;
                 relocParams.inputFile = inputFile;
                 relocParams.outputFile = outputFile;
@@ -219,16 +200,29 @@ namespace sidblaster {
 
                 result.success = true;
 
-                // Step 3: Verify the relocated SID
-                if (!sid->loadSID(outputFile.string())) {
-                    result.message = "Relocation succeeded but failed to load relocated SID file";
+                // Step 2: Create trace of original SID
+                if (!sid->loadSID(inputFile.string())) {
+                    result.message = "Failed to load original SID file";
+                    return result;
+                }
+                SIDEmulator originalEmulator(cpu, sid);
+                SIDEmulator::EmulationOptions options;
+                options.frames = DEFAULT_SID_EMULATION_FRAMES;
+                options.traceEnabled = true;
+                options.traceLogPath = originalTrace.string();
+                cpu->reset();
+                if (!originalEmulator.runEmulation(options)) {
+                    result.message = "Failed to emulate original SID file";
                     return result;
                 }
 
-                // Create an emulator for the relocated SID
+                // Step 3: Verify the relocated SID
+                if (!sid->loadSID(outputFile.string())) {
+                    result.message = "Failed to load relocated SID file";
+                    return result;
+                }
                 SIDEmulator relocatedEmulator(cpu, sid);
                 options.traceLogPath = relocatedTrace.string();
-
                 cpu->reset();
                 if (!relocatedEmulator.runEmulation(options)) {
                     result.message = "Relocation succeeded but failed to emulate relocated SID file";
