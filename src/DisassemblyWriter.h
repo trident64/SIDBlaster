@@ -152,14 +152,6 @@ namespace sidblaster {
          */
         int disassembleToFile(std::ofstream& file);
 
-        /**
-         * @brief Build the relocation table from indirect accesses and data flow
-         *
-         * Analyzes all indirect memory accesses and traces data flow chains
-         * to build a consolidated table of all addresses needing relocation.
-         */
-        void buildRelocationTable();
-
         void processRelocationChain(const MemoryDataFlow& dataFlow, RelocationTable& relocTable, u16 addr, u16 targetAddr, RelocationEntry::Type relocType);
 
     };

@@ -77,12 +77,6 @@ namespace sidblaster {
             entries_.clear();
         }
 
-        /**
-         * @brief Dump the relocation table to a file
-         * @param filename Output file path
-         */
-        void dumpToFile(const std::string& filename) const;
-
     private:
         std::map<u16, RelocationEntry> entries_;
     };

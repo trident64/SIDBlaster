@@ -15,5 +15,3 @@ _deps
 SIDBlaster.log
 /temp
 FileLayout.txt
-relocation_table.log
-dataflow.log

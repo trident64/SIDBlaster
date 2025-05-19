@@ -107,15 +107,6 @@ namespace sidblaster {
      * @param targetAddr Target address
      */
     void DisassemblyWriter::addIndirectAccess(u16 pc, u8 zpAddr, u16 targetAddr) {
-        // Log the raw access for debugging
-        static std::ofstream accessLog("indirect_access_raw.log", std::ios::app);
-
-        if (accessLog) {
-            accessLog << "INDIRECT ACCESS: PC=$" << util::wordToHex(pc)
-                << " ZP=$" << util::byteToHex(zpAddr)
-                << " Target=$" << util::wordToHex(targetAddr) << "\n";
-        }
-
         // Get the sources of the ZP variables
         const auto& lowSource = cpu_.getWriteSourceInfo(zpAddr);
         const auto& highSource = cpu_.getWriteSourceInfo(zpAddr + 1);
@@ -123,29 +114,6 @@ namespace sidblaster {
         // Get the last instructions that wrote to these ZP addresses
         u16 lastWriteLow = cpu_.getLastWriteTo(zpAddr);
         u16 lastWriteHigh = cpu_.getLastWriteTo(zpAddr + 1);
-
-        // Log these sources
-        if (accessLog) {
-            accessLog << "  ZP Low source: ";
-            if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
-                accessLog << "Memory addr=$" << util::wordToHex(lowSource.address)
-                    << " value=$" << util::byteToHex(lowSource.value);
-            }
-            else {
-                accessLog << "Not from memory";
-            }
-            accessLog << " (last write at PC=$" << util::wordToHex(lastWriteLow) << ")\n";
-
-            accessLog << "  ZP High source: ";
-            if (highSource.type == RegisterSourceInfo::SourceType::Memory) {
-                accessLog << "Memory addr=$" << util::wordToHex(highSource.address)
-                    << " value=$" << util::byteToHex(highSource.value);
-            }
-            else {
-                accessLog << "Not from memory";
-            }
-            accessLog << " (last write at PC=$" << util::wordToHex(lastWriteHigh) << ")\n\n";
-        }
 
         // Look for an existing record for this ZP address
         IndirectAccessInfo* existingInfo = nullptr;
@@ -187,50 +155,8 @@ namespace sidblaster {
                 existingInfo->targetAddresses.end(),
                 targetAddr) == existingInfo->targetAddresses.end()) {
                 existingInfo->targetAddresses.push_back(targetAddr);
-
-                // Log when we're adding an additional target
-                if (accessLog) {
-                    accessLog << "  Adding additional target $" << util::wordToHex(targetAddr)
-                        << " to existing entry for ZP=$" << util::byteToHex(zpAddr)
-                        << " (now has " << existingInfo->targetAddresses.size() << " targets)\n";
-                }
             }
         }
-    }
-
-    /**
-     * @brief Dump memory data flow to a log file
-     * @param dataFlow The memory data flow structure
-     * @param filename Output file path
-     */
-    void dumpMemoryDataFlow(const MemoryDataFlow& dataFlow, const std::string& filename) {
-        std::ofstream file(filename);
-        if (!file) {
-            util::Logger::error("Failed to open data flow log file: " + filename);
-            return;
-        }
-
-        file << "===== MEMORY DATA FLOW DUMP =====\n\n";
-
-        // Write memory write sources
-        file << "===== MEMORY WRITE SOURCES =====\n";
-        file << "Format: destination_addr <- source_addr(s)\n\n";
-
-        for (const auto& [destAddr, sources] : dataFlow.memoryWriteSources) {
-            file << "$" << util::wordToHex(destAddr) << " <- ";
-
-            if (sources.empty()) {
-                file << "NO SOURCES\n";
-            }
-            else {
-                for (size_t i = 0; i < sources.size(); i++) {
-                    if (i > 0) file << ", ";
-                    file << "$" << util::wordToHex(sources[i]);
-                }
-                file << "\n";
-            }
-        }
-
     }
 
     /**
@@ -240,20 +166,6 @@ namespace sidblaster {
      * and pointer tables. Updated to use the new RelocationTable approach.
      */
     void DisassemblyWriter::processIndirectAccesses() {
-        // First dump the data flow to aid debugging
-        dumpMemoryDataFlow(cpu_.getMemoryDataFlow(), "dataflow.log");
-
-        // Now build the relocation table
-        buildRelocationTable();
-    }
-
-    /**
-     * @brief Build the relocation table from indirect accesses and data flow
-     *
-     * Analyzes all indirect memory accesses and traces data flow chains
-     * to build a consolidated table of all addresses needing relocation.
-     */
-    void DisassemblyWriter::buildRelocationTable() {
         if (indirectAccesses_.empty()) {
             return;
         }
@@ -264,32 +176,12 @@ namespace sidblaster {
         // Clear any existing entries in relocTable_
         relocTable_.clear();
 
-        // Log file for debugging the relocation table building
-        std::ofstream debugLog("relocation_debug.log");
-
         // Process each indirect access - now tracking multiple targets
         for (const auto& access : indirectAccesses_) {
-            // Log for each entry
-            if (debugLog) {
-                debugLog << "Processing ZP=$" << util::byteToHex(access.zpAddr)
-                    << " with " << access.targetAddresses.size() << " targets:\n";
-
-                for (size_t i = 0; i < access.targetAddresses.size(); i++) {
-                    debugLog << "  Target " << i << ": $" << util::wordToHex(access.targetAddresses[i]) << "\n";
-                }
-
-                debugLog << "  Low byte source: $" << util::wordToHex(access.sourceLowAddress) << "\n";
-                debugLog << "  High byte source: $" << util::wordToHex(access.sourceHighAddress) << "\n\n";
-            }
-
             // Use ONLY THE FIRST target address - this should be the original one we want
             // This is the key change to fix the issue
             if (!access.targetAddresses.empty()) {
                 u16 targetAddr = access.targetAddresses[0]; // Use the FIRST target address
-
-                if (debugLog) {
-                    debugLog << "Selected target address: $" << util::wordToHex(targetAddr) << "\n";
-                }
 
                 // Process the source address for LOW byte
                 if (access.sourceLowAddress != 0) {
@@ -316,9 +208,6 @@ namespace sidblaster {
                 }
             }
         }
-
-        // Dump the final relocation table
-        relocTable_.dumpToFile("relocation_table.log");
     }
 
     void DisassemblyWriter::processRelocationChain(
