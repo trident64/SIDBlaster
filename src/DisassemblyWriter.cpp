@@ -97,21 +97,6 @@ namespace sidblaster {
     }
 
     /**
-     * @brief Add a relocation byte
-     *
-     * Registers a byte as a relocation point (address reference).
-     *
-     * @param address Address of the byte
-     * @param info Relocation information
-     */
-    void DisassemblyWriter::addRelocationByte(
-        u16 address,
-        const RelocationInfo& info) {
-
-        relocationBytes_[address] = info;
-    }
-
-    /**
      * @brief Add an indirect memory access
      *
      * Records information about an indirect memory access for later analysis.
@@ -119,9 +104,9 @@ namespace sidblaster {
      *
      * @param pc Program counter
      * @param zpAddr Zero page address
-     * @param effectiveAddr Effective address
+     * @param targetAddr Target address
      */
-    void DisassemblyWriter::addIndirectAccess(u16 pc, u8 zpAddr, u16 effectiveAddr) {
+    void DisassemblyWriter::addIndirectAccess(u16 pc, u8 zpAddr, u16 targetAddr) {
         // Get the sources of the ZP variables
         const auto& lowSource = cpu_.getWriteSourceInfo(zpAddr);
         const auto& highSource = cpu_.getWriteSourceInfo(zpAddr + 1);
@@ -136,7 +121,7 @@ namespace sidblaster {
         info.zpAddr = zpAddr;
         info.lastWriteLow = lastWriteLow;
         info.lastWriteHigh = lastWriteHigh;
-        info.targetAddress = effectiveAddr;
+        info.targetAddress = targetAddr;
 
         // Capture source addresses when available
         if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
@@ -151,7 +136,7 @@ namespace sidblaster {
         bool isDuplicate = false;
         for (const auto& existing : indirectAccesses_) {
             if (existing.zpAddr == zpAddr &&
-                existing.targetAddress == effectiveAddr) {
+                existing.targetAddress == targetAddr) {
                 isDuplicate = true;
                 break;
             }
@@ -393,7 +378,7 @@ namespace sidblaster {
                 std::map<u16, struct RelocEntry> formatterRelocBytes;
                 for (const auto& [addr, info] : relocationBytes_) {
                     RelocEntry entry;
-                    entry.effectiveAddr = info.effectiveAddr;
+                    entry.targetAddr = info.targetAddr;
                     entry.type = (info.type == RelocationInfo::Type::Low) ?
                         RelocEntry::Type::Low : RelocEntry::Type::High;
                     formatterRelocBytes[addr] = entry;

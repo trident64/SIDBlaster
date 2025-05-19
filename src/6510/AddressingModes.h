@@ -20,10 +20,10 @@ public:
     explicit AddressingModes(CPU6510Impl& cpu);
 
     /**
-     * @brief Calculate the effective address for a given addressing mode
+     * @brief Calculate the target address for a given addressing mode
      *
      * @param mode The addressing mode to use
-     * @return The calculated effective address
+     * @return The calculated target address
      */
     u16 getAddress(AddressingMode mode);
 

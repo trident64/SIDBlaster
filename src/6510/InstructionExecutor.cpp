@@ -177,7 +177,7 @@ void InstructionExecutor::executeInstruction(Instruction instr, AddressingMode m
  * @param mode The addressing mode to use
  */
 void InstructionExecutor::executeLoad(Instruction instr, AddressingMode mode) {
-    // Get the effective address
+    // Get the target address
     const u16 addr = cpu_.addressingModes_.getAddress(mode);
 
     // Read the value using the appropriate method

@@ -230,7 +230,7 @@ public:
     const MemoryDataFlow& getMemoryDataFlow() const;
     
     // Callbacks
-    using IndirectReadCallback = std::function<void(u16 pc, u8 zpAddr, u16 effectiveAddr)>;
+    using IndirectReadCallback = std::function<void(u16 pc, u8 zpAddr, u16 targetAddr)>;
     using MemoryWriteCallback = std::function<void(u16 addr, u8 value)>;
 
     void setOnIndirectReadCallback(IndirectReadCallback callback);

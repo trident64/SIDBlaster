@@ -39,7 +39,7 @@ namespace sidblaster {
      * Used to track address relocations during the disassembly process.
      */
     struct RelocationInfo {
-        u16 effectiveAddr;                  // Target address being referenced
+        u16 targetAddr;                  // Target address being referenced
         enum class Type { Low, High } type; // Whether this is a low or high byte
     };
 
@@ -48,7 +48,7 @@ namespace sidblaster {
      * @brief Information about a memory location that needs relocation
      */
     struct RelocationEntry {
-        u16 targetAddress;          // The effective address being pointed to
+        u16 targetAddress;          // The address being pointed to
         enum class Type {
             Low,                    // Low byte of address
             High                    // High byte of address
@@ -183,23 +183,14 @@ namespace sidblaster {
             u16 sidPlay);
 
         /**
-         * @brief Add a relocation byte
-         * @param address Address of the byte
-         * @param info Relocation information
-         *
-         * Registers a byte as a relocation point (address reference).
-         */
-        void addRelocationByte(u16 address, const RelocationInfo& info);
-
-        /**
          * @brief Add an indirect memory access
          * @param pc Program counter
          * @param zpAddr Zero page address
-         * @param effectiveAddr Effective address
+         * @param targetAddr Target address
          *
          * Tracks indirect memory accesses for later analysis.
          */
-        void addIndirectAccess(u16 pc, u8 zpAddr, u16 effectiveAddr);
+        void addIndirectAccess(u16 pc, u8 zpAddr, u16 targetAddr);
 
         /**
          * @brief Process all recorded indirect accesses to identify relocation bytes
@@ -230,7 +221,7 @@ namespace sidblaster {
             u16 lastWriteHigh = 0;        // Address of last write to high byte
             u16 sourceLowAddress = 0;     // Source of the low byte value
             u16 sourceHighAddress = 0;    // Source of the high byte value
-            u16 targetAddress = 0;        // Effective address targetted
+            u16 targetAddress = 0;        // Address targetted
         };
         std::vector<IndirectAccessInfo> indirectAccesses_;  // List of indirect accesses
 

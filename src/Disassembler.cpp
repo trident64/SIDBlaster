@@ -76,9 +76,9 @@ namespace sidblaster {
         );
 
         // Set up indirect read callback
-        const_cast<CPU6510&>(cpu_).setOnIndirectReadCallback([this](u16 pc, u8 zpAddr, u16 effectiveAddr) {
+        const_cast<CPU6510&>(cpu_).setOnIndirectReadCallback([this](u16 pc, u8 zpAddr, u16 targetAddr) {
             if (writer_) {
-                writer_->addIndirectAccess(pc, zpAddr, effectiveAddr);
+                writer_->addIndirectAccess(pc, zpAddr, targetAddr);
             }
             });
 

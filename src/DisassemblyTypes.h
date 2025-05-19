@@ -25,7 +25,7 @@ namespace sidblaster {
      * generating relocatable code in the disassembly.
      */
     struct RelocEntry {
-        u16 effectiveAddr;  // The actual address being pointed to
+        u16 targetAddr;  // The actual address being pointed to
         enum class Type { Low, High } type;  // Whether this is a low or high byte
     };
 

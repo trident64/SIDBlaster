@@ -123,7 +123,7 @@ namespace sidblaster {
             // Check for relocation byte
             auto relocIt = relocationBytes.find(pc);
             if (relocIt != relocationBytes.end()) {
-                const u16 target = relocIt->second.effectiveAddr;
+                const u16 target = relocIt->second.targetAddr;
                 const std::string targetLabel = labelGenerator_.formatAddress(target);
 
                 // Store the current PC for comment
@@ -376,8 +376,8 @@ namespace sidblaster {
         u8 minOffset,
         char indexReg) const {
 
-        const u16 effectiveAddr = baseAddr + minOffset;
-        const std::string label = labelGenerator_.getLabel(effectiveAddr);
+        const u16 targetAddr = baseAddr + minOffset;
+        const std::string label = labelGenerator_.getLabel(targetAddr);
 
         if (!label.empty()) {
             if (minOffset == 0) {

@@ -11,14 +11,14 @@ AddressingModes::AddressingModes(CPU6510Impl& cpu) : cpu_(cpu) {
 }
 
 /**
- * @brief Calculate the effective address for a given addressing mode
+ * @brief Calculate the target address for a given addressing mode
  *
  * Computes the target memory address based on the addressing mode,
  * handling various indexing modes and their cycle penalties.
  * Also records index register offsets for tracking purposes.
  *
  * @param mode The addressing mode to use
- * @return The calculated effective address
+ * @return The calculated target address
  */
 u16 AddressingModes::getAddress(AddressingMode mode) {
     // Get CPU state reference to access registers
@@ -122,14 +122,14 @@ u16 AddressingModes::getAddress(AddressingMode mode) {
     case AddressingMode::IndirectX: {
         const u8 zp = (cpu_.fetchOperand(cpuState.getPC()) + cpuState.getX()) & 0xFF;
         cpuState.incrementPC();
-        const u16 effectiveAddr = cpu_.readWordZeroPage(zp);
+        const u16 targetAddr = cpu_.readWordZeroPage(zp);
 
         // Notify callback if registered
         if (cpu_.onIndirectReadCallback_) {
-            cpu_.onIndirectReadCallback_(cpu_.originalPc_, zp, effectiveAddr);
+            cpu_.onIndirectReadCallback_(cpu_.originalPc_, zp, targetAddr);
         }
 
-        return effectiveAddr;
+        return targetAddr;
     }
 
     case AddressingMode::IndirectY: {
