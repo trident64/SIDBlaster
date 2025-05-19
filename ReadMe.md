@@ -36,13 +36,16 @@ Options:
 - `-playeraddr=<address>`: Player load address (default: $0900)
 
 ### `-relocate=<address>`
-Relocates a SID file to a different memory address.
+Relocates a SID file to a different memory address. By default, performs verification to ensure the relocated file behaves identically to the original.
 
 ```
 SIDBlaster -relocate=$2000 music.sid relocated.sid
 ```
 
 The address parameter is required and specifies the target memory location (e.g., $2000).
+
+Options:
+- `-noverify`: Skip verification after relocation (faster, but less safe)
 
 ### `-disassemble`
 Disassembles a SID file to assembly code.
@@ -63,13 +66,7 @@ Options:
 - Use `-trace=<file>` to specify output file
   - Files with .txt or .log extension use text format
   - Files with other extensions use binary format
-
-### `-help`
-Displays help information.
-
-```
-SIDBlaster -help
-```
+- `-frames=<num>`: Number of frames to emulate (default: 30000)
 
 ## General Options
 
@@ -79,6 +76,8 @@ These options can be used with any command:
 - `-force`: Force overwrite of output file
 - `-log=<file>`: Log file path (default: SIDBlaster.log)
 - `-kickass=<path>`: Path to KickAss.jar assembler
+- `-exomizer=<path>`: Path to Exomizer compression tool
+- `-nocompress`: Disable compression for PRG output
 
 ## SID Metadata Options
 
@@ -95,6 +94,8 @@ SIDBlaster includes several player routines:
 
 - **SimpleRaster**: Basic raster-based player (default)
 - **SimpleBitmap**: Player with bitmap display capabilities
+
+Additional player types may be available in the SIDPlayers directory.
 
 ## Examples
 
@@ -116,6 +117,12 @@ SIDBlaster -player=SimpleBitmap music.sid player.prg
 SIDBlaster -relocate=$2000 music.sid relocated.sid
 ```
 
+### Relocate SID without verification:
+
+```
+SIDBlaster -relocate=$2000 -noverify music.sid relocated.sid
+```
+
 ### Disassemble SID to assembly:
 
 ```
@@ -134,6 +141,12 @@ SIDBlaster -trace music.sid
 SIDBlaster -trace=music.log music.sid
 ```
 
+### Trace with specific number of frames:
+
+```
+SIDBlaster -trace -frames=1000 music.sid
+```
+
 ## Supported File Formats
 
 - **Input**: SID files (.sid)
@@ -141,6 +154,19 @@ SIDBlaster -trace=music.log music.sid
   - PRG files (.prg) - Executable Commodore 64 programs
   - SID files (.sid) - Commodore 64 music format
   - ASM files (.asm) - Assembly language source code
+
+## Configuration
+
+SIDBlaster can be configured using a `SIDBlaster.cfg` file, which can be placed in:
+- The current directory
+- The executable's directory
+- Standard system configuration locations
+
+Common configuration options include:
+- `kickassPath`: Default path to KickAss.jar
+- `exomizerPath`: Default path to Exomizer
+- `playerName`: Default player to use
+- `emulationFrames`: Default number of frames to emulate
 
 ## Requirements
 
@@ -151,6 +177,8 @@ SIDBlaster -trace=music.log music.sid
 ## Technical Details
 
 SIDBlaster includes a complete 6510 CPU emulator to analyze SID files and ensure accurate relocation and disassembly. It tracks memory access patterns to identify code, data, and jump targets, producing high-quality disassembly output with meaningful labels.
+
+The relocation verification process traces SID register writes from both the original and relocated files to ensure they behave identically, guaranteeing that the relocation preserves all musical features.
 
 ## Acknowledgements
 
