@@ -8,7 +8,7 @@ Developed by Robert Troughton (Raistlin of Genesis Project)
 
 SIDBlaster is a versatile tool for processing C64 SID music files. It provides several key functions:
 
-- **Link SID with player**: Convert SID files to executable PRG files with various player routines
+- **Player**: Convert SID files to executable PRG files with various player routines
 - **Relocate**: Move SID music to different memory addresses while preserving functionality
 - **Disassemble**: Convert SID files to human-readable assembly language
 - **Trace**: Analyze SID register access patterns for debugging and verification
@@ -23,27 +23,26 @@ SIDBlaster [command] [options] inputfile [outputfile]
 
 SIDBlaster supports the following main commands:
 
-### `-linkplayer` 
+### `-player[=<type>]` 
 Links a SID file with a player routine to create an executable PRG file.
 
 ```
-SIDBlaster -linkplayer music.sid music.prg
+SIDBlaster -player music.sid music.prg
 ```
 
 Options:
-- `-linkplayertype=<name>`: Player type to use (default: SimpleRaster)
-- `-linkplayeraddr=<address>`: Player load address (default: $0900)
-- `-linkplayerdefs=<file>`: Player definitions file (optional)
+- Use `-player` for the default player (SimpleRaster)
+- Use `-player=<type>` to specify a different player (e.g., `-player=SimpleBitmap`)
+- `-playeraddr=<address>`: Player load address (default: $0900)
 
-### `-relocate`
+### `-relocate=<address>`
 Relocates a SID file to a different memory address.
 
 ```
-SIDBlaster -relocate -relocateaddr=<address> music.sid relocated.sid
+SIDBlaster -relocate=$2000 music.sid relocated.sid
 ```
 
-Options:
-- `-relocateaddr=<address>`: Target address for relocation (required, e.g. $2000)
+The address parameter is required and specifies the target memory location (e.g., $2000).
 
 ### `-disassemble`
 Disassembles a SID file to assembly code.
@@ -52,16 +51,18 @@ Disassembles a SID file to assembly code.
 SIDBlaster -disassemble music.sid music.asm
 ```
 
-### `-trace`
+### `-trace[=<file>]`
 Traces SID register writes during emulation.
 
 ```
-SIDBlaster -trace -tracelog=<file> music.sid
+SIDBlaster -trace music.sid
 ```
 
 Options:
-- `-tracelog=<file>`: Output file for SID register trace log
-- `-traceformat=<format>`: Format for trace log: 'text' or 'binary' (default: binary)
+- Use `-trace` to output to default file (trace.bin in binary format)
+- Use `-trace=<file>` to specify output file
+  - Files with .txt or .log extension use text format
+  - Files with other extensions use binary format
 
 ### `-help`
 Displays help information.
@@ -76,7 +77,7 @@ These options can be used with any command:
 
 - `-verbose`: Enable verbose logging
 - `-force`: Force overwrite of output file
-- `-logfile=<file>`: Log file path (default: SIDBlaster.log)
+- `-log=<file>`: Log file path (default: SIDBlaster.log)
 - `-kickass=<path>`: Path to KickAss.jar assembler
 
 ## SID Metadata Options
@@ -100,19 +101,19 @@ SIDBlaster includes several player routines:
 ### Convert SID to PRG with default player:
 
 ```
-SIDBlaster -linkplayer music.sid music.prg
+SIDBlaster -player music.sid music.prg
 ```
 
-### Convert SID with specific player at custom address:
+### Convert SID with specific player:
 
 ```
-SIDBlaster -linkplayer -linkplayertype=SimpleBitmap -linkplayeraddr=$0800 music.sid player.prg
+SIDBlaster -player=SimpleBitmap music.sid player.prg
 ```
 
 ### Relocate SID to address $2000:
 
 ```
-SIDBlaster -relocate -relocateaddr=$2000 music.sid relocated.sid
+SIDBlaster -relocate=$2000 music.sid relocated.sid
 ```
 
 ### Disassemble SID to assembly:
@@ -121,10 +122,16 @@ SIDBlaster -relocate -relocateaddr=$2000 music.sid relocated.sid
 SIDBlaster -disassemble music.sid music.asm
 ```
 
-### Trace SID register writes:
+### Trace SID register writes to default output:
 
 ```
-SIDBlaster -trace -tracelog=music.trace -traceformat=text music.sid
+SIDBlaster -trace music.sid
+```
+
+### Trace SID register writes to custom file:
+
+```
+SIDBlaster -trace=music.log music.sid
 ```
 
 ## Supported File Formats

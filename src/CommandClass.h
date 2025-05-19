@@ -1,4 +1,4 @@
-// CommandClass.h
+// CommandClass.h - Updated with new command types
 #pragma once
 
 #include "Common.h"
@@ -23,12 +23,12 @@ namespace sidblaster {
          * @brief Types of commands supported by SIDBlaster
          */
         enum class Type {
-            LinkPlayer,   ///< Link SID with player code to create executable PRG
-            Relocate,     ///< Relocate a SID file to a new address
-            Disassemble,  ///< Disassemble a SID file to assembly
-            Trace,        ///< Trace SID register writes
-            Help,         ///< Show help information
-            Unknown       ///< Unknown command
+            Player,        ///< Link SID with player code to create executable PRG (renamed from LinkPlayer)
+            Relocate,      ///< Relocate a SID file to a new address
+            Disassemble,   ///< Disassemble a SID file to assembly
+            Trace,         ///< Trace SID register writes
+            Help,          ///< Show help information
+            Unknown        ///< Unknown command
         };
 
         /**

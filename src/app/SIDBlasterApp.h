@@ -69,7 +69,7 @@ namespace sidblaster {
          * @brief Process a LinkPlayer command (link SID with player code)
          * @return Exit code (0 on success, non-zero on failure)
          */
-        int processLinkPlayer();
+        int processPlayer();
 
         /**
          * @brief Process a relocation command (relocate SID file)

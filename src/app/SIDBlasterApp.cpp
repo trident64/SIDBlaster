@@ -37,32 +37,17 @@ namespace sidblaster {
     }
 
     void SIDBlasterApp::setupCommandLine() {
-        // Command type flags
-        cmdParser_.addFlagDefinition("linkplayer", "Link SID music with a player (convert .sid to playable .prg)", "Commands");
-        cmdParser_.addFlagDefinition("relocate", "Relocate a SID file to a new address", "Commands");
+        // Command type flags - updated with new simplified syntax
+        cmdParser_.addFlagDefinition("player", "Link SID music with a player (convert .sid to playable .prg)", "Commands");
+        cmdParser_.addFlagDefinition("relocate", "Relocate a SID file to a new address (use -relocate=<address>)", "Commands");
         cmdParser_.addFlagDefinition("disassemble", "Disassemble a SID file to assembly code", "Commands");
         cmdParser_.addFlagDefinition("trace", "Trace SID register writes during emulation", "Commands");
 
-        // LinkPlayer options
+        // Remove old options and add new ones
         std::string defaultPlayerName = util::Configuration::getPlayerName();
-        cmdParser_.addOptionDefinition("linkplayertype", "name", "Player type to use", "LinkPlayer",
-            defaultPlayerName);
-
-        cmdParser_.addOptionDefinition("linkplayeraddr", "address", "Player load address", "LinkPlayer",
-            "$" + util::wordToHex(util::Configuration::getPlayerAddress()));
-        cmdParser_.addOptionDefinition("linkplayerdefs", "file", "Player definitions file", "LinkPlayer", "");
-
-        // Relocate options
-        cmdParser_.addOptionDefinition("relocateaddr", "address", "Target address for SID relocation", "Relocate", "");
-
-        // Trace options
-        cmdParser_.addOptionDefinition("tracelog", "file", "Output file for SID register trace log", "Trace", "");
-        cmdParser_.addOptionDefinition("traceformat", "format", "Format for trace log (text/binary)", "Trace", "binary");
-        cmdParser_.addOptionDefinition("frames", "number", "Number of frames to trace", "Trace",
-            std::to_string(DEFAULT_SID_EMULATION_FRAMES));
 
         // General options
-        cmdParser_.addOptionDefinition("logfile", "file", "Log file path", "General",
+        cmdParser_.addOptionDefinition("log", "file", "Log file path", "General",
             util::Configuration::getString("logFile", "SIDBlaster.log"));
 
         cmdParser_.addOptionDefinition("kickass", "path", "Path to KickAss.jar", "General",
@@ -79,15 +64,15 @@ namespace sidblaster {
 
         // Add example usages
         cmdParser_.addExample(
-            "SIDBlaster -linkplayer music.sid music.prg",
-            "Links music.sid with player code to create an executable music.prg");
+            "SIDBlaster -player music.sid music.prg",
+            "Links music.sid with the default player to create an executable music.prg");
 
         cmdParser_.addExample(
-            "SIDBlaster -linkplayer -linkplayertype=SimpleBitmap -linkplayeraddr=$0800 music.sid player.prg",
-            "Links music.sid with SimpleBitmap player at address $0800");
+            "SIDBlaster -player=SimpleBitmap music.sid player.prg",
+            "Links music.sid with SimpleBitmap player");
 
         cmdParser_.addExample(
-            "SIDBlaster -relocate -relocateaddr=$2000 music.sid relocated.sid",
+            "SIDBlaster -relocate=$2000 music.sid relocated.sid",
             "Relocates music.sid to $2000 and saves as relocated.sid");
 
         cmdParser_.addExample(
@@ -95,12 +80,17 @@ namespace sidblaster {
             "Disassembles music.sid to assembly code in music.asm");
 
         cmdParser_.addExample(
-            "SIDBlaster -trace -tracelog=music.trace music.sid",
-            "Traces SID register writes while executing music.sid");
+            "SIDBlaster -trace music.sid",
+            "Traces SID register writes to trace.bin in binary format");
+
+        cmdParser_.addExample(
+            "SIDBlaster -trace=music.log music.sid",
+            "Traces SID register writes to music.log in text format");
     }
 
     void SIDBlasterApp::initializeLogging() {
         // Get log file path from command parameters or config
+        // Now using -log= syntax instead of -logfile
         std::string logFilePath = command_.getParameter("logfile",
             util::Configuration::getString("logFile", "SIDBlaster.log"));
         logFile_ = fs::path(logFilePath);
@@ -126,8 +116,8 @@ namespace sidblaster {
         switch (command_.getType()) {
         case CommandClass::Type::Help:
             return showHelp();
-        case CommandClass::Type::LinkPlayer:
-            return processLinkPlayer();
+        case CommandClass::Type::Player:
+            return processPlayer();
         case CommandClass::Type::Relocate:
             return processRelocation();
         case CommandClass::Type::Disassemble:
@@ -135,8 +125,9 @@ namespace sidblaster {
         case CommandClass::Type::Trace:
             return processTrace();
         default:
-            std::cout << "Unknown command type" << std::endl;
-            return 1;
+            // Show help when no valid command is specified
+            std::cout << "Unknown command or no command specified" << std::endl << std::endl;
+            return showHelp();
         }
     }
 
@@ -156,11 +147,11 @@ namespace sidblaster {
             util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
         }
 
-        // Player options for LinkPlayer command
-        if (command_.getType() == CommandClass::Type::LinkPlayer) {
+        // Player options for Player command (formerly LinkPlayer)
+        if (command_.getType() == CommandClass::Type::Player) {
             options.includePlayer = true;
-            options.playerName = command_.getParameter("linkplayertype", util::Configuration::getPlayerName());
-            options.playerAddress = command_.getHexParameter("linkplayeraddr", util::Configuration::getPlayerAddress());
+            options.playerName = command_.getParameter("playerName", util::Configuration::getPlayerName());
+            options.playerAddress = command_.getHexParameter("playeraddr", util::Configuration::getPlayerAddress());
         }
         else {
             options.includePlayer = false;
@@ -198,18 +189,18 @@ namespace sidblaster {
         return 0;
     }
 
-    int SIDBlasterApp::processLinkPlayer() {
+    int SIDBlasterApp::processPlayer() {
         // Validate input file
         fs::path inputFile = fs::path(command_.getInputFile());
         fs::path outputFile = fs::path(command_.getOutputFile());
 
         if (inputFile.empty()) {
-            std::cout << "Error: No input file specified for linkplayer command" << std::endl;
+            std::cout << "Error: No input file specified for player command" << std::endl;
             return 1;
         }
 
         if (outputFile.empty()) {
-            std::cout << "Error: No output file specified for linkplayer command" << std::endl;
+            std::cout << "Error: No output file specified for player command" << std::endl;
             return 1;
         }
 
@@ -221,23 +212,23 @@ namespace sidblaster {
         // Strictly enforce .sid input and .prg output
         std::string inExt = getFileExtension(inputFile);
         if (inExt != ".sid") {
-            std::cout << "Error: LinkPlayer command requires a .sid input file, got: " << inExt << std::endl;
+            std::cout << "Error: Player command requires a .sid input file, got: " << inExt << std::endl;
             return 1;
         }
 
         std::string outExt = getFileExtension(outputFile);
         if (outExt != ".prg") {
-            std::cout << "Error: LinkPlayer command requires a .prg output file, got: " << outExt << std::endl;
+            std::cout << "Error: Player command requires a .prg output file, got: " << outExt << std::endl;
             return 1;
         }
 
         // Create processing options
         CommandProcessor::ProcessingOptions options = createProcessingOptions();
 
-        // Set LinkPlayer specific options
+        // Set Player specific options
         options.includePlayer = true;
-        options.playerName = command_.getParameter("linkplayertype", util::Configuration::getPlayerName());
-        options.playerAddress = command_.getHexParameter("linkplayeraddr", util::Configuration::getPlayerAddress());
+        options.playerName = command_.getParameter("playerName", util::Configuration::getPlayerName());
+        options.playerAddress = command_.getHexParameter("playeraddr", util::Configuration::getPlayerAddress());
 
         // Create and run command processor
         CommandProcessor processor;
@@ -282,7 +273,8 @@ namespace sidblaster {
         // Check if relocation address is specified
         std::string relocAddressStr = command_.getParameter("relocateaddr", "");
         if (relocAddressStr.empty()) {
-            std::cout << "Error: Relocation address (-relocateaddr) must be specified for relocate command" << std::endl;
+            std::cout << "Error: Relocation address must be specified with -relocate=<address>" << std::endl;
+            std::cout << "Example: -relocate=$2000" << std::endl;
             return 1;
         }
 
@@ -398,19 +390,12 @@ namespace sidblaster {
             return 1;
         }
 
-        // Check for trace log path
-        std::string traceLogPath = command_.getParameter("tracelog");
-        if (traceLogPath.empty()) {
-            // If not specified, create a default based on input filename
-            traceLogPath = inputFile.stem().string() + ".trace";
-        }
+        // Get trace log path from the command
+        std::string traceLogPath = command_.getParameter("tracelog", "trace.bin");
 
         // Determine trace format
         std::string traceFormatStr = command_.getParameter("traceformat", "binary");
-        TraceFormat traceFormat = TraceFormat::Binary;
-        if (traceFormatStr == "text") {
-            traceFormat = TraceFormat::Text;
-        }
+        TraceFormat traceFormat = (traceFormatStr == "text") ? TraceFormat::Text : TraceFormat::Binary;
 
         util::Logger::info("Tracing SID register writes for " + inputFile.string() +
             " to " + traceLogPath + " in " + traceFormatStr + " format");
