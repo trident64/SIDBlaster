@@ -165,7 +165,8 @@ namespace sidblaster {
             const fs::path& inputFile,
             const fs::path& outputFile,
             u16 relocationAddress,
-            const fs::path& tempDir) {
+            const fs::path& tempDir,
+            const std::string& kickAssPath) {  // Add parameter here too
 
             RelocationVerificationResult result;
             result.success = false;
@@ -195,6 +196,7 @@ namespace sidblaster {
                 options.traceEnabled = true;
                 options.traceLogPath = originalTrace.string();
 
+                cpu->reset();
                 if (!originalEmulator.runEmulation(options)) {
                     result.message = "Failed to emulate original SID file";
                     return result;
@@ -206,6 +208,7 @@ namespace sidblaster {
                 relocParams.outputFile = outputFile;
                 relocParams.tempDir = tempDir;
                 relocParams.relocationAddress = relocationAddress;
+                relocParams.kickAssPath = kickAssPath;  // Use the passed KickAss path
 
                 util::RelocationResult relocResult = util::relocateSID(cpu, sid, relocParams);
 
@@ -226,6 +229,7 @@ namespace sidblaster {
                 SIDEmulator relocatedEmulator(cpu, sid);
                 options.traceLogPath = relocatedTrace.string();
 
+                cpu->reset();
                 if (!relocatedEmulator.runEmulation(options)) {
                     result.message = "Relocation succeeded but failed to emulate relocated SID file";
                     return result;

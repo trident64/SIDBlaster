@@ -8,9 +8,9 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        "-relocate=$1000",
-        "SID\\92_Little_Shorty_Rockers.sid",
-        "rockers-1000.sid"
+        "-relocate=$8000",
+        ".\\sid\\92_Little_Shorty_Rockers.sid",
+        "rock8000.sid"
       ],
       "currentDir": "${workspaceRoot}"
     }

@@ -78,7 +78,8 @@ namespace sidblaster {
             const fs::path& inputFile,
             const fs::path& outputFile,
             u16 relocationAddress,
-            const fs::path& tempDir);
+            const fs::path& tempDir,
+            const std::string& kickAssPath = "");
 
 
         /**

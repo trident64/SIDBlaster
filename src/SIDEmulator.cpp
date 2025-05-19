@@ -31,6 +31,11 @@ namespace sidblaster {
 
             util::Logger::debug("Trace logging enabled to: " + options.traceLogPath);
         }
+        else
+        {
+            traceLogger_.reset();
+            cpu_->reset();
+        }
 
         // Create a backup of memory
         sid_->backupMemory();

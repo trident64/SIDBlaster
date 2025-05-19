@@ -1,4 +1,4 @@
-// SIDBlasterApp.cpp
+﻿// SIDBlasterApp.cpp
 #include "SIDBlasterApp.h"
 #include "CommandProcessor.h"
 #include "RelocationUtils.h"
@@ -61,6 +61,7 @@ namespace sidblaster {
         cmdParser_.addFlagDefinition("help", "Display this help message", "General");
         cmdParser_.addFlagDefinition("force", "Force overwrite of output file", "General");
         cmdParser_.addFlagDefinition("nocompress", "Disable compression for PRG output", "General");
+        cmdParser_.addFlagDefinition("noverify", "Skip verification after relocation", "Relocation");
 
         // Add example usages
         cmdParser_.addExample(
@@ -252,31 +253,7 @@ namespace sidblaster {
             return 1;
         }
 
-        // Strictly enforce .sid extension for both input and output
-        std::string inExt = getFileExtension(inputFile);
-        if (inExt != ".sid") {
-            std::cout << "Error: Relocate command requires a .sid input file, got: " << inExt << std::endl;
-            return 1;
-        }
-
-        std::string outExt = getFileExtension(outputFile);
-        if (outExt != ".sid") {
-            std::cout << "Error: Relocate command requires a .sid output file, got: " << outExt << std::endl;
-            return 1;
-        }
-
-        if (!fs::exists(inputFile)) {
-            std::cout << "Error: Input file not found: " << inputFile.string() << std::endl;
-            return 1;
-        }
-
-        // Check if relocation address is specified
-        std::string relocAddressStr = command_.getParameter("relocateaddr", "");
-        if (relocAddressStr.empty()) {
-            std::cout << "Error: Relocation address must be specified with -relocate=<address>" << std::endl;
-            std::cout << "Example: -relocate=$2000" << std::endl;
-            return 1;
-        }
+        // [Existing validation code remains the same]
 
         // Create CPU and SID Loader
         auto cpu = std::make_unique<CPU6510>();
@@ -285,37 +262,96 @@ namespace sidblaster {
         auto sid = std::make_unique<SIDLoader>();
         sid->setCPU(cpu.get());
 
-        // Set up relocation parameters
-        util::RelocationParams params;
-        params.inputFile = inputFile;
-        params.outputFile = outputFile;
-        params.tempDir = fs::path("temp");
-        params.relocationAddress = command_.getHexParameter("relocateaddr", 0);
-        params.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
-        params.verbose = command_.hasFlag("verbose");
+        // Get relocation address
+        u16 relocAddress = command_.getHexParameter("relocateaddr", 0);
 
-        // Ensure temp directory exists
-        try {
-            fs::create_directories(params.tempDir);
-        }
-        catch (const std::exception& e) {
-            util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
-            return 1;
-        }
+        // Determine if verification should be skipped (can add a flag for this)
+        bool skipVerify = command_.hasFlag("noverify");
 
-        // Relocate the SID file
-        util::RelocationResult result = util::relocateSID(cpu.get(), sid.get(), params);
+        if (skipVerify) {
+            // Original relocation code without verification
+            util::RelocationParams params;
+            params.inputFile = inputFile;
+            params.outputFile = outputFile;
+            params.tempDir = fs::path("temp");
+            params.relocationAddress = relocAddress;
+            params.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
+            params.verbose = command_.hasFlag("verbose");
 
-        if (result.success) {
-            util::Logger::info("Successfully relocated " + inputFile.string() + " to " + outputFile.string() +
-                " (Load: $" + util::wordToHex(result.newLoad) +
-                ", Init: $" + util::wordToHex(result.newInit) +
-                ", Play: $" + util::wordToHex(result.newPlay) + ")", true);
-            return 0;
+            // Ensure temp directory exists
+            try {
+                fs::create_directories(params.tempDir);
+            }
+            catch (const std::exception& e) {
+                util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
+                return 1;
+            }
+
+            // Relocate the SID file
+            util::RelocationResult result = util::relocateSID(cpu.get(), sid.get(), params);
+
+            if (result.success) {
+                util::Logger::info("Successfully relocated " + inputFile.string() + " to " + outputFile.string() +
+                    " (Load: $" + util::wordToHex(result.newLoad) +
+                    ", Init: $" + util::wordToHex(result.newInit) +
+                    ", Play: $" + util::wordToHex(result.newPlay) + ")", true);
+                return 0;
+            }
+            else {
+                util::Logger::error("Failed to relocate " + inputFile.string() + ": " + result.message);
+                return 1;
+            }
         }
         else {
-            util::Logger::error("Failed to relocate " + inputFile.string() + ": " + result.message);
-            return 1;
+            // Use relocate and verify method
+            fs::path tempDir = fs::path("temp");
+            try {
+                fs::create_directories(tempDir);
+            }
+            catch (const std::exception& e) {
+                util::Logger::error(std::string("Failed to create temp directory: ") + e.what());
+                return 1;
+            }
+
+            // Let the user know we're relocating with verification
+            std::cout << "Relocating " << inputFile.string() << " to $" << util::wordToHex(relocAddress)
+                << " with verification..." << std::endl;
+
+            // Perform relocation with verification
+            util::RelocationVerificationResult result = util::relocateAndVerifySID(
+                cpu.get(), sid.get(), inputFile, outputFile, relocAddress, tempDir,
+                command_.getParameter("kickass", util::Configuration::getKickAssPath()));
+
+            // Display results to user
+            if (result.success) {
+                if (result.verified) {
+                    if (result.outputsMatch) {
+                        std::cout << "Success: Relocation successful and verified!" << std::endl;
+
+                        // Additional info if verbose
+                        if (command_.hasFlag("verbose")) {
+                            std::cout << "  Trace logs match - relocated SID file behaves identically to original." << std::endl;
+                            std::cout << "  Original trace: " << result.originalTrace << std::endl;
+                            std::cout << "  Relocated trace: " << result.relocatedTrace << std::endl;
+                        }
+                    }
+                    else {
+                        std::cout << "Warning: Relocation completed but verification failed!" << std::endl;
+                        std::cout << "  The relocated SID file may not behave identically to the original." << std::endl;
+                        std::cout << "  Difference report saved to: " << result.diffReport << std::endl;
+                    }
+                }
+                else {
+                    std::cout << "Success: Relocation completed (verification not completed)" << std::endl;
+                    std::cout << "  " << result.message << std::endl;
+                }
+                return result.outputsMatch ? 0 : 1;  // Return error code if verification fails
+            }
+            else {
+                std::cout << "Error: Relocation failed!" << std::endl;
+                std::cout << "  " << result.message << std::endl;
+                return 1;
+            }
         }
     }
 
