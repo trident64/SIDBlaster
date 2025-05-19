@@ -107,6 +107,15 @@ namespace sidblaster {
      * @param targetAddr Target address
      */
     void DisassemblyWriter::addIndirectAccess(u16 pc, u8 zpAddr, u16 targetAddr) {
+        // Log the raw access for debugging
+        static std::ofstream accessLog("indirect_access_raw.log", std::ios::app);
+
+        if (accessLog) {
+            accessLog << "INDIRECT ACCESS: PC=$" << util::wordToHex(pc)
+                << " ZP=$" << util::byteToHex(zpAddr)
+                << " Target=$" << util::wordToHex(targetAddr) << "\n";
+        }
+
         // Get the sources of the ZP variables
         const auto& lowSource = cpu_.getWriteSourceInfo(zpAddr);
         const auto& highSource = cpu_.getWriteSourceInfo(zpAddr + 1);
@@ -115,36 +124,77 @@ namespace sidblaster {
         u16 lastWriteLow = cpu_.getLastWriteTo(zpAddr);
         u16 lastWriteHigh = cpu_.getLastWriteTo(zpAddr + 1);
 
-        // Track information even if not loaded from memory
-        IndirectAccessInfo info;
-        info.instructionAddress = pc;
-        info.zpAddr = zpAddr;
-        info.lastWriteLow = lastWriteLow;
-        info.lastWriteHigh = lastWriteHigh;
-        info.targetAddress = targetAddr;
+        // Log these sources
+        if (accessLog) {
+            accessLog << "  ZP Low source: ";
+            if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
+                accessLog << "Memory addr=$" << util::wordToHex(lowSource.address)
+                    << " value=$" << util::byteToHex(lowSource.value);
+            }
+            else {
+                accessLog << "Not from memory";
+            }
+            accessLog << " (last write at PC=$" << util::wordToHex(lastWriteLow) << ")\n";
 
-        // Capture source addresses when available
-        if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
-            info.sourceLowAddress = lowSource.address;
+            accessLog << "  ZP High source: ";
+            if (highSource.type == RegisterSourceInfo::SourceType::Memory) {
+                accessLog << "Memory addr=$" << util::wordToHex(highSource.address)
+                    << " value=$" << util::byteToHex(highSource.value);
+            }
+            else {
+                accessLog << "Not from memory";
+            }
+            accessLog << " (last write at PC=$" << util::wordToHex(lastWriteHigh) << ")\n\n";
         }
 
-        if (highSource.type == RegisterSourceInfo::SourceType::Memory) {
-            info.sourceHighAddress = highSource.address;
-        }
-
-        // Check if this entry already exists before adding it
-        bool isDuplicate = false;
-        for (const auto& existing : indirectAccesses_) {
+        // Look for an existing record for this ZP address
+        IndirectAccessInfo* existingInfo = nullptr;
+        for (auto& existing : indirectAccesses_) {
             if (existing.zpAddr == zpAddr &&
-                existing.targetAddress == targetAddr) {
-                isDuplicate = true;
+                existing.sourceLowAddress == lowSource.address &&
+                existing.sourceHighAddress == highSource.address) {
+                existingInfo = &existing;
                 break;
             }
         }
 
-        // Only add if it's not a duplicate
-        if (!isDuplicate) {
+        // If not found, create a new entry
+        if (!existingInfo) {
+            IndirectAccessInfo info;
+            info.instructionAddress = pc;
+            info.zpAddr = zpAddr;
+            info.lastWriteLow = lastWriteLow;
+            info.lastWriteHigh = lastWriteHigh;
+
+            // Capture source addresses when available
+            if (lowSource.type == RegisterSourceInfo::SourceType::Memory) {
+                info.sourceLowAddress = lowSource.address;
+            }
+
+            if (highSource.type == RegisterSourceInfo::SourceType::Memory) {
+                info.sourceHighAddress = highSource.address;
+            }
+
+            // Add this target address
+            info.targetAddresses.push_back(targetAddr);
+
+            // Add to the collection
             indirectAccesses_.push_back(info);
+        }
+        else {
+            // Add this target address to the existing entry if not already present
+            if (std::find(existingInfo->targetAddresses.begin(),
+                existingInfo->targetAddresses.end(),
+                targetAddr) == existingInfo->targetAddresses.end()) {
+                existingInfo->targetAddresses.push_back(targetAddr);
+
+                // Log when we're adding an additional target
+                if (accessLog) {
+                    accessLog << "  Adding additional target $" << util::wordToHex(targetAddr)
+                        << " to existing entry for ZP=$" << util::byteToHex(zpAddr)
+                        << " (now has " << existingInfo->targetAddresses.size() << " targets)\n";
+                }
+            }
         }
     }
 
@@ -211,34 +261,89 @@ namespace sidblaster {
         // Get memory data flow from CPU
         const auto& dataFlow = cpu_.getMemoryDataFlow();
 
-        // Step 1: Initialize the RelocationTable (clear any existing entries)
+        // Clear any existing entries in relocTable_
         relocTable_.clear();
 
-        // Step 2: Process each indirect access
+        // Log file for debugging the relocation table building
+        std::ofstream debugLog("relocation_debug.log");
+
+        // Process each indirect access - now tracking multiple targets
         for (const auto& access : indirectAccesses_) {
-            u16 targetAddr = access.targetAddress;
-            const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(targetAddr);
-            processRelocationChain(dataFlow, relocTable_, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
-            processRelocationChain(dataFlow, relocTable_, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
+            // Log for each entry
+            if (debugLog) {
+                debugLog << "Processing ZP=$" << util::byteToHex(access.zpAddr)
+                    << " with " << access.targetAddresses.size() << " targets:\n";
+
+                for (size_t i = 0; i < access.targetAddresses.size(); i++) {
+                    debugLog << "  Target " << i << ": $" << util::wordToHex(access.targetAddresses[i]) << "\n";
+                }
+
+                debugLog << "  Low byte source: $" << util::wordToHex(access.sourceLowAddress) << "\n";
+                debugLog << "  High byte source: $" << util::wordToHex(access.sourceHighAddress) << "\n\n";
+            }
+
+            // Use ONLY THE FIRST target address - this should be the original one we want
+            // This is the key change to fix the issue
+            if (!access.targetAddresses.empty()) {
+                u16 targetAddr = access.targetAddresses[0]; // Use the FIRST target address
+
+                if (debugLog) {
+                    debugLog << "Selected target address: $" << util::wordToHex(targetAddr) << "\n";
+                }
+
+                // Process the source address for LOW byte
+                if (access.sourceLowAddress != 0) {
+                    // Add entry to relocation table with the FIRST target address
+                    relocTable_.addEntry(access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
+
+                    // Mark for potential subdivision
+                    const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceLowAddress);
+
+                    // Follow data flow chain
+                    processRelocationChain(dataFlow, relocTable_, access.sourceLowAddress, targetAddr, RelocationEntry::Type::Low);
+                }
+
+                // Process the source address for HIGH byte
+                if (access.sourceHighAddress != 0) {
+                    // Add entry to relocation table with the FIRST target address
+                    relocTable_.addEntry(access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
+
+                    // Mark for potential subdivision
+                    const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(access.sourceHighAddress);
+
+                    // Follow data flow chain
+                    processRelocationChain(dataFlow, relocTable_, access.sourceHighAddress, targetAddr, RelocationEntry::Type::High);
+                }
+            }
         }
 
-        // Step 3: Dump the relocation table to a file for debugging
+        // Dump the final relocation table
         relocTable_.dumpToFile("relocation_table.log");
     }
 
-    void DisassemblyWriter::processRelocationChain(const MemoryDataFlow& dataFlow, RelocationTable& relocTable, u16 addr, u16 targetAddr, RelocationEntry::Type relocType)
-    {
+    void DisassemblyWriter::processRelocationChain(
+        const MemoryDataFlow& dataFlow,
+        RelocationTable& relocTable,
+        u16 addr,
+        u16 targetAddr,
+        RelocationEntry::Type relocType) {
+
+        // Add entry with the EXACT target address as received - no adjustments
         relocTable.addEntry(addr, targetAddr, relocType);
+
+        // Mark this source address for potential subdivision
         const_cast<LabelGenerator&>(labelGenerator_).addPendingSubdivisionAddress(addr);
 
+        // Find any other memory locations that write to this address
         auto it = dataFlow.memoryWriteSources.find(addr);
-        if (it != dataFlow.memoryWriteSources.end())
-        {
-            const std::vector<u16>& newAddrs = it->second;
-
-            for (u16 newAddr : newAddrs)
-            {
-                processRelocationChain(dataFlow, relocTable, newAddr, targetAddr, relocType);
+        if (it != dataFlow.memoryWriteSources.end()) {
+            // Process each source address that writes to this address
+            for (u16 newAddr : it->second) {
+                // Skip self-references to avoid infinite recursion
+                if (newAddr != addr) {
+                    // Use SAME target address for all chain entries to ensure consistency
+                    processRelocationChain(dataFlow, relocTable, newAddr, targetAddr, relocType);
+                }
             }
         }
     }

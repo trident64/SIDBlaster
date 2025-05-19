@@ -123,7 +123,7 @@ namespace sidblaster {
             u16 lastWriteHigh = 0;        // Address of last write to high byte
             u16 sourceLowAddress = 0;     // Source of the low byte value
             u16 sourceHighAddress = 0;    // Source of the high byte value
-            u16 targetAddress = 0;        // Address targetted
+            std::vector<u16> targetAddresses; // ALL target addresses for this ZP pointer
         };
         std::vector<IndirectAccessInfo> indirectAccesses_;  // List of indirect accesses
 
