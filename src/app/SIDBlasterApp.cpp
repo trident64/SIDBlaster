@@ -157,6 +157,7 @@ namespace sidblaster {
             options.includePlayer = true;
             options.playerName = command_.getParameter("playerName", util::ConfigManager::getPlayerName());
             options.playerAddress = command_.getHexParameter("playeraddr", util::ConfigManager::getPlayerAddress());
+            options.analyzeRegisterOrder = true; // Enable register order analysis for player
         }
         else {
             options.includePlayer = false;

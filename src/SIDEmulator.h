@@ -2,6 +2,8 @@
 
 #include "Common.h"
 #include "app/TraceLogger.h"
+#include "SIDWriteTracker.h"
+
 #include <functional>
 #include <memory>
 
@@ -29,6 +31,7 @@ namespace sidblaster {
             TraceFormat traceFormat = TraceFormat::Binary; ///< Format for trace logs
             std::string traceLogPath;                    ///< Path for trace log (if enabled)
             int callsPerFrame = 1;                       ///< Calls to play routine per frame
+            bool registerTrackingEnabled = false;        ///< Whether to track register write order
         };
 
         /**
@@ -51,6 +54,8 @@ namespace sidblaster {
          */
         std::pair<u64, u64> getCycleStats() const;
 
+        const SIDWriteTracker& getWriteTracker() const { return writeTracker_; }
+
     private:
         CPU6510* cpu_;                 ///< CPU instance
         SIDLoader* sid_;               ///< SID loader
@@ -58,6 +63,9 @@ namespace sidblaster {
         u64 totalCycles_ = 0;          ///< Total cycles used
         u64 maxCyclesPerFrame_ = 0;    ///< Maximum cycles used in a frame
         int framesExecuted_ = 0;       ///< Number of frames executed
+
+        SIDWriteTracker writeTracker_;
+
     };
 
 } // namespace sidblaster

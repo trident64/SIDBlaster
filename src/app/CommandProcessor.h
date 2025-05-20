@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../Common.h"
+#include "../SIDWriteTracker.h"
 #include "TraceLogger.h"
 #include "Disassembler.h"
 #include <memory>
@@ -64,6 +65,8 @@ namespace sidblaster {
             bool enableTracing = false;            ///< Whether to enable tracing
             TraceFormat traceFormat = TraceFormat::Binary;  ///< Trace format
             int frames = DEFAULT_SID_EMULATION_FRAMES;    ///< Number of frames to emulate
+
+            bool analyzeRegisterOrder = false;   ///< Whether to analyze SID register write order
         };
 
         /**
@@ -152,6 +155,17 @@ namespace sidblaster {
          * @param options Processing options
          */
         void applySIDMetadataOverrides(const ProcessingOptions& options);
+
+        /**
+         * @brief Generate SID register order file
+         * @param options Processing options
+         * @param writeTracker The SID write tracker with analyzed data
+         * @return True if file generation succeeded
+         */
+        bool generateRegisterOrderFile(
+            const ProcessingOptions& options,
+            const SIDWriteTracker& writeTracker);
+
     };
 
 } // namespace sidblaster

@@ -15,22 +15,37 @@ namespace sidblaster {
             return false;
         }
 
+        // Temporarily disable register tracking for init
+        bool originalTrackingEnabled = options.registerTrackingEnabled;
+        bool temporaryTrackingEnabled = false;
+
+        // Clear the write tracker if tracking is enabled
+        if (options.registerTrackingEnabled) {
+            writeTracker_.reset();
+        }
+
         // Set up trace logger if enabled
         if (options.traceEnabled && !options.traceLogPath.empty()) {
             traceLogger_ = std::make_unique<TraceLogger>(options.traceLogPath, options.traceFormat);
-
-            // Set up callback for SID writes
-            cpu_->setOnSIDWriteCallback([this](u16 addr, u8 value) {
-                traceLogger_->logSIDWrite(addr, value);
-                });
-
-            // Set up callback for CIA writes
-            cpu_->setOnCIAWriteCallback([this](u16 addr, u8 value) {
-                traceLogger_->logCIAWrite(addr, value);
-                });
-
-            util::Logger::debug("Trace logging enabled to: " + options.traceLogPath);
         }
+        else {
+            traceLogger_.reset();
+        }
+
+        // Set up callbacks based on enabled features
+        auto updateSIDCallback = [this, &temporaryTrackingEnabled](bool enableTracking) {
+            cpu_->setOnSIDWriteCallback([this, enableTracking](u16 addr, u8 value) {
+                // Call the trace logger if enabled
+                if (traceLogger_) {
+                    traceLogger_->logSIDWrite(addr, value);
+                }
+
+                // Record the write in our tracker if tracking is enabled
+                if (enableTracking) {
+                    writeTracker_.recordWrite(addr, value);
+                }
+                });
+            };
 
         // Create a backup of memory
         sid_->backupMemory();
@@ -45,6 +60,7 @@ namespace sidblaster {
 
         // Execute the init routine once
         cpu_->resetRegistersAndFlags();
+        updateSIDCallback(false);
         cpu_->executeFunction(initAddr);
 
         // Run a short playback period to identify initial memory patterns
@@ -58,18 +74,23 @@ namespace sidblaster {
                 }
             }
 
-            // Mark end of frame in trace log
-            if (traceLogger_) {
+            // Mark end of frame in trace log and write tracker
+            if (options.traceEnabled && traceLogger_) {
                 traceLogger_->logFrameMarker();
+            }
+
+            if (options.registerTrackingEnabled) {
+                writeTracker_.endFrame();
             }
         }
 
         // Re-run the init routine to reset the player state
         cpu_->resetRegistersAndFlags();
+        updateSIDCallback(false);
         cpu_->executeFunction(initAddr);
 
         // Mark end of initialization in trace log
-        if (traceLogger_) {
+        if (options.traceEnabled && traceLogger_) {
             traceLogger_->logFrameMarker();
         }
 
@@ -77,6 +98,12 @@ namespace sidblaster {
         totalCycles_ = 0;
         maxCyclesPerFrame_ = 0;
         framesExecuted_ = 0;
+
+        // Now enable register tracking if requested in the options
+        if (options.registerTrackingEnabled) {
+            temporaryTrackingEnabled = true;
+            updateSIDCallback(true);
+        }
 
         // Get initial cycle count
         u64 lastCycles = cpu_->getCycles();
@@ -88,13 +115,12 @@ namespace sidblaster {
             for (int call = 0; call < options.callsPerFrame; ++call) {
                 cpu_->resetRegistersAndFlags();
                 bGood = cpu_->executeFunction(playAddr);
-                if (!bGood)
-                {
+                if (!bGood) {
                     break;
                 }
             }
-            if (!bGood)
-            {
+
+            if (!bGood) {
                 break;
             }
 
@@ -107,11 +133,21 @@ namespace sidblaster {
             totalCycles_ += frameCycles;
             lastCycles = curCycles;
 
-            // Mark end of frame in trace log
-            if (traceLogger_) {
+            // Mark end of frame in trace log and write tracker
+            if (options.traceEnabled && traceLogger_) {
                 traceLogger_->logFrameMarker();
             }
+
+            if (options.registerTrackingEnabled) {
+                writeTracker_.endFrame();
+            }
+
             framesExecuted_++;
+        }
+
+        // Analyze register write patterns if tracking was enabled
+        if (temporaryTrackingEnabled) {
+            writeTracker_.analyzePattern();
         }
 
         // Log cycle stats

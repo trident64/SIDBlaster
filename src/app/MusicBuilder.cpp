@@ -192,6 +192,11 @@ namespace sidblaster {
             return false;
         }
 
+        // Get basename from music file for determining register order file
+        std::string basename = musicFile.stem().string();
+        fs::path regOrderFile = options.tempDir / (basename + "_regorder.asm");
+        bool hasRegOrderFile = fs::exists(regOrderFile);
+
         // Write the linker file header
         file << "//; ------------------------------------------\n";
         file << "//; SIDBlaster Player Linker\n";
@@ -220,6 +225,17 @@ namespace sidblaster {
         // Define player variables
         file << ".var NumCallsPerFrame = " << options.playCallsPerFrame << "\n";
         file << ".var PlayerADDR = $" << util::wordToHex(options.playerAddress) << "\n";
+        file << "\n";
+
+        // Add register order include if available
+        if (hasRegOrderFile) {
+            file << "// Include SID register order information\n";
+            file << ".import source \"" << regOrderFile.string() << "\"\n";
+        }
+        else {
+            file << "// No SID register order information available\n";
+            file << "SIDRegisterCount = 0\n";
+        }
         file << "\n";
 
         // Add SID metadata if available
@@ -264,7 +280,7 @@ namespace sidblaster {
         }
 
         // Add debug info if enabled in configuration
-        if (util::ConfigManager::getBool("debugComments", false)) {
+        if (util::Configuration::getBool("debugComments", false)) {
             file << "// Debug Information\n";
             file << "// -----------------\n";
             file << "// Player: " << options.playerName << "\n";
