@@ -3,6 +3,7 @@
 #include "CommandProcessor.h"
 #include "RelocationUtils.h"
 #include "../SIDBlasterUtils.h"
+#include "../ConfigManager.h"
 #include "../cpu6510.h"
 #include "../SIDLoader.h"
 #include "../SIDEmulator.h"
@@ -15,17 +16,21 @@ namespace sidblaster {
         : cmdParser_(argc, argv),
         command_(CommandClass::Type::Unknown) {
 
-        // Look for configuration file in current directory and load if available
-        fs::path configFile = "SIDBlaster.cfg";
-        if (fs::exists(configFile)) {
-            util::Configuration::loadFromFile(configFile);
-        }
-
         // Setup command line options
         setupCommandLine();
     }
 
     int SIDBlasterApp::run() {
+        // Look for configuration file in current directory and executable directory
+        fs::path configFile = "SIDBlaster.cfg";
+        if (!fs::exists(configFile)) {
+            // Try executable directory
+            configFile = fs::path(cmdParser_.getProgramName()).parent_path() / "SIDBlaster.cfg";
+        }
+
+        // Initialize configuration system
+        util::ConfigManager::initialize(configFile);
+
         // Initialize logging
         initializeLogging();
 
@@ -44,17 +49,17 @@ namespace sidblaster {
         cmdParser_.addFlagDefinition("trace", "Trace SID register writes during emulation", "Commands");
 
         // Remove old options and add new ones
-        std::string defaultPlayerName = util::Configuration::getPlayerName();
+        std::string defaultPlayerName = util::ConfigManager::getPlayerName();
 
         // General options
         cmdParser_.addOptionDefinition("log", "file", "Log file path", "General",
-            util::Configuration::getString("logFile", "SIDBlaster.log"));
+            util::ConfigManager::getString("logFile", "SIDBlaster.log"));
 
         cmdParser_.addOptionDefinition("kickass", "path", "Path to KickAss.jar", "General",
-            util::Configuration::getKickAssPath());
+            util::ConfigManager::getKickAssPath());
 
         cmdParser_.addOptionDefinition("exomizer", "path", "Path to Exomizer", "General",
-            util::Configuration::getExomizerPath());
+            util::ConfigManager::getExomizerPath());
 
         // Flags
         cmdParser_.addFlagDefinition("verbose", "Enable verbose logging", "General");
@@ -91,16 +96,15 @@ namespace sidblaster {
 
     void SIDBlasterApp::initializeLogging() {
         // Get log file path from command parameters or config
-        // Now using -log= syntax instead of -logfile
         std::string logFilePath = command_.getParameter("logfile",
-            util::Configuration::getString("logFile", "SIDBlaster.log"));
+            util::ConfigManager::getString("logFile", "SIDBlaster.log"));
         logFile_ = fs::path(logFilePath);
 
         // Set log level based on verbose flag or config
         verbose_ = command_.hasFlag("verbose");
 
         // Convert integer log level from config to Logger::Level
-        int configLogLevel = util::Configuration::getInt("logLevel", 3); // Default to Info
+        int configLogLevel = util::ConfigManager::getInt("logLevel", 3); // Default to Info
         auto logLevel = verbose_ ?
             util::Logger::Level::Debug :
             static_cast<util::Logger::Level>(std::min(std::max(configLogLevel - 1, 0), 3));
@@ -151,17 +155,17 @@ namespace sidblaster {
         // Player options for Player command (formerly LinkPlayer)
         if (command_.getType() == CommandClass::Type::Player) {
             options.includePlayer = true;
-            options.playerName = command_.getParameter("playerName", util::Configuration::getPlayerName());
-            options.playerAddress = command_.getHexParameter("playeraddr", util::Configuration::getPlayerAddress());
+            options.playerName = command_.getParameter("playerName", util::ConfigManager::getPlayerName());
+            options.playerAddress = command_.getHexParameter("playeraddr", util::ConfigManager::getPlayerAddress());
         }
         else {
             options.includePlayer = false;
         }
 
         // Build options
-        options.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
-        options.exomizerPath = command_.getParameter("exomizer", util::Configuration::getExomizerPath());
-        options.compressorType = util::Configuration::getCompressorType();
+        options.kickAssPath = command_.getParameter("kickass", util::ConfigManager::getKickAssPath());
+        options.exomizerPath = command_.getParameter("exomizer", util::ConfigManager::getExomizerPath());
+        options.compressorType = util::ConfigManager::getCompressorType();
         options.compress = !command_.hasFlag("nocompress");
 
         // Parse relocation address for Relocate command
@@ -180,7 +184,7 @@ namespace sidblaster {
 
         // Get frames to emulate from command line or config
         options.frames = command_.getIntParameter("frames",
-            util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
+            util::ConfigManager::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
 
         return options;
     }
@@ -228,8 +232,8 @@ namespace sidblaster {
 
         // Set Player specific options
         options.includePlayer = true;
-        options.playerName = command_.getParameter("playerName", util::Configuration::getPlayerName());
-        options.playerAddress = command_.getHexParameter("playeraddr", util::Configuration::getPlayerAddress());
+        options.playerName = command_.getParameter("playerName", util::ConfigManager::getPlayerName());
+        options.playerAddress = command_.getHexParameter("playeraddr", util::ConfigManager::getPlayerAddress());
 
         // Create and run command processor
         CommandProcessor processor;
@@ -275,7 +279,7 @@ namespace sidblaster {
             params.outputFile = outputFile;
             params.tempDir = fs::path("temp");
             params.relocationAddress = relocAddress;
-            params.kickAssPath = command_.getParameter("kickass", util::Configuration::getKickAssPath());
+            params.kickAssPath = command_.getParameter("kickass", util::ConfigManager::getKickAssPath());
             params.verbose = command_.hasFlag("verbose");
 
             // Ensure temp directory exists
@@ -320,7 +324,7 @@ namespace sidblaster {
             // Perform relocation with verification
             util::RelocationVerificationResult result = util::relocateAndVerifySID(
                 cpu.get(), sid.get(), inputFile, outputFile, relocAddress, tempDir,
-                command_.getParameter("kickass", util::Configuration::getKickAssPath()));
+                command_.getParameter("kickass", util::ConfigManager::getKickAssPath()));
 
             // Display results to user
             if (result.success) {
@@ -463,7 +467,7 @@ namespace sidblaster {
 
         // Get frames count from command line or config
         options.frames = command_.getIntParameter("frames",
-            util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
+            util::ConfigManager::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES));
 
         options.traceEnabled = true;
         options.traceFormat = traceFormat;

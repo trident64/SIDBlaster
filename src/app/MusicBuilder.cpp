@@ -5,6 +5,7 @@
 // ==================================
 #include "MusicBuilder.h"
 #include "../SIDBlasterUtils.h"
+#include "../ConfigManager.h"
 #include "../cpu6510.h"
 #include "../SIDLoader.h"
 
@@ -51,11 +52,11 @@ namespace sidblaster {
             // Set default player name if none specified
             std::string playerToUse = options.playerName;
             if (playerToUse == "default") {
-                playerToUse = util::Configuration::getPlayerName();
+                playerToUse = util::ConfigManager::getPlayerName();
             }
 
             // Get player assembly file path - check configuration for player directory
-            std::string playerDir = util::Configuration::getString("playerDirectory", "SIDPlayers");
+            std::string playerDir = util::ConfigManager::getString("playerDirectory", "SIDPlayers");
             fs::path playerAsmFile = fs::path(playerDir) / playerToUse / (playerToUse + ".asm");
 
             // Create the player directory if it doesn't exist
@@ -140,7 +141,7 @@ namespace sidblaster {
         }
 
         // Clean up temporary files if configured not to keep them
-        if (!util::Configuration::getBool("keepTempFiles", false)) {
+        if (!util::ConfigManager::getBool("keepTempFiles", false)) {
             util::Logger::debug("Cleaning up temporary files");
 
             std::vector<fs::path> tempFiles = {
@@ -263,7 +264,7 @@ namespace sidblaster {
         }
 
         // Add debug info if enabled in configuration
-        if (util::Configuration::getBool("debugComments", false)) {
+        if (util::ConfigManager::getBool("debugComments", false)) {
             file << "// Debug Information\n";
             file << "// -----------------\n";
             file << "// Player: " << options.playerName << "\n";
@@ -321,15 +322,15 @@ namespace sidblaster {
 
         if (options.compressorType == "exomizer") {
             // Get additional options from configuration if available
-            std::string exomizerOptions = util::Configuration::getString("exomizerOptions", "-x 3 -q");
+            std::string exomizerOptions = util::ConfigManager::getString("exomizerOptions", "-x 3 -q");
 
             compressCommand = options.exomizerPath + " sfx " + std::to_string(loadAddress) +
                 " " + exomizerOptions + " \"" + inputPrg.string() + "\" -o \"" + outputPrg.string() + "\"";
         }
         else if (options.compressorType == "pucrunch") {
             // Get pucrunch path and options from configuration
-            std::string pucrunchPath = util::Configuration::getString("pucrunchPath", "pucrunch");
-            std::string pucrunchOptions = util::Configuration::getString("pucrunchOptions", "-x");
+            std::string pucrunchPath = util::ConfigManager::getString("pucrunchPath", "pucrunch");
+            std::string pucrunchOptions = util::ConfigManager::getString("pucrunchOptions", "-x");
 
             compressCommand = pucrunchPath + " " + pucrunchOptions + " " + std::to_string(loadAddress) +
                 " \"" + inputPrg.string() + "\" \"" + outputPrg.string() + "\"";

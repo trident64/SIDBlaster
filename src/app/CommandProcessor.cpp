@@ -5,6 +5,7 @@
 // ==================================
 #include "CommandProcessor.h"
 #include "../SIDBlasterUtils.h"
+#include "../ConfigManager.h"
 #include "../cpu6510.h"
 #include "../SIDEmulator.h"
 #include "../SIDLoader.h"
@@ -203,7 +204,7 @@ namespace sidblaster {
 
         // Use frames count from options (from command line or config)
         emulationOptions.frames = options.frames > 0 ?
-            options.frames : util::Configuration::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES);
+            options.frames : util::ConfigManager::getInt("emulationFrames", DEFAULT_SID_EMULATION_FRAMES);
 
         emulationOptions.traceEnabled = options.enableTracing;
         emulationOptions.traceFormat = options.traceFormat;
@@ -249,7 +250,7 @@ namespace sidblaster {
         }
 
         // Default to calls per frame from config, or 1 if not set
-        int defaultCalls = util::Configuration::getInt("defaultPlayCallsPerFrame", 1);
+        int defaultCalls = util::ConfigManager::getInt("defaultPlayCallsPerFrame", 1);
         int numPlayCallsPerFrame = std::clamp(count == 0 ? defaultCalls : count, 1, 16);
 
         // Check for CIA timer
@@ -257,8 +258,8 @@ namespace sidblaster {
             const u16 timerValue = CIATimerLo | (CIATimerHi << 8);
 
             // Use clock speed from config if available (default to PAL at 63 cycles per line, 312 lines)
-            double cyclesPerLine = util::Configuration::getDouble("cyclesPerLine", 63.0);
-            double linesPerFrame = util::Configuration::getDouble("linesPerFrame", 312.0);
+            double cyclesPerLine = util::ConfigManager::getDouble("cyclesPerLine", 63.0);
+            double linesPerFrame = util::ConfigManager::getDouble("linesPerFrame", 312.0);
 
             const double NumCyclesPerFrame = (cyclesPerLine * linesPerFrame);
             const double freq = NumCyclesPerFrame / std::max(1, static_cast<int>(timerValue));
@@ -475,11 +476,11 @@ namespace sidblaster {
 
                 // We need load, init, and play addresses
                 u16 loadAddr = options.hasOverrideLoad ?
-                    options.overrideLoadAddress : util::Configuration::getDefaultSidLoadAddress();
+                    options.overrideLoadAddress : util::ConfigManager::getDefaultSidLoadAddress();
                 u16 initAddr = options.hasOverrideInit ?
-                    options.overrideInitAddress : util::Configuration::getDefaultSidInitAddress();
+                    options.overrideInitAddress : util::ConfigManager::getDefaultSidInitAddress();
                 u16 playAddr = options.hasOverridePlay ?
-                    options.overridePlayAddress : util::Configuration::getDefaultSidPlayAddress();
+                    options.overridePlayAddress : util::ConfigManager::getDefaultSidPlayAddress();
 
                 // Get default flags and SID addresses
                 const SIDHeader& originalHeader = sid_->getHeader();

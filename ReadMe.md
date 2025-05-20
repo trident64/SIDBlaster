@@ -88,6 +88,66 @@ These options can be used with any command:
 - `-sidinitaddr=<address>`: Override SID init address
 - `-sidplayaddr=<address>`: Override SID play address
 
+## Configuration System
+
+SIDBlaster features a comprehensive configuration system that allows you to customize default settings. When you first run SIDBlaster, it automatically creates a configuration file (`SIDBlaster.cfg`) that contains all available settings with their default values.
+
+### Configuration File Location
+
+SIDBlaster looks for the configuration file in the following locations, in order:
+1. The current working directory
+2. The executable's directory
+
+### Editing the Configuration File
+
+The configuration file is a plain text file that you can edit with any text editor. Each setting is defined in a `key=value` format, with sections organized by comments.
+
+Example configuration entries:
+```
+# Path to KickAss jar file (include 'java -jar' prefix if needed)
+kickassPath=java -jar KickAss.jar -silentMode
+
+# Number of frames to emulate for analysis and tracing
+emulationFrames=30000
+```
+
+### Common Configuration Settings
+
+Here are some common settings you might want to customize:
+
+#### Tool Paths
+- `kickassPath`: Path to KickAss assembler (e.g., `java -jar C:\Tools\KickAss.jar -silentMode`)
+- `exomizerPath`: Path to Exomizer compression tool
+- `pucrunchPath`: Path to Pucrunch compression tool (alternative to Exomizer)
+- `compressorType`: Preferred compression tool (`exomizer` or `pucrunch`)
+
+#### Player Settings
+- `playerName`: Default player routine to use (e.g., `SimpleRaster`, `SimpleBitmap`)
+- `playerAddress`: Default memory address for player code (e.g., `$0900`)
+- `playerDirectory`: Directory containing player code files
+
+#### Emulation Settings
+- `emulationFrames`: Number of frames to emulate (default: `30000`, about 10 minutes of C64 time)
+- `cyclesPerLine`: CPU cycles per scan line (PAL: `63.0`, NTSC: `65.0`)
+- `linesPerFrame`: Scan lines per frame (PAL: `312.0`, NTSC: `263.0`)
+
+#### Logging Settings
+- `logFile`: Default log file path
+- `logLevel`: Logging detail level (1=Error, 2=Warning, 3=Info, 4=Debug)
+
+#### Development Settings
+- `debugComments`: Include debug comments in generated assembly (`true` or `false`)
+- `keepTempFiles`: Preserve temporary files after processing (`true` or `false`)
+
+### When to Use Configuration vs. Command Line
+
+- **Configuration File**: Use for persistent changes that you want to apply to all operations (e.g., paths to external tools, emulation performance settings, default player preferences)
+- **Command Line Options**: Use for operation-specific settings that vary by task (e.g., specific relocate addresses, trace file names)
+
+### Configuration Updates
+
+The configuration file is automatically updated with new settings when SIDBlaster adds features. Your custom settings will be preserved during updates.
+
 ## Player Types
 
 SIDBlaster includes several player routines:
@@ -154,19 +214,6 @@ SIDBlaster -trace -frames=1000 music.sid
   - PRG files (.prg) - Executable Commodore 64 programs
   - SID files (.sid) - Commodore 64 music format
   - ASM files (.asm) - Assembly language source code
-
-## Configuration
-
-SIDBlaster can be configured using a `SIDBlaster.cfg` file, which can be placed in:
-- The current directory
-- The executable's directory
-- Standard system configuration locations
-
-Common configuration options include:
-- `kickassPath`: Default path to KickAss.jar
-- `exomizerPath`: Default path to Exomizer
-- `playerName`: Default player to use
-- `emulationFrames`: Default number of frames to emulate
 
 ## Requirements
 

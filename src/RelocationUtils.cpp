@@ -1,5 +1,6 @@
 #include "RelocationUtils.h"
 #include "SIDBlasterUtils.h"
+#include "ConfigManager.h"
 #include "cpu6510.h"
 #include "SIDEmulator.h"
 #include "SIDLoader.h"
@@ -82,7 +83,7 @@ namespace sidblaster {
             sidblaster::Disassembler disassembler(*cpu, *sid);
 
             // Run emulation to analyze memory access patterns
-            const int numFrames = 30000; // TODO, this should be coming from (1) a global constant (in common.h), then overriden by the CFG file if there is one, then overridden by batch script or command-line, etc
+            const int numFrames = sidblaster::util::ConfigManager::getInt("emulationFrames");
             if (!runSIDEmulation(cpu, sid, numFrames)) {
                 result.message = "Failed to run SID emulation for memory analysis";
                 Logger::error(result.message);
