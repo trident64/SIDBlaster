@@ -1,6 +1,6 @@
 # SIDBlaster
 
-*SIDBlaster 0.7.0 - C64 SID Music File Processor*
+*SIDBlaster 0.8.5 - C64 SID Music File Processor*
 
 Developed by Robert Troughton (Raistlin of Genesis Project)
 
