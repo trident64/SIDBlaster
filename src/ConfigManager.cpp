@@ -1,10 +1,11 @@
 // ConfigManager.cpp
 #include "ConfigManager.h"
 #include <algorithm>
-#include <fstream>
-#include <sstream>
 #include <cctype>
+#include <fstream>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 namespace sidblaster {
     namespace util {
