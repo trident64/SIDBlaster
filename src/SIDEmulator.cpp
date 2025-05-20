@@ -101,6 +101,7 @@ namespace sidblaster {
 
         // Now enable register tracking if requested in the options
         if (options.registerTrackingEnabled) {
+            cpu_->executeFunction(playAddr);    //; do "play" for the first frame .. because some SIDs output differently on the first frame
             temporaryTrackingEnabled = true;
             updateSIDCallback(true);
         }
