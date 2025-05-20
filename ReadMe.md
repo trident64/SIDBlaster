@@ -32,8 +32,8 @@ SIDBlaster -player music.sid music.prg
 
 Options:
 - Use `-player` for the default player (SimpleRaster)
-- Use `-player=<type>` to specify a different player (e.g., `-player=SimpleBitmap`)
-- `-playeraddr=<address>`: Player load address (default: $0900)
+- Use `-player=<type>` to specify a different player (e.g., `-player=SimpleBitmap` or `-player=RaistlinBars`)
+- `-playeraddr=<address>`: Player load address (default: $4000)
 
 ### `-relocate=<address>`
 Relocates a SID file to a different memory address. By default, performs verification to ensure the relocated file behaves identically to the original.
@@ -123,7 +123,7 @@ Here are some common settings you might want to customize:
 
 #### Player Settings
 - `playerName`: Default player routine to use (e.g., `SimpleRaster`, `SimpleBitmap`)
-- `playerAddress`: Default memory address for player code (e.g., `$0900`)
+- `playerAddress`: Default memory address for player code (e.g., `$4000`)
 - `playerDirectory`: Directory containing player code files
 
 #### Emulation Settings

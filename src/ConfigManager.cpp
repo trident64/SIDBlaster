@@ -46,7 +46,7 @@ namespace sidblaster {
 
             // Player Settings
             configValues_["playerName"] = "SimpleRaster";
-            configValues_["playerAddress"] = "$0900";
+            configValues_["playerAddress"] = "$4000";
             configValues_["playerDirectory"] = "SIDPlayers";
             configValues_["defaultPlayCallsPerFrame"] = "1";
 
@@ -308,7 +308,7 @@ namespace sidblaster {
         }
 
         u16 ConfigManager::getPlayerAddress() {
-            std::string addrStr = getString("playerAddress", "$0900");
+            std::string addrStr = getString("playerAddress", "$4000");
 
             // Simple hex parser for $XXXX format
             if (!addrStr.empty() && addrStr[0] == '$') {
@@ -320,7 +320,7 @@ namespace sidblaster {
                 }
             }
 
-            return 0x0900; // Default player address
+            return 0x4000; // Default player address
         }
 
         u16 ConfigManager::getDefaultSidLoadAddress() {

@@ -145,7 +145,7 @@ StartLocalData:
 	MeterColourValues:			.fill 80, $0b
 
 	dBMeterValue:				.fill NUM_FREQS_ON_SCREEN,0
-	SID_Ghostbytes:				.fill 32,0
+	SIDGhostbytes:				.fill 32,0
 
 	DarkColourLookup:			.byte $00, $0c, $00, $0e, $06, $09, $00, $08
 								.byte $02, $0b, $02, $00, $0b, $05, $06, $0c
@@ -548,7 +548,7 @@ MUSICPLAYER_Spectrometer_PerPlay:
 
 		.for (var ChannelIndex = 0; ChannelIndex < 3; ChannelIndex++)
 		{
-			lda SID_Ghostbytes + (ChannelIndex * 7) + 4
+			lda SIDGhostbytes + (ChannelIndex * 7) + 4
 			bmi !skipUpdate+
 			and #1
 			bne !continue+
@@ -557,7 +557,7 @@ MUSICPLAYER_Spectrometer_PerPlay:
 
 		!continue:
 
-			ldy SID_Ghostbytes + (ChannelIndex * 7) + 1	//; hi-freq
+			ldy SIDGhostbytes + (ChannelIndex * 7) + 1	//; hi-freq
 
 			cpy #4
 			bcc Check_FreqLoTable
@@ -567,14 +567,14 @@ MUSICPLAYER_Spectrometer_PerPlay:
 			jmp GotFreq
 
 		Check_FreqLoTable:
-			ldx SID_Ghostbytes + (ChannelIndex * 7) + 0	//; lo-freq
+			ldx SIDGhostbytes + (ChannelIndex * 7) + 0	//; lo-freq
 			lda LoFreqToLookupTable, x
 			ora HiFreqToLookupTable, y
 			tay
 			ldx FreqLoTable, y
 		GotFreq:
 
-			ldy SID_Ghostbytes + (ChannelIndex * 7) + 6	//; sustain/release .. top 4 bits are sustain, bottom 4 bits are release
+			ldy SIDGhostbytes + (ChannelIndex * 7) + 6	//; sustain/release .. top 4 bits are sustain, bottom 4 bits are release
 			lda ReleaseConversionHi, y
 			sta MeterReleaseHiPerChannel + ChannelIndex
 			lda ReleaseConversionLo, y
@@ -729,37 +729,22 @@ MUSICPLAYER_PlayMusic:
 		.for (var i=24; i >= 0; i--)
 		{
 			lda $d400 + i
-			sta SID_Ghostbytes + i
+			sta SIDGhostbytes + i
 		}
 		pla
 		sta $01
 
-		lda SID_Ghostbytes		+ $15
-		sta $d400				+ $15
-		lda SID_Ghostbytes		+ $16
-		sta $d400				+ $16
-		lda SID_Ghostbytes		+ $17
-		sta $d400				+ $17
-		lda SID_Ghostbytes		+ $18
-		sta $d400				+ $18
-
-		.for (var i = 0; i < 3; i++)
-		{
-			lda SID_Ghostbytes	+ $05 + (i * 7)
-			sta $d400			+ $05 + (i * 7)
-			lda SID_Ghostbytes	+ $06 + (i * 7)
-			sta $d400			+ $06 + (i * 7)
-			lda SID_Ghostbytes	+ $02 + (i * 7)
-			sta $d400			+ $02 + (i * 7)
-			lda SID_Ghostbytes	+ $03 + (i * 7)
-			sta $d400			+ $03 + (i * 7)
-			lda SID_Ghostbytes	+ $00 + (i * 7)
-			sta $d400			+ $00 + (i * 7)
-			lda SID_Ghostbytes	+ $01 + (i * 7)
-			sta $d400			+ $01 + (i * 7)
-			lda SID_Ghostbytes	+ $04 + (i * 7)
-			sta $d400			+ $04 + (i * 7)
-		}
+		#if SID_REGISTER_REORDER_AVAILABLE
+			.for (var i = 0; i < SIDRegisterCount; i++) {
+				lda SIDGhostbytes + SIDRegisterOrder.get(i)
+				sta $d400 + SIDRegisterOrder.get(i)
+			}
+		#else //; SID_REGISTER_REORDER_AVAILABLE
+			.for (var i = 0; i <= 24; i++) {
+				lda SIDGhostbytes + i
+				sta $d400 + i
+			}
+		#endif
 
 		jmp MUSICPLAYER_Spectrometer_PerPlay
 
@@ -770,7 +755,7 @@ MUSICPLAYER_SetupNewSong:
 		lda #$00
 	BlankMusicLoop:
 		sta $d400, y
-		sta SID_Ghostbytes, y
+		sta SIDGhostbytes, y
 		iny
 		cpy #25
 		bne BlankMusicLoop

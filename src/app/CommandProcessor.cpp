@@ -604,12 +604,8 @@ namespace sidblaster {
 
         // Write consistent pattern if available
         if (writeTracker.hasConsistentPattern()) {
-            file << "// Consistent register write pattern detected\n";
+            file << "#define SID_REGISTER_REORDER_AVAILABLE\n";
             file << writeTracker.getWriteOrderString() << "\n";
-        }
-        else {
-            file << "// No consistent register write pattern detected\n";
-            file << ".var SIDRegisterCount = 0\n\n";
         }
 
         // Add register usage statistics as comments

@@ -225,7 +225,6 @@ namespace sidblaster {
 
             // Player settings
             static std::string getPlayerName();       // Name of player to use
-            static std::string getPlayerPath();       // Path to player code
             static u16 getPlayerAddress();            // Address to load player at
 
             // Default SID addresses
@@ -241,8 +240,7 @@ namespace sidblaster {
             static constexpr const char* DEFAULT_EXOMIZER_PATH = "Exomizer.exe";
             static constexpr const char* DEFAULT_COMPRESSOR_TYPE = "exomizer";
             static constexpr const char* DEFAULT_PLAYER_NAME = "SimpleRaster";
-            static constexpr const char* DEFAULT_PLAYER_PATH = "player/SimpleRaster/SimpleRaster.asm";
-            static constexpr const char* DEFAULT_PLAYER_ADDRESS = "$0900";
+            static constexpr const char* DEFAULT_PLAYER_ADDRESS = "$4000";
             static constexpr const char* DEFAULT_SID_LOAD_ADDRESS = "$1000";
             static constexpr const char* DEFAULT_SID_INIT_ADDRESS = "$1000";
             static constexpr const char* DEFAULT_SID_PLAY_ADDRESS = "$1003";

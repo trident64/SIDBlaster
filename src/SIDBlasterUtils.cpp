@@ -27,7 +27,6 @@ namespace sidblaster {
             {"exomizerPath", DEFAULT_EXOMIZER_PATH},
             {"compressorType", DEFAULT_COMPRESSOR_TYPE},
             {"playerName", DEFAULT_PLAYER_NAME},
-            {"playerPath", DEFAULT_PLAYER_PATH},
             {"playerAddress", DEFAULT_PLAYER_ADDRESS},
             {"defaultSidLoadAddress", DEFAULT_SID_LOAD_ADDRESS},
             {"defaultSidInitAddress", DEFAULT_SID_INIT_ADDRESS},
@@ -496,15 +495,6 @@ namespace sidblaster {
          */
         std::string Configuration::getPlayerName() {
             return getString("playerName", DEFAULT_PLAYER_NAME);
-        }
-
-        /**
-         * @brief Get the path to the player code
-         *
-         * @return Path to player code
-         */
-        std::string Configuration::getPlayerPath() {
-            return getString("playerPath", DEFAULT_PLAYER_PATH);
         }
 
         /**

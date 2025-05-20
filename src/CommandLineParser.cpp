@@ -185,8 +185,8 @@ namespace sidblaster {
         // Player command options
         std::cout << "PLAYER OPTIONS:" << std::endl;
         std::cout << "  -player                Use the default player (SimpleRaster)" << std::endl;
-        std::cout << "  -player=<type>         Specify player type, e.g.: -player=SimpleBitmap" << std::endl;
-        std::cout << "  -playeraddr=<address>  Player load address (default: $0900)" << std::endl;
+        std::cout << "  -player=<type>         Specify player type, e.g.: -player=SimpleBitmap or -player=RaistlinBars" << std::endl;
+        std::cout << "  -playeraddr=<address>  Player load address (default: $4000)" << std::endl;
         std::cout << std::endl;
 
         // Trace command options

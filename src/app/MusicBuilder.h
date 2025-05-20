@@ -35,7 +35,7 @@ namespace sidblaster {
             // Player options
             bool includePlayer = true;     ///< Whether to include player code
             std::string playerName = "SimpleRaster";  ///< Player name
-            u16 playerAddress = 0x0900;    ///< Player load address
+            u16 playerAddress = 0x4000;    ///< Player load address
 
             // Compression options
             bool compress = true;          ///< Whether to compress the output
