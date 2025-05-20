@@ -35,7 +35,8 @@
 .var ARTIST_NAME_PADDING = (40 - ARTIST_NAME_LENGTH) / 2 //; Centering padding
 
 //; Visualization layout
-.var TOP_SPECTROMETER_HEIGHT = 12            //; Height of main spectrometer in chars
+.var TOP_SPECTROMETER_HEIGHT = 15            //; Height of main spectrometer in chars
+.var TOP_SPECTROMETER_PIXELHEIGHT = (TOP_SPECTROMETER_HEIGHT * 8)
 .var BOTTOM_SPECTROMETER_HEIGHT = 3          //; Height of reflection effect in chars
 .var SPECTROMETER_START_LINE = 25 - (TOP_SPECTROMETER_HEIGHT + BOTTOM_SPECTROMETER_HEIGHT)
 
@@ -128,16 +129,29 @@ StartLocalData:
 
     .align 128
   
-    SoundBarSine:             .fill 128, 8.0 * TOP_SPECTROMETER_HEIGHT * sin(toRadians(i*90/128)) //; Sine wave data for sound bar animation
+    SoundBarSine:             .fill 128, (TOP_SPECTROMETER_PIXELHEIGHT - 1.0) * sin(toRadians(i*90/128)) //; Sine wave data for sound bar animation
 
     .align 256
 
     Div3Table:                .fill 256, i / 3
 
-//; ADSR envelope conversion tables
-    SustainConversion:        .fill 256, floor(i / 16) * 6 + 32 + 3
-    ReleaseConversionHi:      .fill 256, >((15 - mod(i, 16)) * 96 + 768)
-    ReleaseConversionLo:      .fill 256, <((15 - mod(i, 16)) * 96 + 768)
+//;  -------------------------------------------------------------------------
+//; ADSR Conversion Tables
+//; These tables convert the SID's ADSR values to visual representations
+//; 
+//; Sustain: Converts sustain value (0-15) to visible bar height (35-125)
+//;  - Formula: (sustain / 16) * 6 + 35
+//;  - Higher sustain values in SID = taller bars in visualization
+//;
+//; Release: Converts release value (0-15) to bar decay rate
+//;  - Formula: mod(release, 16) * 96 + 768
+//;  - Stored as 16-bit value (hi/lo bytes)
+//;  - Higher release values = faster visual decay of bars
+
+    SustainConversion:        .fill 256, floor(i / 16) * TOP_SPECTROMETER_HEIGHT / 3 + TOP_SPECTROMETER_HEIGHT * 2 + 5
+    ReleaseConversionHi:      .fill 256, >((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
+    ReleaseConversionLo:      .fill 256, <((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
+//;  -------------------------------------------------------------------------
 
     //; Frequency conversion tables
     LoFreqToLookupTable:      .fill 256, i / 4
@@ -150,34 +164,20 @@ StartLocalData:
     FreqTable:                .fill freqtable_bin.getSize(), freqtable_bin.get(i)
 
     //; Analyzer data buffers with padding bytes for smoothing
-    .byte 0                            //; Left padding for smoothing
-    ChannelToFreqMap:           .fill NUM_FREQS_ON_SCREEN, 0  //; Maps screen positions to SID channels
-    .byte 0                            //; Right padding for smoothing
-
-    .byte 0                            //; Left padding for smoothing
-    RawBarHeightsHi:            .fill NUM_FREQS_ON_SCREEN, 0  //; High bytes of raw bar heights
-    .byte 0                            //; Right padding for smoothing
-
-    .byte 0                            //; Left padding for smoothing
-    RawBarHeightsLo:            .fill NUM_FREQS_ON_SCREEN, 0  //; Low bytes of raw bar heights
-    .byte 0                            //; Right padding for smoothing
+    ChannelToFreqMap:               .fill NUM_FREQS_ON_SCREEN, 0                        //; Maps screen positions to SID channels
+    RawBarHeightsHi:                .fill NUM_FREQS_ON_SCREEN, 0                        //; High bytes of raw bar heights
+    RawBarHeightsLo:                .fill NUM_FREQS_ON_SCREEN, 0                        //; Low bytes of raw bar heights
 
     //; Channel-specific release rates
-    ChannelReleaseHi:           .fill 3, 0  //; High bytes of release rates per channel
-    ChannelReleaseLo:           .fill 3, 0  //; Low bytes of release rates per channel
+    ChannelReleaseHi:               .fill 3, 0                                          //; High bytes of release rates per channel
+    ChannelReleaseLo:               .fill 3, 0                                          //; Low bytes of release rates per channel
 
     //; New buffer for smoothed bar heights
-    .byte 0                            //; Left padding for smoothing
-    SmoothedBarHeights:         .fill NUM_FREQS_ON_SCREEN, 0  //; Smoothed bar heights
-    .byte 0                            //; Right padding for smoothing
+    SmoothedBarHeights:             .fill NUM_FREQS_ON_SCREEN, 0                        //; Smoothed bar heights
     
-    //; Color tables for the visualization
-    BarColorsDark:              .fill 80, $00  //; Darker colors for reflections
-    BarColors:                  .fill 80, $0b  //; Main colors for bars
-
     //; Current bar heights for drawing
     .byte $00
-    DisplayBarHeights:          .fill NUM_FREQS_ON_SCREEN, 0  //; Final heights for display
+    FrequencyBarHeights:          .fill NUM_FREQS_ON_SCREEN, 0  //; Final heights for display
     .byte $00
 
     //; SID register ghost copy for analysis
@@ -199,17 +199,13 @@ StartLocalData:
     ColorPalettePtr_Hi:         .byte >ColorPaletteA, >ColorPaletteB, >ColorPaletteC, >ColorPaletteD
 
     //; Color mapping table based on bar height
-    BarHeightToColorIndex:     .fill 2, $ff                                      //;  0-1:   -1 (use baseline)
-                              .byte $00, $ff, $00, $ff, $00, $ff, $00, $ff, $00, $ff  //;  2-11:  Alternate 0/-1
-                              .fill 5, $00                                       //; 12-16:  0
-                              .byte $01, $00, $01, $00, $01, $00, $01, $00, $01, $00  //; 17-26:  Alternate 1/0
-                              .byte $01, $00, $01, $00, $01, $00, $01, $00, $01, $00  //; 27-36:  Alternate 1/0
-                              .fill 5, $01                                       //; 37-41:  1
-                              .byte $02, $01, $02, $01, $02, $01, $02, $01, $02, $01  //; 42-51:  Alternate 2/1
-                              .byte $02, $01, $02, $01, $02, $01, $02, $01, $02, $01  //; 52-61:  Alternate 2/1
-                              .fill 4, $02                                       //; 62-65:  2
-                              .byte $03, $02, $03, $02, $03, $02, $03, $02, $03, $02  //; 66-75:  Alternate 3/2
-                              .fill 4, $03                                       //; 76-79:  3
+    BarHeightToColorIndex:    .byte $ff                                      //;  baseline
+                              .fill TOP_SPECTROMETER_PIXELHEIGHT, (i * 4) / TOP_SPECTROMETER_PIXELHEIGHT
+                              .byte $03
+
+    //; Color tables for the visualization
+    BarColorsDark:              .fill TOP_SPECTROMETER_PIXELHEIGHT, $00  //; Darker colors for reflections
+    BarColors:                  .fill TOP_SPECTROMETER_PIXELHEIGHT, $0b  //; Main colors for bars
 
     //; Calculate which IRQ should update the analyzer
     .var VISUALIZER_UPDATE_IRQ = 0
@@ -233,32 +229,15 @@ StartLocalData:
         }
     }
 
+
     //; Character mapping for meter visualization
-    .var METER_TO_CHAR_PADDING = (TOP_SPECTROMETER_HEIGHT * 8) - 8
+    .var METER_TO_CHAR_PADDING = TOP_SPECTROMETER_PIXELHEIGHT - 8
 
 .align 256  
-    .fill METER_TO_CHAR_PADDING, 224      //; Initial padding
+        .fill METER_TO_CHAR_PADDING, 224      //; Initial padding
     MeterToCharValues:
         .fill 8, i + 224 + 1              //; First 8 values increment
-        .fill 7, 224 + 9                  //; Next chunks repeat character 233
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-        .fill 7, 224 + 9
-
-    //; Temporary variables for smoothing calculations
-    SmoothingTemp:              .byte 0, 0   //; 16-bit temporary value for smoothing
+        .fill METER_TO_CHAR_PADDING, 224 + 9
 
 EndLocalData:
 
@@ -316,7 +295,7 @@ MUSICPLAYER_Initialize:
         sta $dd02
 
         //; Initialize the bar color values
-        ldx #79
+        ldx #0
     InitBarColorsLoop:
         lda #$0b                     //; Default color
         ldy BarHeightToColorIndex, x
@@ -327,8 +306,9 @@ MUSICPLAYER_Initialize:
         tay
         lda DarkColorLookup, y       //; Look up darker version
         sta BarColorsDark, x         //; Set dark color for reflection
-        dex
-        bpl InitBarColorsLoop
+        inx
+        cpx #TOP_SPECTROMETER_PIXELHEIGHT
+        bne InitBarColorsLoop
 
         //; Clear screen and color memory
         ldx #$00
@@ -614,6 +594,7 @@ MUSICPLAYER_IRQ_MusicOnly:
 //; MUSICPLAYER_UpdateBarHeights() - Apply decay to all bar heights (per frame)
 //; =============================================================================
 MUSICPLAYER_UpdateBarHeights:
+
         //; Apply decay to each frequency bar based on its release rate
         ldx #NUM_FREQS_ON_SCREEN - 1
     DecayBarsLoop:
@@ -638,7 +619,7 @@ MUSICPLAYER_UpdateBarHeights:
         //; Convert height to display value using sine wave for a smoother look
         tay
         lda SoundBarSine, y
-        sta DisplayBarHeights, x
+        sta FrequencyBarHeights, x
 
         dex
         bpl DecayBarsLoop
@@ -649,24 +630,16 @@ MUSICPLAYER_UpdateBarHeights:
 //; MUSICPLAYER_SmoothBars() - Apply smoothing to create more natural visualization
 //; =============================================================================
 MUSICPLAYER_SmoothBars:
-        //; This function applies simple averaging to the bar heights using
-        //; a lookup table for division to create a smoother visualization.
-        //;
-        //; For each bar: smoothed[i] = (raw[i-1] + raw[i] + raw[i+1]) / 3
-        //;
-        //; Since the maximum display bar height is $4E (78), three bars added
-        //; together won't exceed 234, so we can safely use an 8-bit sum.
-        
-        //; Process all bars using padding bytes to simplify edge cases
+
         ldx #0
     SmoothingLoop:
 
-        lda DisplayBarHeights - 1, x  //; Left neighbor
+        lda FrequencyBarHeights - 1, x  //; Left neighbor
         clc
-        adc DisplayBarHeights + 1, x  //; Right neighbor
+        adc FrequencyBarHeights + 1, x  //; Right neighbor
         lsr
         clc
-        adc DisplayBarHeights, x      //; Current bar
+        adc FrequencyBarHeights, x      //; Current bar
         lsr
         sta SmoothedBarHeights, x
 
@@ -850,15 +823,14 @@ MUSICPLAYER_AnalyzeSIDRegisters:
 //; MUSICPLAYER_SetupSong() - Initialize music and display information
 //; =============================================================================
 MUSICPLAYER_SetupSong:
+
         //; Clear SID registers
-        ldy #$00
+        ldy #24
         lda #$00
     ClearSIDRegisters:
         sta $d400, y
-        sta SIDRegisterCopy, y
-        iny
-        cpy #25
-        bne ClearSIDRegisters
+        dey
+        bpl ClearSIDRegisters
 
         //; Display song title
         ldy #SONG_TITLE_LENGTH - 1
@@ -879,34 +851,6 @@ MUSICPLAYER_SetupSong:
         sta SCREEN_ADDRESS + ((ARTIST_NAME_SCREEN_LINE + 1) * 40) + ARTIST_NAME_PADDING, y
         dey
         bpl DisplayArtistName
-
-        //; Clear visualization buffers
-        ldx #NUM_FREQS_ON_SCREEN + 3
-        lda #$00
-    ClearVisualizationBuffers:
-        sta ChannelToFreqMap - 2, x
-        sta RawBarHeightsHi - 2, x
-        sta RawBarHeightsLo - 2, x
-        dex
-        bpl ClearVisualizationBuffers
-
-        //; Clear channel release rates
-        ldx #$02
-        lda #$00
-    ClearReleaseRates:
-        sta ChannelReleaseLo, x
-        sta ChannelReleaseHi, x
-        dex
-        bpl ClearReleaseRates
-
-        //; Clear display heights
-        ldx #NUM_FREQS_ON_SCREEN - 1
-        lda #$00
-    ClearDisplayHeights:
-        sta DisplayBarHeights, x
-        sta SmoothedBarHeights, x
-        dex
-        bpl ClearDisplayHeights
 
         //; Initialize the SID player
         lda #$00                      //; Start with song #0
