@@ -136,9 +136,8 @@ StartLocalData:
 
 //; ADSR envelope conversion tables
     SustainConversion:        .fill 256, floor(i / 16) * 6 + 32 + 3
-
-    ReleaseConversionHi:      .fill 256, >(mod(i, 16) * 96 + 768)
-    ReleaseConversionLo:      .fill 256, <(mod(i, 16) * 96 + 768)
+    ReleaseConversionHi:      .fill 256, >((15 - mod(i, 16)) * 96 + 768)
+    ReleaseConversionLo:      .fill 256, <((15 - mod(i, 16)) * 96 + 768)
 
     //; Frequency conversion tables
     LoFreqToLookupTable:      .fill 256, i / 4
