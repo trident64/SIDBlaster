@@ -193,28 +193,13 @@ StartLocalData:
 		}
 	}
 
-	.var MeterToChar_PrePadding = (TopSpectrometerHeight * 8) - 8
+	.var MeterToChar_PrePadding = (TopSpectrometerHeight * 8) - 10
 
 .align 256	
 		.fill MeterToChar_PrePadding, 224
 	MeterToCharValues:
 		.fill 8, i + 224 + 1
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
-		.fill 7, 224 + 9
+		.fill (TopSpectrometerHeight * 8), 224 + 9
 
 EndLocalData:
 
