@@ -8,103 +8,103 @@
 .var freqtable_bin = LoadBinary("FreqTable.bin")
 .var soundbarsine_bin = LoadBinary("SoundBarSine.bin")
 .var charset_map = LoadBinary("CharSet.map")
+.var watersprites_map = LoadBinary("WaterSprites.map")
 
-.var NUM_FREQS_ON_SCREEN = 40
+//; Defines -------------------------------------------------------------------------------------------------------
 
-.var MUSICPLAYER_PlayCallsPerFrame = 1
+	.var NUM_FREQS_ON_SCREEN				= 40
 
-.var SONGNAME_StartLine = 0
-.var ARTISTNAME_StartLine = 3
+	.var SongNameColour						= $01
+	.var SongNameScreenLine					= 0
+	.var SongNameLength						= min(SIDName.size(), 40)
+	.var SongNamePadding					= (40 - SongNameLength) / 2
 
-.var TopSpectrometerHeight = 10
-.var BottomSpectrometerHeight = 3
-.var SPECTROMETER_StartLine = 25 - (TopSpectrometerHeight + BottomSpectrometerHeight)
+	.var ArtistNameColour					= $0f
+	.var ArtistNameScreenLine				= 3
+	.var ArtistNameLength					= min(SIDAuthor.size(), 40)
+	.var ArtistNamePadding					= (40 - ArtistNameLength) / 2
 
-SongData_SongName:    .text SIDName.substring(0, min(SIDName.size(), 40))
-.var SongNameLength = min(SIDName.size(), 40)
-.var SongNamePadding = (40 - SongNameLength) / 2
+	.var TopSpectrometerHeight				= 10
+	.var BottomSpectrometerHeight			= 3
+	.var SPECTROMETER_StartLine				= 25 - (TopSpectrometerHeight + BottomSpectrometerHeight)
 
-SongData_ArtistName:  .text SIDAuthor.substring(0, min(SIDAuthor.size(), 40))
-.var ArtistNameLength = min(SIDAuthor.size(), 40)
-.var ArtistNamePadding = (40 - ArtistNameLength) / 2
+	.var BaseBank							= 3 //; 0=0000-3fff, 1=4000-7fff, 2=8000-bfff, 3=c000-ffff
+	.var Base_BankAddress					= (BaseBank * $4000)	
+	.var ScreenBank							= 14 //; Bank+[3800,3bff]
+	.var CharBankFont						= 6 //; Bank+[3000,37ff] //; We only used half the font...
+	.var ScreenAddress						= (Base_BankAddress + (ScreenBank * $400))
+	.var SpriteVals							= (ScreenAddress + $3F8 + 0)
+	.var ADDR_CharSet						= (Base_BankAddress + (CharBankFont * $800))
+	.var StartSpriteIndex					= $80
+	.var ADDR_WaterSprites					= (Base_BankAddress + (StartSpriteIndex * $40))
 
-//; Local Defines -------------------------------------------------------------------------------------------------------
-	//; Defines
-	.var BaseBank = 3 //; 0=0000-3fff, 1=4000-7fff, 2=8000-bfff, 3=c000-ffff
-	.var Base_BankAddress = (BaseBank * $4000)	
-	.var ScreenBank = 14 //; Bank+[3800,3bff]
-	.var CharBankFont = 6 //; Bank+[3000,37ff] //; We only used half the font...
-	.var ScreenAddress = (Base_BankAddress + (ScreenBank * $400))
-	.var SpriteVals = (ScreenAddress + $3F8 + 0)
-	.var CharSetAddress = (Base_BankAddress + (CharBankFont * $800))
-
-	.var D016Value = $08
-	.var D018Value = ((ScreenBank * 16) + (CharBankFont * 2))
-
-	.var Colour_SongName = $01
-
-	.var D012FirstValue = 46
-	.var D012Spacing = 52
-
-//; MUSICPLAYER_LocalData -------------------------------------------------------------------------------------------------------
-MUSICPLAYER_LocalData:
+//; StartLocalData -------------------------------------------------------------------------------------------------------
+StartLocalData:
 
 	.var SKIPPValue = $e1
-	.var NumInitialD000Values = $2f
-	INITIAL_D000Values:
-		.byte $10									//; D000: $d000
-		.byte $e5									//; D001: Sprite0Y
-		.byte $40									//; D002: Sprite1X
-		.byte $e5									//; D003: Sprite1Y
-		.byte $70									//; D004: Sprite2X
-		.byte $e5									//; D005: Sprite2Y
-		.byte $a0									//; D006: Sprite3X
-		.byte $e5									//; D007: Sprite3Y
-		.byte $d0									//; D008: Sprite4X
-		.byte $e5									//; D009: Sprite4Y
-		.byte $00									//; D00A: Sprite5X
-		.byte $e5									//; D00B: Sprite5Y
-		.byte $30									//; D00C: Sprite6X
-		.byte $e5									//; D00D: Sprite6Y
-		.byte $00									//; D00E: Sprite7X
-		.byte $00									//; D00F: Sprite7Y
-		.byte $60									//; D010: SpriteXMSB
-		.byte SKIPPValue							//; D011
-		.byte SKIPPValue							//; D012
-		.byte SKIPPValue							//; D013: LightPenX
-		.byte SKIPPValue							//; D014: LightPenY
-		.byte $7f									//; D015: SpriteEnable
-		.byte D016Value								//; D016: ScreenScroll/MC
-		.byte $00									//; D017: SpriteDoubleHeight
-		.byte D018Value								//; D018: Screen/CharSet
-		.byte SKIPPValue							//; D019
-		.byte SKIPPValue							//; D01A
-		.byte $00									//; D01B: SpriteDrawPriority
-		.byte $00									//; D01C: SpriteMulticolourMode
-		.byte $7f									//; D01D: SpriteDoubleWidth
-		.byte $00									//; D01E: SpriteSpriteCollision
-		.byte $00									//; D01F: SpriteBackgroundCollision
-		.byte $00									//; D020: BorderColour
-		.byte $00									//; D021: ScreenColour
-		.byte $00									//; D022: MultiColour0 (and ExtraBackgroundColour0)
-		.byte $00									//; D023: MultiColour1 (and ExtraBackgroundColour1)
-		.byte $00									//; D024: ExtraBackgroundColour2
-		.byte $00									//; D025: SpriteExtraColour0
-		.byte $00									//; D026: SpriteExtraColour1
-		.byte $00									//; D027: Sprite0Colour
-		.byte $00									//; D028: Sprite1Colour
-		.byte $00									//; D029: Sprite2Colour
-		.byte $00									//; D02A: Sprite3Colour
-		.byte $00									//; D02B: Sprite4Colour
-		.byte $00									//; D02C: Sprite5Colour
-		.byte $00									//; D02D: Sprite6Colour
-		.byte $00									//; D02E: Sprite7Colour
 
+	.var NumVICInitValues = EndVICInitValues - StartVICInitValues
 
-	UpdateSpectrometerSignal:						.byte $00
+	StartVICInitValues:
+		.byte $10										//; D000: $d000
+		.byte $e5										//; D001: Sprite0Y
+		.byte $40										//; D002: Sprite1X
+		.byte $e5										//; D003: Sprite1Y
+		.byte $70										//; D004: Sprite2X
+		.byte $e5										//; D005: Sprite2Y
+		.byte $a0										//; D006: Sprite3X
+		.byte $e5										//; D007: Sprite3Y
+		.byte $d0										//; D008: Sprite4X
+		.byte $e5										//; D009: Sprite4Y
+		.byte $00										//; D00A: Sprite5X
+		.byte $e5										//; D00B: Sprite5Y
+		.byte $30										//; D00C: Sprite6X
+		.byte $e5										//; D00D: Sprite6Y
+		.byte $00										//; D00E: Sprite7X
+		.byte $00										//; D00F: Sprite7Y
+		.byte $60										//; D010: SpriteXMSB
+		.byte SKIPPValue								//; D011
+		.byte SKIPPValue								//; D012
+		.byte SKIPPValue								//; D013: LightPenX
+		.byte SKIPPValue								//; D014: LightPenY
+		.byte $7f										//; D015: SpriteEnable
+		.byte $08										//; D016: ScreenScroll/MC
+		.byte $00										//; D017: SpriteDoubleHeight
+		.byte ((ScreenBank * 16) + (CharBankFont * 2))	//; D018: Screen/CharSet
+		.byte SKIPPValue								//; D019
+		.byte SKIPPValue								//; D01A
+		.byte $00										//; D01B: SpriteDrawPriority
+		.byte $00										//; D01C: SpriteMulticolourMode
+		.byte $7f										//; D01D: SpriteDoubleWidth
+		.byte $00										//; D01E: SpriteSpriteCollision
+		.byte $00										//; D01F: SpriteBackgroundCollision
+		.byte $00										//; D020: BorderColour
+		.byte $00										//; D021: ScreenColour
+		.byte $00										//; D022: MultiColour0 (and ExtraBackgroundColour0)
+		.byte $00										//; D023: MultiColour1 (and ExtraBackgroundColour1)
+		.byte $00										//; D024: ExtraBackgroundColour2
+		.byte $00										//; D025: SpriteExtraColour0
+		.byte $00										//; D026: SpriteExtraColour1
+		.byte $00										//; D027: Sprite0Colour
+		.byte $00										//; D028: Sprite1Colour
+		.byte $00										//; D029: Sprite2Colour
+		.byte $00										//; D02A: Sprite3Colour
+		.byte $00										//; D02B: Sprite4Colour
+		.byte $00										//; D02C: Sprite5Colour
+		.byte $00										//; D02D: Sprite6Colour
+		.byte $00										//; D02E: Sprite7Colour
+	EndVICInitValues:
+
+	SongData_SongName:			.text SIDName.substring(0, min(SIDName.size(), 40))
+	SongData_ArtistName:		.text SIDAuthor.substring(0, min(SIDAuthor.size(), 40))
+
+	UpdateSpectrometerSignal:	.byte $00
 
 	FrameOf256:					.byte $00
 	Frame_256Counter:			.byte $00
+
+	LastFrame_bBMeterValue:		.fill 40, 255
+	LastFrame_Colours:			.fill 40, 255
 
 	.align 128
 
@@ -216,13 +216,12 @@ MUSICPLAYER_LocalData:
 		.fill 7, 224 + 9
 		.fill 7, 224 + 9
 
-	.print "* $" + toHexString(MUSICPLAYER_LocalData) + "-$" + toHexString(EndMUSICPLAYER_LocalData - 1) + " MUSICPLAYER_LocalData"
-
-EndMUSICPLAYER_LocalData:
+EndLocalData:
 
 .var FreqHiTable = FreqTable + (0 * 256)
 .var FreqLoTable = FreqTable + (1 * 256)
 
+StartCodeSegment:
 
 //; MUSICPLAYER_Go() -------------------------------------------------------------------------------------------------------
 MUSICPLAYER_Go:
@@ -247,9 +246,9 @@ MUSICPLAYER_Go:
 
 		jsr NMIFix
 
-		ldx #(NumInitialD000Values - 1)
+		ldx #(NumVICInitValues - 1)
 	SetupD000Values:
-		lda INITIAL_D000Values, x
+		lda StartVICInitValues, x
 		cmp #SKIPPValue
 		beq SkipThisOne
 		sta $d000, x
@@ -293,9 +292,10 @@ MUSICPLAYER_Go:
 
 		ldx #79
 	FillDisplayNameColoursLoop:
-		lda #Colour_SongName
-		sta $d800 + ((SONGNAME_StartLine + 0) * 40), x
-		sta $d800 + ((ARTISTNAME_StartLine + 0) * 40), x
+		lda #SongNameColour
+		sta $d800 + ((SongNameScreenLine + 0) * 40), x
+		lda #ArtistNameColour
+		sta $d800 + ((ArtistNameScreenLine + 0) * 40), x
 		dex
 		bpl FillDisplayNameColoursLoop
 
@@ -311,10 +311,11 @@ MUSICPLAYER_Go:
 		sta $fffe
 		lda #>MUSICPLAYER_IRQ0
 		sta $ffff
-		lda #D012FirstValue + (D012Spacing * 0)
+		lda D012_Values
 		sta $d012
 		lda $d011
 		and #$3f
+		ora D011_Values
 		sta $d011
 
 		lda #$01
@@ -468,7 +469,7 @@ MUSICPLAYER_IRQ0:
 		lsr
 		lsr
 		and #$07
-		ora #$b0
+		ora #StartSpriteIndex
 		.for (var Index = 0; Index < 7; Index++)
 		{
 			sta SpriteVals + Index
@@ -655,9 +656,6 @@ MUSICPLAYER_Spectrometer_PerPlay:
 		rts
 
 
-LastFrame_bBMeterValue: .fill 40, 255
-LastFrame_Colours: .fill 40, 255
-
 //; MUSICPLAYER_DrawSpectrum() -------------------------------------------------------------------------------------------------------
 MUSICPLAYER_DrawSpectrum:
 
@@ -780,18 +778,18 @@ MUSICPLAYER_SetupNewSong:
 		ldy #SongNameLength - 1
 	SongNameDisplayLoop:
 		lda SongData_SongName, y
-		sta ScreenAddress + ((SONGNAME_StartLine + 0) * 40) + SongNamePadding, y
+		sta ScreenAddress + ((SongNameScreenLine + 0) * 40) + SongNamePadding, y
 		ora #$80
-		sta ScreenAddress + ((SONGNAME_StartLine + 1) * 40) + SongNamePadding, y
+		sta ScreenAddress + ((SongNameScreenLine + 1) * 40) + SongNamePadding, y
 		dey
 		bpl SongNameDisplayLoop
 
 		ldy #ArtistNameLength - 1
 	ArtistNameDisplayLoop:
 		lda SongData_ArtistName, y
-		sta ScreenAddress + ((ARTISTNAME_StartLine + 0) * 40) + ArtistNamePadding, y
+		sta ScreenAddress + ((ArtistNameScreenLine + 0) * 40) + ArtistNamePadding, y
 		ora #$80
-		sta ScreenAddress + ((ARTISTNAME_StartLine + 1) * 40) + ArtistNamePadding, y
+		sta ScreenAddress + ((ArtistNameScreenLine + 1) * 40) + ArtistNamePadding, y
 		dey
 		bpl ArtistNameDisplayLoop
 
@@ -883,6 +881,19 @@ PreDemoSetup:
 .import source "..\INC\NMIFix.asm"
 .import source "..\INC\RasterLineTiming.asm"
 
-* = CharSetAddress
+EndCodeSegment:
 
+* = ADDR_WaterSprites
+StartWaterSprites:
+	.fill watersprites_map.getSize(), watersprites_map.get(i)
+EndWaterSprites:
+
+* = ADDR_CharSet
+StartCharSet:
 	.fill charset_map.getSize(), charset_map.get(i)
+EndCharSet:
+
+	.print "* $" + toHexString(StartCodeSegment) + "-$" + toHexString(EndCodeSegment - 1) + " Code Segment"
+	.print "* $" + toHexString(StartLocalData) + "-$" + toHexString(EndLocalData - 1) + " Local Data"
+	.print "* $" + toHexString(StartCharSet) + "-$" + toHexString(EndCharSet - 1) + " Char Set"
+	.print "* $" + toHexString(StartWaterSprites) + "-$" + toHexString(EndWaterSprites - 1) + " Water Sprites"
