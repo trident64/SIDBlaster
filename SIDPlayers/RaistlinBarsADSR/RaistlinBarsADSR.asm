@@ -136,150 +136,341 @@ StartLocalData:
 
     Div3Table:                .fill 256, i / 3
 
-//; New ADSR Extension - Attack and Decay tables
-//; -------------------------------------------------------------------------
+//; =============================================================================
+//; ADSR State and Timing Constants
+//; =============================================================================
 //; ADSR State constants
 .var ADSR_ATTACK = 0
 .var ADSR_DECAY = 1
 .var ADSR_SUSTAIN = 2
 .var ADSR_RELEASE = 3
 
-//;  -------------------------------------------------------------------------
-//; ADSR Conversion Tables
-//; These tables convert the SID's ADSR values to visual representations
-//; 
-//; Attack Conversion Tables - converts SID attack values (0-15) to visualization rates
-//; Lower attack values (0-7) produce fast attacks, higher values (8-15) produce slower attacks
-//; This matches how the SID chip's envelope generator works
-//; 
-//; Decay Conversion Tables - converts SID decay values (0-15) to visualization rates
-//; Lower decay values (0-7) produce fast decays, higher values (8-15) produce slower decays
-//; 
-//; Sustain: Converts sustain value (0-15) to visible bar height (35-125)
-//;  - Formula: (sustain / 16) * 6 + 35
-//;  - Higher sustain values in SID = taller bars in visualization
-//;
-//; Release: Converts release value (0-15) to bar decay rate
-//;  - Formula: mod(release, 16) * 96 + 768
-//;  - Stored as 16-bit value (hi/lo bytes)
-//;  - Higher release values = faster visual decay of bars
+//; 16-bit frame count tables for ADSR timing based on SID chip specifications
+AttackFramesLo:
+    .byte <1    //; Attack 0: 2ms ≈ 1 frame
+    .byte <1    //; Attack 1: 8ms ≈ 1 frame
+    .byte <1    //; Attack 2: 16ms ≈ 1 frame
+    .byte <2    //; Attack 3: 24ms ≈ 2 frames
+    .byte <2    //; Attack 4: 38ms ≈ 2 frames
+    .byte <3    //; Attack 5: 56ms ≈ 3 frames
+    .byte <4    //; Attack 6: 68ms ≈ 4 frames
+    .byte <4    //; Attack 7: 80ms ≈ 4 frames
+    .byte <5    //; Attack 8: 100ms ≈ 5 frames
+    .byte <13   //; Attack 9: 250ms ≈ 13 frames
+    .byte <25   //; Attack 10: 500ms ≈ 25 frames
+    .byte <40   //; Attack 11: 800ms ≈ 40 frames
+    .byte <50   //; Attack 12: 1s ≈ 50 frames
+    .byte <150  //; Attack 13: 3s ≈ 150 frames
+    .byte <250  //; Attack 14: 5s ≈ 250 frames
+    .byte <400  //; Attack 15: 8s ≈ 400 frames
 
-    AttackConversionHi:       .fill 256, >(((15 - mod(i, 16)) + 8 ) * TOP_SPECTROMETER_PIXELHEIGHT / 2)
-    AttackConversionLo:       .fill 256, <(((15 - mod(i, 16)) + 8 ) * TOP_SPECTROMETER_PIXELHEIGHT / 2)
+AttackFramesHi:
+    .byte >1    //; Attack 0
+    .byte >1    //; Attack 1
+    .byte >1    //; Attack 2
+    .byte >2    //; Attack 3
+    .byte >2    //; Attack 4
+    .byte >3    //; Attack 5
+    .byte >4    //; Attack 6
+    .byte >4    //; Attack 7
+    .byte >5    //; Attack 8
+    .byte >13   //; Attack 9
+    .byte >25   //; Attack 10
+    .byte >40   //; Attack 11
+    .byte >50   //; Attack 12
+    .byte >150  //; Attack 13
+    .byte >250  //; Attack 14
+    .byte >400  //; Attack 15
 
-    DecayConversionHi:        .fill 256, >(((15 - mod(i / 16, 16)) + 8) * TOP_SPECTROMETER_PIXELHEIGHT / 2)
-    DecayConversionLo:        .fill 256, <(((15 - mod(i / 16, 16)) + 8) * TOP_SPECTROMETER_PIXELHEIGHT / 2)
+DecayFramesLo:
+    .byte <1    //; Decay 0: 6ms ≈ 1 frame
+    .byte <2    //; Decay 1: 24ms ≈ 2 frames
+    .byte <3    //; Decay 2: 48ms ≈ 3 frames
+    .byte <4    //; Decay 3: 72ms ≈ 4 frames
+    .byte <6    //; Decay 4: 114ms ≈ 6 frames
+    .byte <9    //; Decay 5: 168ms ≈ 9 frames
+    .byte <11   //; Decay 6: 204ms ≈ 11 frames
+    .byte <12   //; Decay 7: 240ms ≈ 12 frames
+    .byte <15   //; Decay 8: 300ms ≈ 15 frames
+    .byte <38   //; Decay 9: 750ms ≈ 38 frames
+    .byte <75   //; Decay 10: 1.5s ≈ 75 frames
+    .byte <120  //; Decay 11: 2.4s ≈ 120 frames
+    .byte <150  //; Decay 12: 3s ≈ 150 frames
+    .byte <450  //; Decay 13: 9s ≈ 450 frames
+    .byte <750  //; Decay 14: 15s ≈ 750 frames
+    .byte <1200  //; Decay 15: 24s ≈ 1200 frames
 
-/*    ReleaseConversionHi:       .fill 256, >(((15 - mod(i, 16)) + 8 ) * TOP_SPECTROMETER_PIXELHEIGHT)
-    ReleaseConversionLo:       .fill 256, <(((15 - mod(i, 16)) + 8 ) * TOP_SPECTROMETER_PIXELHEIGHT)
+DecayFramesHi:
+    .byte >1    //; Decay 0
+    .byte >2    //; Decay 1
+    .byte >3    //; Decay 2
+    .byte >4    //; Decay 3
+    .byte >6    //; Decay 4
+    .byte >9    //; Decay 5
+    .byte >11   //; Decay 6
+    .byte >12   //; Decay 7
+    .byte >15   //; Decay 8
+    .byte >38   //; Decay 9
+    .byte >75   //; Decay 10
+    .byte >120  //; Decay 11
+    .byte >150  //; Decay 12
+    .byte >450  //; Decay 13
+    .byte >750  //; Decay 14
+    .byte >1200  //; Decay 15
 
-    SustainConversion:        .fill 256, (mod(i / 16, 16) * (TOP_SPECTROMETER_PIXELHEIGHT - 15) / 15) + 10*/
+ReleaseFramesLo:
+    .byte <1    //; Release 0: 6ms ≈ 1 frame
+    .byte <2    //; Release 1: 24ms ≈ 2 frames
+    .byte <3    //; Release 2: 48ms ≈ 3 frames
+    .byte <4    //; Release 3: 72ms ≈ 4 frames
+    .byte <6    //; Release 4: 114ms ≈ 6 frames
+    .byte <9    //; Release 5: 168ms ≈ 9 frames
+    .byte <11   //; Release 6: 204ms ≈ 11 frames
+    .byte <12   //; Release 7: 240ms ≈ 12 frames
+    .byte <15   //; Release 8: 300ms ≈ 15 frames
+    .byte <38   //; Release 9: 750ms ≈ 38 frames
+    .byte <75   //; Release 10: 1.5s ≈ 75 frames
+    .byte <120  //; Release 11: 2.4s ≈ 120 frames
+    .byte <150  //; Release 12: 3s ≈ 150 frames
+    .byte <450  //; Release 13: 9s ≈ 450
+    .byte <750  //; Release 14: 15s ≈ 750
+    .byte <1200  //; Release 15: 24s ≈ 1200
 
-    SustainConversion:        .fill 256, floor(i / 16) * TOP_SPECTROMETER_HEIGHT / 3 + TOP_SPECTROMETER_HEIGHT * 2 + 5
-    ReleaseConversionHi:      .fill 256, >((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
-    ReleaseConversionLo:      .fill 256, <((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
+ReleaseFramesHi:
+    .byte >1    //; Release 0
+    .byte >2    //; Release 1
+    .byte >3    //; Release 2
+    .byte >4    //; Release 3
+    .byte >6    //; Release 4
+    .byte >9    //; Release 5
+    .byte >11   //; Release 6
+    .byte >12   //; Release 7
+    .byte >15   //; Release 8
+    .byte >38   //; Release 9
+    .byte >75   //; Release 10
+    .byte >120  //; Release 11
+    .byte >150  //; Release 12
+    .byte >450  //; Release 13
+    .byte >750  //; Release 14
+    .byte >1200  //; Release 15
 
+//; Pre-computed step rates for attack phase (how much to add per frame)
+//; Updated to use 24-bit precision with two tables
+AttackStepHi:
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 1  )  //; Attack 0: Full height in 1 frame
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 1  )  //; Attack 1: Full height in 1 frame
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 1  )  //; Attack 2: Full height in 1 frame
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 2  )  //; Attack 3: Full height in 2 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 2  )  //; Attack 4: Full height in 2 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 3  )  //; Attack 5: Full height in 3 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 4  )  //; Attack 6: Full height in 4 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 4  )  //; Attack 7: Full height in 4 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 5  )  //; Attack 8: Full height in 5 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 13 )  //; Attack 9: Full height in 13 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 25 )  //; Attack 10: Full height in 25 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 40 )  //; Attack 11: Full height in 40 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 50 )  //; Attack 12: Full height in 50 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 150)  //; Attack 13: Full height in 150 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 250)  //; Attack 14: Full height in 250 frames
+    .byte <(TOP_SPECTROMETER_PIXELHEIGHT / 400)  //; Attack 15: Full height in 400 frames
 
-//;  -------------------------------------------------------------------------
+//; Extension byte for higher precision with 24-bit attack increment
+AttackStepLo:
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 1  )  //; Attack 0
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 1  )  //; Attack 1
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 1  )  //; Attack 2
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 2  )  //; Attack 3
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 2  )  //; Attack 4
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 3  )  //; Attack 5
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 4  )  //; Attack 6
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 4  )  //; Attack 7
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 5  )  //; Attack 8
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 13 )  //; Attack 9
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 25 )  //; Attack 10
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 40 )  //; Attack 11
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 50 )  //; Attack 12
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 150)  //; Attack 13
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 250)  //; Attack 14
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 256) / 400)  //; Attack 15
 
-//; ADSR state tracking
-ChannelADSRState:         .fill 3, ADSR_RELEASE  //; Track current ADSR state for each channel
-ChannelTargetHeights:     .fill 3, 0             //; Target heights for sustain level
-ChannelAttackHi:          .fill 3, 0             //; Attack rates per channel (high byte)
-ChannelAttackLo:          .fill 3, 0             //; Attack rates per channel (low byte)
-ChannelDecayHi:           .fill 3, 0             //; Decay rates per channel (high byte)
-ChannelDecayLo:           .fill 3, 0             //; Decay rates per channel (low byte)
+//; For slower attack rates, we might need to calculate fractional steps
+//; This is the lowest byte of our 24-bit precision
+AttackStepExt:
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 1  )  //; Attack 0
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 1  )  //; Attack 1
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 1  )  //; Attack 2
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 2  )  //; Attack 3
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 2  )  //; Attack 4
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 3  )  //; Attack 5
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 4  )  //; Attack 6
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 4  )  //; Attack 7
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 5  )  //; Attack 8
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 13 )  //; Attack 9
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 25 )  //; Attack 10
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 40 )  //; Attack 11
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 50 )  //; Attack 12
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 150)  //; Attack 13
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 250)  //; Attack 14
+    .byte <((TOP_SPECTROMETER_PIXELHEIGHT * 65536) / 400)  //; Attack 15
 
-//; Color tables for different ADSR phases (optional enhancement)
-ADSRPhaseColors:          .byte $0e, $0a, $07, $0b  //; Colors for Attack, Decay, Sustain, Release
-//; -------------------------------------------------------------------------
+//; Pre-computed decay divider (how many frames to wait before decrementing)
+DecayDividers:
+    .byte 1     //; Decay 0: Decrement every frame
+    .byte 1     //; Decay 1: Decrement every frame
+    .byte 1     //; Decay 2: Decrement every frame
+    .byte 1     //; Decay 3: Decrement every frame
+    .byte 2     //; Decay 4: Decrement every 2 frames
+    .byte 2     //; Decay 5: Decrement every 2 frames
+    .byte 3     //; Decay 6: Decrement every 3 frames
+    .byte 3     //; Decay 7: Decrement every 3 frames
+    .byte 4     //; Decay 8: Decrement every 4 frames
+    .byte 6     //; Decay 9: Decrement every 6 frames
+    .byte 10    //; Decay 10: Decrement every 10 frames
+    .byte 15    //; Decay 11: Decrement every 15 frames
+    .byte 20    //; Decay 12: Decrement every 20 frames
+    .byte 30    //; Decay 13: Decrement every 30 frames
+    .byte 40    //; Decay 14: Decrement every 40 frames
+    .byte 60    //; Decay 15: Decrement every 60 frames
 
-    //; Frequency conversion tables
-    LoFreqToLookupTable:      .fill 256, i / 4
-    HiFreqToLookupTable:      .fill 4, i * 64
+//; Similar dividers for release phase
+ReleaseMultipliers:
+    .byte 1     //; Release 0: Standard release rate
+    .byte 1     //; Release 1: Standard release rate
+    .byte 1     //; Release 2: Standard release rate
+    .byte 1     //; Release 3: Standard release rate
+    .byte 1     //; Release 4: Standard release rate
+    .byte 1     //; Release 5: Standard release rate
+    .byte 1     //; Release 6: Standard release rate
+    .byte 1     //; Release 7: Standard release rate
+    .byte 1     //; Release 8: Standard release rate
+    .byte 1     //; Release 9: Standard release rate
+    .byte 1     //; Release 10: Standard release rate
+    .byte 1     //; Release 11: Standard release rate
+    .byte 1     //; Release 12: Standard release rate
+    .byte 1     //; Release 13: Standard release rate
+    .byte 1     //; Release 14: Standard release rate
+    .byte 1     //; Release 15: Standard release rate
 
-    //; Sine wave data for sprite movement
-    SpriteSine:               .fill spritesine_bin.getSize(), spritesine_bin.get(i)
-    
-    //; Frequency lookup tables
-    FreqTable:                .fill freqtable_bin.getSize(), freqtable_bin.get(i)
+//; Sustain level conversion
+SustainConversion:
+    .fill 16, (i * (TOP_SPECTROMETER_PIXELHEIGHT) / 15)
 
-    //; Analyzer data buffers with padding bytes for smoothing
-    ChannelToFreqMap:               .fill NUM_FREQS_ON_SCREEN, 0                        //; Maps screen positions to SID channels
-    RawBarHeightsHi:                .fill NUM_FREQS_ON_SCREEN, 0                        //; High bytes of raw bar heights
-    RawBarHeightsLo:                .fill NUM_FREQS_ON_SCREEN, 0                        //; Low bytes of raw bar heights
+//; =============================================================================
+//; ADSR State Tracking Variables
+//; =============================================================================
+//; ADSR state for each channel
+ChannelADSRState:         .fill 3, ADSR_RELEASE
 
-    //; Channel-specific release rates
-    ChannelReleaseHi:               .fill 3, 0                                          //; High bytes of release rates per channel
-    ChannelReleaseLo:               .fill 3, 0                                          //; Low bytes of release rates per channel
+//; 16-bit frame counters for ADSR timing
+ChannelFrameCountLo:      .fill 3, 0
+ChannelFrameCountHi:      .fill 3, 0
+ChannelTotalFramesLo:     .fill 3, 0
+ChannelTotalFramesHi:     .fill 3, 0
 
-    //; New buffer for smoothed bar heights
-    SmoothedBarHeights:             .fill NUM_FREQS_ON_SCREEN, 0                        //; Smoothed bar heights
-    
-    //; Current bar heights for drawing
-    .byte $00
-    FrequencyBarHeights:          .fill NUM_FREQS_ON_SCREEN, 0  //; Final heights for display
-    .byte $00
+//; Target heights for sustain phase
+ChannelTargetHeights:     .fill 3, 0
 
-    //; SID register ghost copy for analysis
-    SIDRegisterCopy:            .fill 32, 0    //; Copy of SID registers 
-    PrevSIDRegisterCopy:        .fill 32, 0    //; Previous SID register values for gate detection
+//; Divisor counters for attack/decay/release
+ChannelDivisorCounter:    .fill 3, 0
 
-    //; Color lookup tables
-    DarkColorLookup:            .byte $00, $0c, $00, $0e, $06, $09, $00, $08
-                               .byte $02, $0b, $02, $00, $0b, $05, $06, $0c
+//; Colors for each ADSR phase
+ADSRPhaseColors:
+    .byte $0e   //; Light blue for Attack phase
+    .byte $08   //; Orange for Decay phase
+    .byte $07   //; Yellow for Sustain phase
+    .byte $05   //; Green for Release phase
 
-    //; Color palettes for the visualization
-    .var NUM_COLOR_PALETTES = 4
-    ColorPaletteA:              .byte $09, $04, $0d, $01
-    ColorPaletteB:              .byte $06, $0e, $07, $01
-    ColorPaletteC:              .byte $02, $0a, $0d, $01
-    ColorPaletteD:              .byte $0b, $0c, $0f, $01
+//; SID register ghost copy for analysis
+SIDRegisterCopy:            .fill 32, 0    //; Copy of SID registers 
+PrevSIDRegisterCopy:        .fill 32, 0    //; Previous SID register values for gate detection
 
-    //; Pointers to color palettes
-    ColorPalettePtr_Lo:         .byte <ColorPaletteA, <ColorPaletteB, <ColorPaletteC, <ColorPaletteD
-    ColorPalettePtr_Hi:         .byte >ColorPaletteA, >ColorPaletteB, >ColorPaletteC, >ColorPaletteD
+//; Frequency conversion tables
+LoFreqToLookupTable:      .fill 256, i / 4
+HiFreqToLookupTable:      .fill 4, i * 64
 
-    //; Color mapping table based on bar height
-    BarHeightToColorIndex:    .byte $ff                                      //;  baseline
-                              .fill TOP_SPECTROMETER_PIXELHEIGHT, (i * 4) / TOP_SPECTROMETER_PIXELHEIGHT
-                              .byte $03
+//; Sine wave data for sprite movement
+SpriteSine:               .fill spritesine_bin.getSize(), spritesine_bin.get(i)
 
-    //; Color tables for the visualization
-    BarColorsDark:              .fill TOP_SPECTROMETER_PIXELHEIGHT, $00  //; Darker colors for reflections
-    BarColors:                  .fill TOP_SPECTROMETER_PIXELHEIGHT, $0b  //; Main colors for bars
+//; Frequency lookup tables
+FreqTable:                .fill freqtable_bin.getSize(), freqtable_bin.get(i)
 
-    //; Calculate which IRQ should update the analyzer
-    .var VISUALIZER_UPDATE_IRQ = 0
-    .if (NumCallsPerFrame == 2) {
-        .eval VISUALIZER_UPDATE_IRQ = 1
+//; Analyzer data buffers with padding bytes for smoothing
+ChannelToFreqMap:               .fill NUM_FREQS_ON_SCREEN, 0                        //; Maps screen positions to SID channels
+RawBarHeightsHi:                .fill NUM_FREQS_ON_SCREEN, 0                        //; High bytes of raw bar heights
+RawBarHeightsLo:                .fill NUM_FREQS_ON_SCREEN, 0                        //; Low bytes of raw bar heights
+RawBarHeightsExt:               .fill NUM_FREQS_ON_SCREEN, 0                        //; Extension bytes for 24-bit precision
+
+//; Channel-specific release rates
+ChannelReleaseHi:               .fill 3, 0                                          //; High bytes of release rates per channel
+ChannelReleaseLo:               .fill 3, 0                                          //; Low bytes of release rates per channel
+
+CurrentChannel:                 .byte $00
+
+//; New buffer for smoothed bar heights
+SmoothedBarHeights:             .fill NUM_FREQS_ON_SCREEN, 0                        //; Smoothed bar heights
+
+//; Current bar heights for drawing
+.byte $00
+FrequencyBarHeights:          .fill NUM_FREQS_ON_SCREEN, 0  //; Final heights for display
+.byte $00
+
+//; Color lookup tables
+DarkColorLookup:            .byte $00, $0c, $00, $0e, $06, $09, $00, $08
+                           .byte $02, $0b, $02, $00, $0b, $05, $06, $0c
+
+//; Color palettes for the visualization
+.var NUM_COLOR_PALETTES = 4
+ColorPaletteA:              .byte $09, $04, $0d, $01
+ColorPaletteB:              .byte $06, $0e, $07, $01
+ColorPaletteC:              .byte $02, $0a, $0d, $01
+ColorPaletteD:              .byte $0b, $0c, $0f, $01
+
+//; Pointers to color palettes
+ColorPalettePtr_Lo:         .byte <ColorPaletteA, <ColorPaletteB, <ColorPaletteC, <ColorPaletteD
+ColorPalettePtr_Hi:         .byte >ColorPaletteA, >ColorPaletteB, >ColorPaletteC, >ColorPaletteD
+
+//; Color mapping table based on bar height
+BarHeightToColorIndex:    .byte $ff                                      //;  baseline
+                          .fill TOP_SPECTROMETER_PIXELHEIGHT, (i * 4) / TOP_SPECTROMETER_PIXELHEIGHT
+                          .byte $03
+
+//; Color tables for the visualization
+BarColorsDark:              .fill TOP_SPECTROMETER_PIXELHEIGHT, $00  //; Darker colors for reflections
+BarColors:                  .fill TOP_SPECTROMETER_PIXELHEIGHT, $0b  //; Main colors for bars
+
+//; Calculate which IRQ should update the analyzer
+.var VISUALIZER_UPDATE_IRQ = 0
+.if (NumCallsPerFrame == 2) {
+    .eval VISUALIZER_UPDATE_IRQ = 1
+} else {
+    .if (NumCallsPerFrame == 3) {
+        .eval VISUALIZER_UPDATE_IRQ = 2
     } else {
-        .if (NumCallsPerFrame == 3) {
+        .if (NumCallsPerFrame == 4) {
             .eval VISUALIZER_UPDATE_IRQ = 2
         } else {
-            .if (NumCallsPerFrame == 4) {
-                .eval VISUALIZER_UPDATE_IRQ = 2
+            .if (NumCallsPerFrame == 5) {
+                .eval VISUALIZER_UPDATE_IRQ = 3
             } else {
-                .if (NumCallsPerFrame == 5) {
+                .if (NumCallsPerFrame == 6) {
                     .eval VISUALIZER_UPDATE_IRQ = 3
-                } else {
-                    .if (NumCallsPerFrame == 6) {
-                        .eval VISUALIZER_UPDATE_IRQ = 3
-                    }
                 }
             }
         }
     }
+}
 
-
-    //; Character mapping for meter visualization
-    .var METER_TO_CHAR_PADDING = TOP_SPECTROMETER_PIXELHEIGHT - 8
+//; Character mapping for meter visualization
+.var METER_TO_CHAR_PADDING = TOP_SPECTROMETER_PIXELHEIGHT - 8
 
 .align 256  
-        .fill METER_TO_CHAR_PADDING, 224      //; Initial padding
-    MeterToCharValues:
-        .fill 8, i + 224 + 1              //; First 8 values increment
-        .fill METER_TO_CHAR_PADDING, 224 + 9
+    .fill METER_TO_CHAR_PADDING, 224      //; Initial padding
+MeterToCharValues:
+    .fill 8, i + 224 + 1              //; First 8 values increment
+    .fill METER_TO_CHAR_PADDING, 224 + 9
+
+//; Lookup table for 7*channel calculation
+Mul7: .fill 3, i * 7
 
 EndLocalData:
 
@@ -416,6 +607,11 @@ MUSICPLAYER_Initialize:
         sta ChannelADSRState, x
         lda #0
         sta ChannelTargetHeights, x
+        sta ChannelFrameCountLo, x
+        sta ChannelFrameCountHi, x
+        sta ChannelTotalFramesLo, x
+        sta ChannelTotalFramesHi, x
+        sta ChannelDivisorCounter, x
         dex
         bpl InitADSRLoop
 
@@ -647,34 +843,37 @@ MUSICPLAYER_IRQ_MusicOnly:
 //; =============================================================================
 //; MUSICPLAYER_UpdateADSREnvelopes() - Update envelope state for all channels
 //; =============================================================================
-
-Mul7: .fill 3, i * 7
 MUSICPLAYER_UpdateADSREnvelopes:
         //; Process each SID channel
         ldx #2                              //; Start with channel 2 (0-based indexing)
     ProcessChannelLoop:
+        stx CurrentChannel
+
         //; Check if channel is active by examining gate bit
         ldy Mul7, x
-        lda SIDRegisterCopy + 4, y   //; Control register (D404/D40B/D412)
-        and #1                              //; Isolate gate bit
-        beq ChannelInRelease                //; If gate is off, always in release phase
+        lda SIDRegisterCopy + 4, y         //; Control register (D404/D40B/D412)
+        and #1                             //; Isolate gate bit
+        beq ChannelInRelease               //; If gate is off, force release phase
 
         //; Channel is active (gate on), determine which ADSR phase it's in
-
         lda ChannelADSRState, x
         cmp #ADSR_ATTACK
-        bne !skip+
+        bne !notAttack+
         jmp ProcessAttackPhase
-    !skip:
+    !notAttack:
         cmp #ADSR_DECAY
-        bne !skip+
+        bne !notDecay+
         jmp ProcessDecayPhase
-    !skip:
+    !notDecay:
         cmp #ADSR_SUSTAIN
-        bne !skip+
+        bne !notSustain+
         jmp ProcessSustainPhase
-    !skip:
-        rts
+    !notSustain:
+        
+        //; If we get here, something is wrong - reset to attack phase
+        lda #ADSR_ATTACK
+        sta ChannelADSRState, x
+        jmp ProcessAttackPhase
 
     ChannelInRelease:
         //; Force channel to release phase if gate bit is off
@@ -686,107 +885,222 @@ MUSICPLAYER_UpdateADSREnvelopes:
     //; Attack Phase Processing
     //; -------------------------------------------------------------------------
     ProcessAttackPhase:
+        //; Increment 16-bit frame counter
+        inc ChannelFrameCountLo, x
+        bne !nocarry+
+        inc ChannelFrameCountHi, x
+    !nocarry:
 
-        //; Find all frequency bars controlled by this channel
-        stx !compVal+ + 1
-
+        //; Find all bars controlled by this channel and increase height
         ldy #NUM_FREQS_ON_SCREEN - 1
-    AttackPhaseLoop:
+    !attackLoop:
         lda ChannelToFreqMap, y
-    !compVal:
-        cmp #$ab
-        bne NextFreqAttack
+        cmp CurrentChannel
+        bne !nextBarAttack+
 
-        //; This frequency bar belongs to current channel, update its height
+        //; Get attack step size based on attack value
+        ldx CurrentChannel
+        ldy Mul7, x
+        lda SIDRegisterCopy + 5, y     //; Attack/Decay register
+        lsr
+        lsr
+        lsr
+        lsr                            //; Get attack value (0-15)
+        tay
+        
+        //; Increase height using 24-bit precision (extension, lo, hi)
+        //; Extension byte (lowest precision)
         clc
+        lda RawBarHeightsExt, y
+        adc AttackStepExt, y
+        sta RawBarHeightsExt, y
+        
+        //; Low byte (middle precision)
         lda RawBarHeightsLo, y
-        adc ChannelAttackLo, x
+        adc AttackStepLo, y
         sta RawBarHeightsLo, y
+        
+        //; High byte (highest precision)
         lda RawBarHeightsHi, y
-        adc ChannelAttackHi, x
+        adc AttackStepHi, y
         sta RawBarHeightsHi, y
 
-        //; Check if reached maximum height
-        lda RawBarHeightsHi, y
-        cmp #<(TOP_SPECTROMETER_PIXELHEIGHT - 1)
-        bcc NextFreqAttack
+        //; Cap at maximum height if necessary
+        cmp #<(TOP_SPECTROMETER_PIXELHEIGHT)
+        bcc !nextBarAttack+
+/*        bne !capHeight+
+        lda RawBarHeightsLo, y
+        cmp #<(TOP_SPECTROMETER_PIXELHEIGHT)
+        bcc !nextBarAttack+*/
 
-    ReachedPeak:
-        //; This bar has reached peak, move channel to decay phase
-        lda #ADSR_DECAY
-        sta ChannelADSRState, x
-
-        //; Set exact peak height
-        lda #<(TOP_SPECTROMETER_PIXELHEIGHT - 1)
+    !capHeight:
+        //; Set to exact maximum height
+        lda #<(TOP_SPECTROMETER_PIXELHEIGHT)
         sta RawBarHeightsHi, y
         lda #0
         sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
 
-    NextFreqAttack:
+    !nextBarAttack:
         dey
-        bpl AttackPhaseLoop
-        jmp NextChannel                     //; Process next channel
+        bpl !attackLoop-
+
+        //; Compare 16-bit frame counters to check if attack phase is complete
+        lda ChannelFrameCountLo, x
+        cmp ChannelTotalFramesLo, x
+        lda ChannelFrameCountHi, x
+        sbc ChannelTotalFramesHi, x
+        bcc !continueAttack+           //; If counter < total, continue
+        
+        //; Time is up - transition to decay phase
+        lda #ADSR_DECAY
+        sta ChannelADSRState, x
+        
+        //; Set up decay parameters
+        ldy Mul7, x
+        lda SIDRegisterCopy + 5, y     //; Attack/Decay register
+        and #$0F                       //; Mask to get decay value (0-15)
+        tay
+        lda DecayFramesLo, y           //; Get frame count (low byte)
+        sta ChannelTotalFramesLo, x
+        lda DecayFramesHi, y           //; Get frame count (high byte)
+        sta ChannelTotalFramesHi, x
+        lda #0
+        sta ChannelFrameCountLo, x
+        sta ChannelFrameCountHi, x
+        sta ChannelDivisorCounter, x
+        
+        //; Calculate and store sustain target height
+        ldy Mul7, x
+        lda SIDRegisterCopy + 6, y     //; Sustain/Release register
+        lsr                           //; Get sustain value (0-15)
+        lsr
+        lsr
+        lsr
+        tay
+        lda SustainConversion, y      //; Convert to height
+        sta ChannelTargetHeights, x
+        
+        //; Ensure all bars reach max height at the end of attack phase
+        ldy #NUM_FREQS_ON_SCREEN - 1
+    !setMaxHeightLoop:
+        lda ChannelToFreqMap, y
+        cmp CurrentChannel
+        bne !nextBarSetMax+
+        
+        //; Set this bar to maximum height
+        lda #<(TOP_SPECTROMETER_PIXELHEIGHT)
+        sta RawBarHeightsHi, y
+        lda #0
+        sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
+        
+    !nextBarSetMax:
+        dey
+        bpl !setMaxHeightLoop-
+    
+    !continueAttack:
+        jmp NextChannel
 
     //; -------------------------------------------------------------------------
     //; Decay Phase Processing
     //; -------------------------------------------------------------------------
     ProcessDecayPhase:
-        //; Calculate target sustain level from SID register
+        //; Increment frame counter
+        inc ChannelFrameCountLo, x
+        bne !nocarry+
+        inc ChannelFrameCountHi, x
+    !nocarry:
+
+        //; For slow decay rates, we use a divider counter
         ldy Mul7, x
-        lda SIDRegisterCopy + 6, y  //; Sustain/Release register (D406/D40D/D414)
-        lsr                                 //; Shift right 4 times to get sustain value (high nibble)
-        lsr
-        lsr
-        lsr
+        lda SIDRegisterCopy + 5, y      //; Attack/Decay register
+        and #$0F                        //; Get decay value (0-15)
         tay
-        lda SustainConversion, y            //; Convert to bar height
-        sta ChannelTargetHeights, x
+        lda DecayDividers, y            //; Get divider for this decay rate
+        cmp #1
+        beq !noSkip+                    //; If divider is 1, no need to skip frames
+        
+        //; Handle slow decay by only updating every N frames
+        inc ChannelDivisorCounter, x
+        cmp ChannelDivisorCounter, x
+        bne !skipDecayUpdate+
+        
+        //; Reset divisor counter when it matches the divider
+        lda #0
+        sta ChannelDivisorCounter, x
+        jmp !noSkip+
+        
+    !skipDecayUpdate:
+        //; Skip updating this frame for slow decay rates
+        jmp SkipDecayUpdate
+        
+    !noSkip:
+        //; Compare 16-bit counters
+        lda ChannelFrameCountLo, x
+        cmp ChannelTotalFramesLo, x
+        lda ChannelFrameCountHi, x
+        sbc ChannelTotalFramesHi, x
+        bcc !continueDecay+            //; If counter < total, continue
 
-        //; Get all frequency bars controlled by this channel
-        stx !compVal+ + 1
-
-        ldy #NUM_FREQS_ON_SCREEN - 1
-    DecayPhaseLoop:
-        lda ChannelToFreqMap, y
-    !compVal:
-        cmp #$ab
-        bne NextFreqDecay
-
-        //; Decrease height by decay rate
-        sec
-        lda RawBarHeightsLo, y
-        sbc ChannelDecayLo, x
-        sta RawBarHeightsLo, y
-        lda RawBarHeightsHi, y
-        sbc ChannelDecayHi, x
-        sta RawBarHeightsHi, y
-
-        //; Check if reached sustain level
-        cmp ChannelTargetHeights, x
-        bcc ReachedSustain                  //; If height < target, we've gone below
-        bne NextFreqDecay                   //; If height > target, continue decay
-        lda RawBarHeightsLo, y
-        beq ReachedSustain                  //; If height == target, we're exactly there
-
-        jmp NextFreqDecay
-
-        .byte $12, $01, $09, $13, $14, $0c, $09, $0e
-
-    ReachedSustain:
-        //; This bar has reached sustain level, move channel to sustain phase
+        //; Time is up - transition to sustain phase
         lda #ADSR_SUSTAIN
         sta ChannelADSRState, x
 
-        //; Set exact sustain height
+        //; Set all bars to exact sustain height
+        ldy #NUM_FREQS_ON_SCREEN - 1
+    !findBarsLoop:
+        lda ChannelToFreqMap, y
+        cmp CurrentChannel
+        bne !nextBar+
+
+        //; Set this bar to sustain height
         lda ChannelTargetHeights, x
         sta RawBarHeightsHi, y
         lda #0
         sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
 
-    NextFreqDecay:
+    !nextBar:
         dey
-        bpl DecayPhaseLoop
-        jmp NextChannel                     //; Process next channel
+        bpl !findBarsLoop-
+        jmp NextChannel
+
+    !continueDecay:
+        //; Find all bars controlled by this channel and decrease height
+        ldy #NUM_FREQS_ON_SCREEN - 1
+    !decayLoop:
+        lda ChannelToFreqMap, y
+        cmp CurrentChannel
+        bne !nextBarDecay+
+
+        //; Simple linear decay approach - decrement by 1 each time
+        sec
+        lda RawBarHeightsHi, y
+        sbc #1                        //; Fixed decrement (adjust as needed)
+        sta RawBarHeightsHi, y
+
+        //; Check if reached sustain level
+        cmp ChannelTargetHeights, x
+        bcs !nextBarDecay+
+
+        //; Set to exact sustain level
+        lda ChannelTargetHeights, x
+        sta RawBarHeightsHi, y
+        lda #0
+        sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
+
+        //; Transition to sustain phase
+        lda #ADSR_SUSTAIN
+        sta ChannelADSRState, x
+
+    !nextBarDecay:
+        dey
+        bpl !decayLoop-
+
+    SkipDecayUpdate:
+        jmp NextChannel
 
     //; -------------------------------------------------------------------------
     //; Sustain Phase Processing
@@ -795,99 +1109,97 @@ MUSICPLAYER_UpdateADSREnvelopes:
         //; During Sustain phase, heights remain constant until gate bit is cleared
         //; Check if sustain level changed (e.g., modulated effect)
         ldy Mul7, x
-        lda SIDRegisterCopy + 6, y   //; Sustain/Release register
-        lsr                                 //; Shift to get just sustain value
+        lda SIDRegisterCopy + 6, y     //; Sustain/Release register
+        lsr                           //; Get sustain value (0-15)
         lsr
         lsr
         lsr
         tay
-        lda SustainConversion, y            //; Convert to height
+        lda SustainConversion, y      //; Convert to height
         
         //; Has sustain level changed? If so, update target and return to decay phase
         cmp ChannelTargetHeights, x
         beq SustainLevelUnchanged
         
-        //; Sustain level changed - update target and reprocess
+        //; Sustain level changed - update target
         sta ChannelTargetHeights, x
         
-        //; Determine whether to move to attack or decay phase based on new level
-        stx !compVal+ + 1
-
+        //; Find bars controlled by this channel and adjust height if needed
         ldy #NUM_FREQS_ON_SCREEN - 1
-    CheckNewSustainLevel:
+    !checkBarsLoop:
         lda ChannelToFreqMap, y
-    compVal:
-        cmp #$ab
-        bne NextBarSustainCheck
-        
-        lda RawBarHeightsHi, y
-        cmp ChannelTargetHeights, x
-        bcc MoveToDuringAttack   //; Current height < new sustain = attack
-        bne MoveToDuringDecay    //; Current height > new sustain = decay
-        
-    NextBarSustainCheck:
+        cmp CurrentChannel
+        bne !nextBarCheck+
+
+        //; Set new sustain height immediately
+        lda ChannelTargetHeights, x
+        sta RawBarHeightsHi, y
+        lda #0
+        sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
+
+    !nextBarCheck:
         dey
-        bpl CheckNewSustainLevel
-        jmp SustainLevelUnchanged
-        
-    MoveToDuringAttack:
-        lda #ADSR_ATTACK
-        sta ChannelADSRState, x
-        jmp NextChannel
-        
-    MoveToDuringDecay:
-        lda #ADSR_DECAY
-        sta ChannelADSRState, x
-        jmp NextChannel
+        bpl !checkBarsLoop-
         
     SustainLevelUnchanged:
-        //; Stay in sustain phase
         jmp NextChannel
 
     //; -------------------------------------------------------------------------
     //; Release Phase Processing
     //; -------------------------------------------------------------------------
     ProcessReleasePhase:
-        //; Release phase - all bars for this channel decrease until they reach zero
-        stx !compVal+ + 1
-
+        //; Find all bars controlled by this channel and decrease height to zero
         ldy #NUM_FREQS_ON_SCREEN - 1
-    ReleasePhaseLoop:
+    !releaseLoop:
         lda ChannelToFreqMap, y
-    !compVal:
-        cmp #$ab
-        bne NextFreqRelease
+        cmp CurrentChannel
+        bne !nextBarRelease+
         
-        //; This frequency bar belongs to current channel, decrease height
+        //; Check if bar already at zero height
+        lda RawBarHeightsHi, y
+        ora RawBarHeightsLo, y
+        ora RawBarHeightsExt, y
+        beq !nextBarRelease+             //; Skip if already zero
+        
+        //; Decrease height using release rate
         sec
+        lda RawBarHeightsExt, y
+        sbc #0                          //; No extension byte for release
+        sta RawBarHeightsExt, y
         lda RawBarHeightsLo, y
         sbc ChannelReleaseLo, x
         sta RawBarHeightsLo, y
         lda RawBarHeightsHi, y
         sbc ChannelReleaseHi, x
         
-        //; Check if reached zero (or went negative)
-        bmi ZeroHeight
+        //; Check if reached zero or went negative
+        bmi !setZeroHeight+
         sta RawBarHeightsHi, y
-        ora RawBarHeightsLo, y
-        beq ZeroHeight
-        jmp NextFreqRelease
         
-    ZeroHeight:
+        //; Double check if reached zero
+        ora RawBarHeightsLo, y
+        ora RawBarHeightsExt, y
+        bne !nextBarRelease+
+        
+    !setZeroHeight:
         //; Set height to exactly zero
         lda #0
         sta RawBarHeightsHi, y
         sta RawBarHeightsLo, y
+        sta RawBarHeightsExt, y
         
-    NextFreqRelease:
+    !nextBarRelease:
         dey
-        bpl ReleasePhaseLoop
+        bpl !releaseLoop-
 
     NextChannel:
+        //; Move to next channel
+        ldx CurrentChannel
         dex
-        bmi !noloop+
+        bmi !done+
         jmp ProcessChannelLoop
-    !noloop:
+    !done:
         rts
 
 //; =============================================================================
@@ -965,41 +1277,36 @@ MUSICPLAYER_DrawBars:
 
         !skipBarUpdate:
 
-            //; Update the bar colors if changed
-            lda BarColors, x
-            cmp PrevFrame_BarColors + i
-            beq !skipColorUpdate+
-            sta PrevFrame_BarColors + i
-
+            //; Always update the bar colors based on ADSR state
             //; Get the channel that controls this bar
             ldy ChannelToFreqMap + i
-            cpy #ADSR_RELEASE
-            beq !useStandardColor+
-            
-            //; Use ADSR phase-specific color (optional enhancement)
-            lda ChannelADSRState, y
+            cpy #3                           //; Check if valid channel (0-2)
+            bcs !useStandardColor+
+
+            //; Use color based on ADSR phase
+            lda ChannelADSRState, y          //; Get ADSR state
             tax
-            lda ADSRPhaseColors, x
+            lda ADSRPhaseColors, x           //; Get color for this phase
             jmp !setColors+
-            
+
         !useStandardColor:
-            //; Use standard color
+            //; Use standard color based on height
+            ldx SmoothedBarHeights + i
             lda BarColors, x
             
         !setColors:
+            //; Remember the color for reflection calculation
             //; Set colors for main bars
             .for (var line = 0; line < TOP_SPECTROMETER_HEIGHT; line++) {
                 sta $d800 + ((SPECTROMETER_START_LINE + line) * 40) + ((40 - NUM_FREQS_ON_SCREEN) / 2) + i
             }
 
-            //; Set darker colors for reflection
+            //; Set darker colors for reflection (using saved color)
             tax
             lda DarkColorLookup, x
             .for (var line = 0; line < BOTTOM_SPECTROMETER_HEIGHT; line++) {
                 sta $d800 + ((SPECTROMETER_START_LINE + TOP_SPECTROMETER_HEIGHT + BOTTOM_SPECTROMETER_HEIGHT - 1 - line) * 40) + ((40 - NUM_FREQS_ON_SCREEN) / 2) + i
             }
-
-        !skipColorUpdate:
         }
 
     //; Animate the reflection effect
@@ -1067,7 +1374,7 @@ MUSICPLAYER_AnalyzeSIDRegisters:
         .for (var channel = 0; channel < 3; channel++) {
             //; Check if voice is active (gate bit set and not in noise mode)
             lda SIDRegisterCopy + (channel * 7) + 4  //; Control register
-            bmi !skipChannelJMP+                        //; Skip if in noise mode
+            bmi !skipChannelJMP+                     //; Skip if in noise mode
             and #1                                   //; Check gate bit
             bne !processChannel+                     //; Process if gate is on
         !skipChannelJMP:
@@ -1085,7 +1392,7 @@ MUSICPLAYER_AnalyzeSIDRegisters:
             ldx FreqHiTable, y
             jmp !gotBarPosition+
 
-        !useLoFreqTable:
+!useLoFreqTable:
             //; For lower frequencies, combine lo and hi values
             ldx SIDRegisterCopy + (channel * 7) + 0  //; lo-freq
             lda LoFreqToLookupTable, x
@@ -1094,39 +1401,34 @@ MUSICPLAYER_AnalyzeSIDRegisters:
             ldx FreqLoTable, y
             
         !gotBarPosition:
-            //; Get the attack/decay values
-            ldy SIDRegisterCopy + (channel * 7) + 5  //; attack(hi)/decay(lo)
-            
-            //; Set up attack rate for this channel
-            lda AttackConversionHi, y
-            sta ChannelAttackHi + channel
-            lda AttackConversionLo, y
-            sta ChannelAttackLo + channel
-
-            //; Set up decay rate for this channel
-            lda DecayConversionHi, y
-            sta ChannelDecayHi + channel
-            lda DecayConversionLo, y
-            sta ChannelDecayLo + channel
-
-            //; Get the sustain/release values
-            ldy SIDRegisterCopy + (channel * 7) + 6  //; sustain(hi)/release(lo)
-            
-            //; Set up release rate for this channel
-            lda ReleaseConversionHi, y
-            sta ChannelReleaseHi + channel
-            lda ReleaseConversionLo, y
-            sta ChannelReleaseLo + channel
-
             //; Check for note-on transition (gate bit turning from 0 to 1)
             lda PrevSIDRegisterCopy + (channel * 7) + 4  //; Previous control register
             and #1                                       //; Check previous gate bit
             bne !skipNoteOn+                             //; If gate was already on, skip
             
+            //; This is a new note - start in Attack phase
             lda #ADSR_ATTACK
             sta ChannelADSRState + channel
             
-            //; Clear ALL previous mappings for this channel to ensure only one bar per channel
+            //; Set up attack parameters
+            lda SIDRegisterCopy + (channel * 7) + 5  //; Get attack/decay register
+            lsr
+            lsr
+            lsr
+            lsr                                      //; Shift to get attack value (0-15)
+            tay
+            lda AttackFramesLo, y                    //; Get frame count (low byte)
+            sta ChannelTotalFramesLo + channel
+            lda AttackFramesHi, y                    //; Get frame count (high byte)
+            sta ChannelTotalFramesHi + channel
+
+            //; Reset frame counters and divisor counter
+            lda #0
+            sta ChannelFrameCountLo + channel
+            sta ChannelFrameCountHi + channel
+            sta ChannelDivisorCounter + channel
+            
+            //; Clear all previous mappings for this channel
             ldy #NUM_FREQS_ON_SCREEN - 1
         !clearMappingsLoop:
             lda ChannelToFreqMap, y
@@ -1134,13 +1436,14 @@ MUSICPLAYER_AnalyzeSIDRegisters:
             bne !nextBar+
             
             //; Clear this mapping
-            lda #ADSR_RELEASE
+            lda #ADSR_RELEASE    //; Mark as available
             sta ChannelToFreqMap, y
             
             //; Also reset the height for this bar
             lda #0
             sta RawBarHeightsHi, y
             sta RawBarHeightsLo, y
+            sta RawBarHeightsExt, y
             
         !nextBar:
             dey
@@ -1154,20 +1457,35 @@ MUSICPLAYER_AnalyzeSIDRegisters:
             lda #0
             sta RawBarHeightsHi, x
             sta RawBarHeightsLo, x
+            sta RawBarHeightsExt, x
             
             jmp !skipChannel+        //; Skip the rest of the processing since we've handled everything
 
         !skipNoteOn:
-            //; For ongoing notes, we only update the mapping if needed
-            lda ChannelADSRState + channel
-            cmp #ADSR_ATTACK
-            beq !updateBarMapping+   //; Always update during Attack
-            
-            lda SustainConversion, y //; Get sustain height 
-            cmp RawBarHeightsHi, x   //; Compare to current height
-            bcc !skipChannel+        //; Skip if current is higher
+            //; Get attack/decay values
+            lda SIDRegisterCopy + (channel * 7) + 5  //; attack(hi)/decay(lo)
 
-        !updateBarMapping:
+            //; Get the sustain/release values
+            ldy SIDRegisterCopy + (channel * 7) + 6  //; sustain(hi)/release(lo)
+            
+            //; Set up release rate for this channel
+            sty !yStore+ + 1
+            and #$0F                               //; Mask to get release value (0-15)
+            tay
+            lda ReleaseFramesLo, y                 //; Get frame count (low byte)
+            sta ChannelTotalFramesLo + channel
+            lda ReleaseFramesHi, y                 //; Get frame count (high byte)
+            sta ChannelTotalFramesHi + channel
+        !yStore:
+            ldy #$00
+
+            //; Also set up a simple release rate of 1 per frame
+            //; (We'll handle the actual timing with frame counting)
+            lda #1
+            sta ChannelReleaseHi + channel
+            lda #0
+            sta ChannelReleaseLo + channel
+
             //; Record which channel controls this frequency bar
             lda #channel
             sta ChannelToFreqMap, x

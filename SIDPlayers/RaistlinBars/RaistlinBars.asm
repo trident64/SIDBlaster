@@ -127,14 +127,6 @@ StartLocalData:
     PrevFrame_BarHeights:     .fill NUM_FREQS_ON_SCREEN, 255  //; Previous bar heights
     PrevFrame_BarColors:      .fill NUM_FREQS_ON_SCREEN, 255  //; Previous bar colors
 
-    .align 128
-  
-    SoundBarSine:             .fill 128, (TOP_SPECTROMETER_PIXELHEIGHT - 1.0) * sin(toRadians(i*90/128)) //; Sine wave data for sound bar animation
-
-    .align 256
-
-    Div3Table:                .fill 256, i / 3
-
 //;  -------------------------------------------------------------------------
 //; ADSR Conversion Tables
 //; These tables convert the SID's ADSR values to visual representations
@@ -148,14 +140,45 @@ StartLocalData:
 //;  - Stored as 16-bit value (hi/lo bytes)
 //;  - Higher release values = faster visual decay of bars
 
-    SustainConversion:        .fill 256, floor(i / 16) * TOP_SPECTROMETER_HEIGHT / 3 + TOP_SPECTROMETER_HEIGHT * 2 + 5
-    ReleaseConversionHi:      .fill 256, >((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
-    ReleaseConversionLo:      .fill 256, <((15 - mod(i, 16)) * TOP_SPECTROMETER_HEIGHT * 8 + TOP_SPECTROMETER_HEIGHT * 60)
+    SustainConversion:        .fill 16, (i * (TOP_SPECTROMETER_PIXELHEIGHT - 1)) / 15
+
+    ReleaseConversionLo:      .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 1   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 2   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 3   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 4   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 6   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 9   ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 11  ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 12  ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 15  ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 38  ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 75  ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 120 ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 150 ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 450 ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 750 ) + 32)
+                              .byte <(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 1200) + 32)
+
+    ReleaseConversionHi:      .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 1   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 2   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 3   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 4   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 6   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 9   ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 11  ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 12  ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 15  ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 38  ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 75  ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 120 ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 150 ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 450 ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 750 ) + 32)
+                              .byte >(((TOP_SPECTROMETER_PIXELHEIGHT * 256.0) / 1200) + 32)
+
 //;  -------------------------------------------------------------------------
 
-    //; Frequency conversion tables
-    LoFreqToLookupTable:      .fill 256, i / 4
-    HiFreqToLookupTable:      .fill 4, i * 64
+    Mul64:                    .fill 4, i * 64
 
     //; Sine wave data for sprite movement
     SpriteSine:               .fill spritesine_bin.getSize(), spritesine_bin.get(i)
@@ -165,8 +188,12 @@ StartLocalData:
 
     //; Analyzer data buffers with padding bytes for smoothing
     ChannelToFreqMap:               .fill NUM_FREQS_ON_SCREEN, 0                        //; Maps screen positions to SID channels
-    RawBarHeightsHi:                .fill NUM_FREQS_ON_SCREEN, 0                        //; High bytes of raw bar heights
-    RawBarHeightsLo:                .fill NUM_FREQS_ON_SCREEN, 0                        //; Low bytes of raw bar heights
+
+    .byte $00
+    FrequencyBarHeights:                .fill NUM_FREQS_ON_SCREEN, 0                        //; High bytes of raw bar heights - includes pad-byte before and after for simpler smoothing code
+    .byte $00
+
+    FrequencyBarHeightsLo:                .fill NUM_FREQS_ON_SCREEN, 0                        //; Low bytes of raw bar heights
 
     //; Channel-specific release rates
     ChannelReleaseHi:               .fill 3, 0                                          //; High bytes of release rates per channel
@@ -175,17 +202,12 @@ StartLocalData:
     //; New buffer for smoothed bar heights
     SmoothedBarHeights:             .fill NUM_FREQS_ON_SCREEN, 0                        //; Smoothed bar heights
     
-    //; Current bar heights for drawing
-    .byte $00
-    FrequencyBarHeights:          .fill NUM_FREQS_ON_SCREEN, 0  //; Final heights for display
-    .byte $00
-
     //; SID register ghost copy for analysis
     SIDRegisterCopy:            .fill 32, 0    //; Copy of SID registers 
 
     //; Color lookup tables
     DarkColorLookup:            .byte $00, $0c, $00, $0e, $06, $09, $00, $08
-                               .byte $02, $0b, $02, $00, $0b, $05, $06, $0c
+                                .byte $02, $0b, $02, $00, $0b, $05, $06, $0c
 
     //; Color palettes for the visualization
     .var NUM_COLOR_PALETTES = 4
@@ -200,11 +222,10 @@ StartLocalData:
 
     //; Color mapping table based on bar height
     BarHeightToColorIndex:    .byte $ff                                      //;  baseline
-                              .fill TOP_SPECTROMETER_PIXELHEIGHT, (i * 4) / TOP_SPECTROMETER_PIXELHEIGHT
+                              .fill TOP_SPECTROMETER_PIXELHEIGHT, min((i * 5) / TOP_SPECTROMETER_PIXELHEIGHT, 3)
                               .byte $03
 
     //; Color tables for the visualization
-    BarColorsDark:              .fill TOP_SPECTROMETER_PIXELHEIGHT, $00  //; Darker colors for reflections
     BarColors:                  .fill TOP_SPECTROMETER_PIXELHEIGHT, $0b  //; Main colors for bars
 
     //; Calculate which IRQ should update the analyzer
@@ -231,13 +252,12 @@ StartLocalData:
 
 
     //; Character mapping for meter visualization
-    .var METER_TO_CHAR_PADDING = TOP_SPECTROMETER_PIXELHEIGHT - 8
+    .var METER_TO_CHAR_PADDING = TOP_SPECTROMETER_PIXELHEIGHT
 
-.align 256  
-        .fill METER_TO_CHAR_PADDING, 224      //; Initial padding
+        .fill METER_TO_CHAR_PADDING, 224
     MeterToCharValues:
-        .fill 8, i + 224 + 1              //; First 8 values increment
-        .fill METER_TO_CHAR_PADDING, 224 + 9
+        .fill 8, 225 + i
+        .fill METER_TO_CHAR_PADDING, 233
 
 EndLocalData:
 
@@ -303,9 +323,6 @@ MUSICPLAYER_Initialize:
         lda ColorPaletteA, y         //; Get color from palette
     UseDefaultColor:
         sta BarColors, x             //; Set main color
-        tay
-        lda DarkColorLookup, y       //; Look up darker version
-        sta BarColorsDark, x         //; Set dark color for reflection
         inx
         cpx #TOP_SPECTROMETER_PIXELHEIGHT
         bne InitBarColorsLoop
@@ -492,11 +509,6 @@ MUSICPLAYER_IRQ0:
     UseBaseColor:
         sta BarColors, x
 
-        //; Look up darker version for reflection
-        tay
-        lda DarkColorLookup, y
-        sta BarColorsDark, x
-
         //; Move to next color entry
         lda UpdateNextColorEntry + 1
         clc
@@ -603,22 +615,17 @@ MUSICPLAYER_UpdateBarHeights:
 
         //; Subtract release value from the bar height (16-bit)
         sec
-        lda RawBarHeightsLo, x
+        lda FrequencyBarHeightsLo, x
         sbc ChannelReleaseLo, y
-        sta RawBarHeightsLo, x
-        lda RawBarHeightsHi, x
+        sta FrequencyBarHeightsLo, x
+        lda FrequencyBarHeights, x
         sbc ChannelReleaseHi, y
         bpl BarHeightNotNegative
 
         //; If height went negative, clamp to zero
         lda #$00
-        sta RawBarHeightsLo, x
+        sta FrequencyBarHeightsLo, x
     BarHeightNotNegative:
-        sta RawBarHeightsHi, x
-        
-        //; Convert height to display value using sine wave for a smoother look
-        tay
-        lda SoundBarSine, y
         sta FrequencyBarHeights, x
 
         dex
@@ -658,7 +665,8 @@ MUSICPLAYER_DrawBars:
             //; Check if this bar changed since last frame
             ldx SmoothedBarHeights + i
             cpx PrevFrame_BarHeights + i
-            beq !skipBarUpdate+
+            bne !updateBar+
+            jmp !skipBarUpdate+
 
         !updateBar:
             //; Store new height for next comparison
@@ -666,17 +674,18 @@ MUSICPLAYER_DrawBars:
 
             //; Draw the main spectrometer bars
             .for (var line = 0; line < TOP_SPECTROMETER_HEIGHT; line++) {
-                lda MeterToCharValues - METER_TO_CHAR_PADDING + (line * 8), x
+                lda MeterToCharValues - METER_TO_CHAR_PADDING + ((line + 1) * 8), x
                 sta SCREEN_ADDRESS + ((SPECTROMETER_START_LINE + line) * 40) + ((40 - NUM_FREQS_ON_SCREEN) / 2) + i
             }
 
-            //; Draw the reflection effect (use division by 3 to make it smaller)
-            lda Div3Table, x
+            //; Draw the reflection effect
+            txa
+            lsr
             tay
             .for (var line = 0; line < BOTTOM_SPECTROMETER_HEIGHT; line++) {
                 lda MeterToCharValues - 17 + (line * 8), y
                 clc
-                adc ReflectionOffset + 1     //; Add animation offset
+                adc #10
                 sta SCREEN_ADDRESS + ((SPECTROMETER_START_LINE + TOP_SPECTROMETER_HEIGHT + BOTTOM_SPECTROMETER_HEIGHT - 1 - line) * 40) + ((40 - NUM_FREQS_ON_SCREEN) / 2) + i
             }
 
@@ -694,23 +703,14 @@ MUSICPLAYER_DrawBars:
             }
 
             //; Set darker colors for reflection
-            lda BarColorsDark, x
+            tay
+            lda DarkColorLookup, y
             .for (var line = 0; line < BOTTOM_SPECTROMETER_HEIGHT; line++) {
                 sta $d800 + ((SPECTROMETER_START_LINE + TOP_SPECTROMETER_HEIGHT + BOTTOM_SPECTROMETER_HEIGHT - 1 - line) * 40) + ((40 - NUM_FREQS_ON_SCREEN) / 2) + i
             }
 
         !skipColorUpdate:
         }
-
-    //; Animate the reflection effect
-    ReflectionOffset:
-        lda #10
-        sec
-        sbc #10
-        bne ReflectionOffsetOK
-        lda #20                      //; Loop back to initial value
-    ReflectionOffsetOK:
-        sta ReflectionOffset + 1
 
         rts
 
@@ -785,31 +785,42 @@ MUSICPLAYER_AnalyzeSIDRegisters:
         !useLoFreqTable:
             //; For lower frequencies, combine lo and hi values
             ldx SIDRegisterCopy + (channel * 7) + 0  //; lo-freq
-            lda LoFreqToLookupTable, x
-            ora HiFreqToLookupTable, y
+            txa
+            lsr
+            lsr
+            ora Mul64, y
             tay
             ldx FreqLoTable, y
             
         !gotBarPosition:
             //; Get the sustain/release values
-            ldy SIDRegisterCopy + (channel * 7) + 6  //; sustain(hi)/release(lo)
-            
+            lda SIDRegisterCopy + (channel * 7) + 6  //; sustain(hi)/release(lo)
+            pha
+            and #$0f
+            tay
             //; Set up release rate for this channel
             lda ReleaseConversionHi, y
             sta ChannelReleaseHi + channel
             lda ReleaseConversionLo, y
             sta ChannelReleaseLo + channel
 
+            pla
+            lsr
+            lsr
+            lsr
+            lsr
+            tay
+
             //; Check if we should update the bar height
             lda SustainConversion, y                //; Get sustain height 
-            cmp RawBarHeightsHi + 0, x              //; Compare to current height
+            cmp FrequencyBarHeights + 0, x              //; Compare to current height
             bcc !skipChannel+              //; Skip if current is higher
 
         !updateBarHeight:
             //; Set new bar height
-            sta RawBarHeightsHi + 0, x
+            sta FrequencyBarHeights + 0, x
             lda #0
-            sta RawBarHeightsLo + 0, x
+            sta FrequencyBarHeightsLo + 0, x
             
             //; Record which channel controls this frequency bar
             lda #channel
