@@ -17,7 +17,8 @@ namespace sidblaster {
 
     MusicBuilder::MusicBuilder(const CPU6510* cpu, const SIDLoader* sid)
         : cpu_(cpu), sid_(sid) {
-        // Initialize with default values from configuration
+        // Create an emulator for analysis
+        emulator_ = std::make_unique<SIDEmulator>(const_cast<CPU6510*>(cpu), const_cast<SIDLoader*>(sid));
     }
 
     bool MusicBuilder::buildMusic(
@@ -66,6 +67,28 @@ namespace sidblaster {
             catch (const std::exception& e) {
                 util::Logger::warning(std::string("Failed to create player directory: ") + e.what());
                 // Continue anyway, the assembler will fail if the file doesn't exist
+            }
+
+            // Generate helpful data for double-buffering
+            fs::path helpfulDataFile = tempDir / (basename + "-HelpfulData.asm");
+
+            // Only run analysis if the file doesn't exist
+            if (emulator_) {
+                util::Logger::info("Analyzing SID for helpful data generation...");
+
+                // Configure emulation options
+                SIDEmulator::EmulationOptions options;
+                options.frames = 100; // Just need a short run to identify key patterns
+                options.registerTrackingEnabled = true; // Track register write order
+
+                // Run the emulation
+                if (emulator_->runEmulation(options)) {
+                    // Generate the helpful data file
+                    emulator_->generateHelpfulDataFile(helpfulDataFile.string());
+                }
+                else {
+                    util::Logger::warning("SID analysis failed, helpful data not generated");
+                }
             }
 
             // Create linker file - this now correctly handles SID files with LoadSid
@@ -192,11 +215,6 @@ namespace sidblaster {
             return false;
         }
 
-        // Get basename from music file for determining register order file
-        std::string basename = musicFile.stem().string();
-        fs::path regOrderFile = options.tempDir / (basename + "_regorder.asm");
-        bool hasRegOrderFile = fs::exists(regOrderFile);
-
         // Write the linker file header
         file << "//; ------------------------------------------\n";
         file << "//; SIDBlaster Player Linker\n";
@@ -227,14 +245,21 @@ namespace sidblaster {
         file << ".var PlayerADDR = $" << util::wordToHex(options.playerAddress) << "\n";
         file << "\n";
 
-        // Add register order include if available
-        if (hasRegOrderFile) {
-            file << "// Include SID register order information\n";
-            file << ".import source \"" << regOrderFile.string() << "\"\n";
+        // Add helpful data include if available
+        std::string basename = musicFile.stem().string();
+        fs::path helpfulDataFile = options.tempDir / (basename + "-HelpfulData.asm");
+        bool hasHelpfulDataFile = fs::exists(helpfulDataFile);
+
+        if (hasHelpfulDataFile) {
+            file << "// Include helpful data for double-buffering and register reordering\n";
+            file << ".import source \"" << helpfulDataFile.string() << "\"\n";
         }
         else {
-            file << "// No SID register order information available\n";
-            file << "SIDRegisterCount = 0\n";
+            file << "// No helpful data available\n";
+            file << ".var AddressesThatChangeCount = 0\n";
+            file << ".var AddressesThatChange = List()\n";
+            file << ".var SIDRegisterCount = 0\n";
+            file << ".var SIDRegisterOrder = List()\n";
         }
         file << "\n";
 

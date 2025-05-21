@@ -8,9 +8,9 @@
       "projectTarget": "SIDBlaster.exe",
       "name": "SIDBlaster.exe",
       "args": [
-        "-relocate=$8000",
-        ".\\sid\\92_Little_Shorty_Rockers.sid",
-        "rock8000.sid"
+        "-player=RaistlinBars",
+        ".\\sid\\magnar-firestarter.sid",
+        "firestarter.prg"
       ],
       "currentDir": "${workspaceRoot}"
     }

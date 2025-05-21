@@ -1,12 +1,9 @@
-// ==================================
-//             SIDBlaster
-//
-//  Raistlin / Genesis Project (G*P)
-// ==================================
+// MusicBuilder.h
 #pragma once
 
 #include "../Common.h"
 #include "../SIDFileFormat.h"
+#include "../SIDEmulator.h"
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -89,6 +86,7 @@ namespace sidblaster {
     private:
         const CPU6510* cpu_;  ///< Pointer to CPU
         const SIDLoader* sid_;  ///< Pointer to SID loader
+        std::unique_ptr<SIDEmulator> emulator_; ///< For analyzing SID properties
 
         /**
          * @enum InputType

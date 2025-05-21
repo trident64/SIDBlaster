@@ -156,16 +156,6 @@ namespace sidblaster {
          */
         void applySIDMetadataOverrides(const ProcessingOptions& options);
 
-        /**
-         * @brief Generate SID register order file
-         * @param options Processing options
-         * @param writeTracker The SID write tracker with analyzed data
-         * @return True if file generation succeeded
-         */
-        bool generateRegisterOrderFile(
-            const ProcessingOptions& options,
-            const SIDWriteTracker& writeTracker);
-
     };
 
 } // namespace sidblaster

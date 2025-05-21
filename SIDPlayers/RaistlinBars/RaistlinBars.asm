@@ -714,6 +714,26 @@ MUSICPLAYER_DrawBars:
 
         rts
 
+BackupData:                         .fill AddressesThatChange.size(), $00
+
+BackupAddresses:
+        .for (var i = 0; i < AddressesThatChange.size(); i++)
+        {
+            lda AddressesThatChange.get(i)
+            sta BackupData + i
+        }
+        rts
+        
+RestoreAddresses:
+        .for (var i = 0; i < AddressesThatChange.size(); i++)
+        {
+            lda BackupData + i
+            sta AddressesThatChange.get(i)
+        }
+        rts
+       
+
+
 //; =============================================================================
 //; MUSICPLAYER_PlayMusic() - Handle SID music playback and register capture
 //; =============================================================================
@@ -722,25 +742,24 @@ MUSICPLAYER_PlayMusic:
         lda $01
         pha
         
-        //; Switch to bank with BASIC/KERNAL ROM visible
+        //; first call is our "clean" call which will actually play the music
+        //; we backup and restore everything so that the 2nd call can be made safely
+        jsr BackupAddresses
+        jsr SIDPlay
+        jsr RestoreAddresses
+
         lda #$30
         sta $01
-
-        //; Call the music player routine
         jsr SIDPlay
-
-        //; Copy SID registers to our buffer
         .for (var i=24; i >= 0; i--) {
             lda $d400 + i
             sta SIDRegisterCopy + i
         }
-        
-        //; Restore memory configuration
         pla
         sta $01
 
         //; Write registers back to SID
-        #if SID_REGISTER_REORDER_AVAILABLE
+/*        #if SID_REGISTER_REORDER_AVAILABLE
             //; Use custom register write order if available
             .for (var i = 0; i < SIDRegisterCount; i++) {
                 lda SIDRegisterCopy + SIDRegisterOrder.get(i)
@@ -752,7 +771,7 @@ MUSICPLAYER_PlayMusic:
                 lda SIDRegisterCopy + i
                 sta $d400 + i
             }
-        #endif
+        #endif*/
 
         //; Analyze SID registers and update visualizer
         jmp MUSICPLAYER_AnalyzeSIDRegisters

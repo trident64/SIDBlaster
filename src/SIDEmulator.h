@@ -1,3 +1,4 @@
+// SIDEmulator.h
 #pragma once
 
 #include "Common.h"
@@ -54,7 +55,18 @@ namespace sidblaster {
          */
         std::pair<u64, u64> getCycleStats() const;
 
+        /**
+         * @brief Get the register write tracker
+         * @return Reference to the write tracker
+         */
         const SIDWriteTracker& getWriteTracker() const { return writeTracker_; }
+
+        /**
+         * @brief Generate a helpful data file with addresses that change and register order
+         * @param filename Output filename
+         * @return True if file was successfully created
+         */
+        bool generateHelpfulDataFile(const std::string& filename) const;
 
     private:
         CPU6510* cpu_;                 ///< CPU instance
@@ -64,7 +76,7 @@ namespace sidblaster {
         u64 maxCyclesPerFrame_ = 0;    ///< Maximum cycles used in a frame
         int framesExecuted_ = 0;       ///< Number of frames executed
 
-        SIDWriteTracker writeTracker_;
+        SIDWriteTracker writeTracker_; ///< Tracks SID register write order
 
     };
 
