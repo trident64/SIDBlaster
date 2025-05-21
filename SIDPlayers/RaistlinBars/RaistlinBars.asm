@@ -1,3 +1,8 @@
+#define SID_REGISTER_REORDER_AVAILABLE
+.const SIDRegisterCount = $19
+.const SIDRegisterOrder = List().add($5,$6,$0,$1,$2,$3,  $c,$d,$7,$8,$9,$a,  $13,$14,$e,$f,$10,$11,  $15,$16,$17,$18,  $4,$b,$12)
+.const SIDRegisterWait  = List().add(0,0,0,0,0,0,        0,0,0,0,0,0,        0,0,0,0,0,0,            0,0,0,10,         0,0,0,0)
+
 //; =============================================================================
 //; RaistlinBars - SID Music Visualizer with Spectrum Analyzer Effect
 //; (c) 2018, Raistlin of Genesis*Project
@@ -745,6 +750,13 @@ MUSICPLAYER_PlayMusic:
             .for (var i = 0; i < SIDRegisterCount; i++) {
                 lda SIDRegisterCopy + SIDRegisterOrder.get(i)
                 sta $d400 + SIDRegisterOrder.get(i)
+                .if (SIDRegisterWait.get(i) > 0) {
+                    ldx #0
+                !:
+                    inx
+                    cpx #SIDRegisterWait.get(i)
+                    bne !-
+                }
             }
         #else
             //; Standard register write order
