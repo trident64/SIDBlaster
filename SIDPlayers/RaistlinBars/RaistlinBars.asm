@@ -931,8 +931,8 @@ PreDemoSetup:
 //; =============================================================================
 //; Include necessary system files
 //; =============================================================================
-.import source "..\INC\NMIFix.asm"
-.import source "..\INC\RasterLineTiming.asm"
+.import source "../INC/NMIFix.asm"
+.import source "../INC/RasterLineTiming.asm"
 
 EndCodeSegment:
 
